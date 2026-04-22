@@ -1014,9 +1014,9 @@ static void rtc_build_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void rtc_class_initfn(ObjectClass *klass, const void *data)
+void MC146818RtcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
@@ -1034,17 +1034,6 @@ static const InterfaceInfo mc146818rtc_interfaces[] = {
     { },
 };
 
-static const TypeInfo mc146818rtc_info = {
-    .name          = TYPE_MC146818_RTC,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(MC146818RtcState),
-    .class_init    = rtc_class_initfn,
-    .interfaces    = mc146818rtc_interfaces,
-};
-
-static void mc146818rtc_register_types(void)
-{
-    type_register_static(&mc146818rtc_info);
-}
-
-type_init(mc146818rtc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(MC146818RtcState, TYPE_MC146818_RTC,
+                             TYPE_ISA_DEVICE, mc146818rtc_interfaces)

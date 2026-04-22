@@ -1050,9 +1050,9 @@ static const Property ati_vga_properties[] = {
     DEFINE_PROP_UINT8("x-pixman", ATIVGAState, use_pixman, DEFAULT_X_PIXMAN),
 };
 
-static void ati_vga_class_init(ObjectClass *klass, const void *data)
+void ATIVGAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, ati_vga_reset);
@@ -1068,9 +1068,9 @@ static void ati_vga_class_init(ObjectClass *klass, const void *data)
     k->exit = ati_vga_exit;
 }
 
-static void ati_vga_init(Object *o)
+void ATIVGAState::init()
 {
-    object_property_set_description(o, "x-pixman", "Use pixman for: "
+    object_property_set_description(OBJECT(this), "x-pixman", "Use pixman for: "
                                     "1: fill, 2: blit");
 }
 
@@ -1079,18 +1079,6 @@ static const InterfaceInfo ati_vga_interfaces[] = {
     { },
 };
 
-static const TypeInfo ati_vga_info = {
-    .name = TYPE_ATI_VGA,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ATIVGAState),
-    .instance_init = ati_vga_init,
-    .class_init = ati_vga_class_init,
-    .interfaces = ati_vga_interfaces,
-};
-
-static void ati_vga_register_types(void)
-{
-    type_register_static(&ati_vga_info);
-}
-
-type_init(ati_vga_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ATIVGAState, TYPE_ATI_VGA,
+                             TYPE_PCI_DEVICE, ati_vga_interfaces)

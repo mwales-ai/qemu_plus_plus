@@ -47,6 +47,10 @@ struct I8257State {
     int running;
     PortioList portio_page;
     PortioList portio_pageh;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void i8257_dma_init(Object *parent, ISABus *bus, bool high_page_enable);

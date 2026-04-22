@@ -109,6 +109,10 @@ struct IOAPICCommonState {
     int irq_level[IOAPIC_NUM_PINS];
     int irq_eoi[IOAPIC_NUM_PINS];
     QEMUTimer *delayed_ioapic_service_timer;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

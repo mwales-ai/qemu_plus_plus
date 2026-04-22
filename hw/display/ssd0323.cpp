@@ -65,6 +65,8 @@ struct ssd0323_state {
     int32_t remap;
     uint32_t mode;
     uint8_t framebuffer[128 * 80 / 2];
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_SSD0323 "ssd0323"
@@ -363,9 +365,9 @@ static void ssd0323_realize(SSIPeripheral *d, Error **errp)
     qdev_init_gpio_in(dev, ssd0323_cd, 1);
 }
 
-static void ssd0323_class_init(ObjectClass *klass, const void *data)
+void ssd0323_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = ssd0323_realize;
@@ -375,16 +377,5 @@ static void ssd0323_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo ssd0323_info = {
-    .name          = TYPE_SSD0323,
-    .parent        = TYPE_SSI_PERIPHERAL,
-    .instance_size = sizeof(ssd0323_state),
-    .class_init    = ssd0323_class_init,
-};
-
-static void ssd03232_register_types(void)
-{
-    type_register_static(&ssd0323_info);
-}
-
-type_init(ssd03232_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ssd0323_state, TYPE_SSD0323, TYPE_SSI_PERIPHERAL)

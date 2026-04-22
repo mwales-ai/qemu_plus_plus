@@ -96,6 +96,8 @@ struct pci_vmsvga_state_s {
 
     struct vmsvga_state_s chip;
     MemoryRegion io_bar;
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define SVGA_MAGIC              0x900000UL
@@ -1343,9 +1345,9 @@ static const Property vga_vmware_properties[] = {
                      chip.vga.global_vmstate, false),
 };
 
-static void vmsvga_class_init(ObjectClass *klass, const void *data)
+void pci_vmsvga_state_s::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_vmsvga_realize;
@@ -1362,20 +1364,11 @@ static void vmsvga_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo vmsvga_info = {
-    .name          = TYPE_VMWARE_SVGA,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(struct pci_vmsvga_state_s),
-    .class_init    = vmsvga_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo vmsvga_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void vmsvga_register_types(void)
-{
-    type_register_static(&vmsvga_info);
-}
-
-type_init(vmsvga_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(pci_vmsvga_state_s, TYPE_VMWARE_SVGA,
+                             TYPE_PCI_DEVICE, vmsvga_interfaces)

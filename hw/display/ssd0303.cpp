@@ -64,6 +64,8 @@ struct ssd0303_state {
     uint32_t mode;
     uint32_t cmd_state;
     uint8_t framebuffer[132*8];
+
+    static void classInit(DeviceClass *dc);
 };
 
 static uint8_t ssd0303_recv(I2CSlave *i2c)
@@ -313,9 +315,9 @@ static void ssd0303_realize(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
-static void ssd0303_class_init(ObjectClass *klass, const void *data)
+void ssd0303_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     dc->realize = ssd0303_realize;
@@ -325,16 +327,5 @@ static void ssd0303_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_ssd0303;
 }
 
-static const TypeInfo ssd0303_info = {
-    .name          = TYPE_SSD0303,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(ssd0303_state),
-    .class_init    = ssd0303_class_init,
-};
-
-static void ssd0303_register_types(void)
-{
-    type_register_static(&ssd0303_info);
-}
-
-type_init(ssd0303_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ssd0303_state, TYPE_SSD0303, TYPE_I2C_SLAVE)

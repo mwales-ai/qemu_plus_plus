@@ -51,6 +51,10 @@ struct MC146818RtcState {
     LostTickPolicy lost_tick_policy;
     Notifier suspend_notifier;
     QLIST_ENTRY(MC146818RtcState) link;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define RTC_ISA_IRQ 8

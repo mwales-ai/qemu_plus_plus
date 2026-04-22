@@ -596,9 +596,9 @@ static const Property i8257_properties[] = {
     DEFINE_PROP_INT32("dshift", I8257State, dshift, 0),
 };
 
-static void i8257_class_init(ObjectClass *klass, const void *data)
+void I8257State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     IsaDmaClass *idc = ISADMA_CLASS(klass);
 
     dc->realize = i8257_realize;
@@ -622,20 +622,9 @@ static const InterfaceInfo i8257_interfaces[] = {
     { }
 };
 
-static const TypeInfo i8257_info = {
-    .name = TYPE_I8257,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(I8257State),
-    .class_init = i8257_class_init,
-    .interfaces = i8257_interfaces,
-};
-
-static void i8257_register_types(void)
-{
-    type_register_static(&i8257_info);
-}
-
-type_init(i8257_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(I8257State, TYPE_I8257,
+                             TYPE_ISA_DEVICE, i8257_interfaces)
 
 void i8257_dma_init(Object *parent, ISABus *bus, bool high_page_enable)
 {

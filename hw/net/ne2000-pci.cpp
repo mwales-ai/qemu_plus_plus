@@ -30,10 +30,13 @@
 #include "ne2000.h"
 #include "system/system.h"
 
-typedef struct PCINE2000State {
+struct PCINE2000State {
     PCIDevice dev;
     NE2000State ne2000;
-} PCINE2000State;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static const VMStateDescription vmstate_pci_ne2000 = {
     .name = "ne2000",
@@ -85,24 +88,22 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
     qemu_free_irq(s->irq);
 }
 
-static void ne2000_instance_init(Object *obj)
+void PCINE2000State::init()
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
-    NE2000State *s = &d->ne2000;
+    NE2000State *s = &this->ne2000;
 
-    device_add_bootindex_property(obj, &s->c.bootindex,
+    device_add_bootindex_property(OBJECT(this), &s->c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  &pci_dev->qdev);
+                                  DEVICE(this));
 }
 
 static const Property ne2000_properties[] = {
     DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
 };
 
-static void ne2000_class_init(ObjectClass *klass, const void *data)
+void PCINE2000State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_ne2000_realize;
@@ -121,18 +122,6 @@ static const InterfaceInfo ne2000_interfaces[] = {
     { },
 };
 
-static const TypeInfo ne2000_info = {
-    .name          = "ne2k_pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCINE2000State),
-    .instance_init = ne2000_instance_init,
-    .class_init    = ne2000_class_init,
-    .interfaces    = ne2000_interfaces,
-};
-
-static void ne2000_register_types(void)
-{
-    type_register_static(&ne2000_info);
-}
-
-type_init(ne2000_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCINE2000State, "ne2k_pci",
+                             TYPE_PCI_DEVICE, ne2000_interfaces)

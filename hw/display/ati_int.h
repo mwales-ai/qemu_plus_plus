@@ -104,6 +104,11 @@ struct ATIVGAState {
     MemoryRegion io;
     MemoryRegion mm;
     ATIVGARegs regs;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 const char *ati_reg_name(int num);

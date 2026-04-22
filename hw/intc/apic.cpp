@@ -1150,8 +1150,9 @@ static void apic_unrealize(DeviceState *dev)
     local_apics[s->initial_apic_id] = NULL;
 }
 
-static void apic_class_init(ObjectClass *klass, const void *data)
+void APICCommonState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = apic_realize;
@@ -1166,16 +1167,5 @@ static void apic_class_init(ObjectClass *klass, const void *data)
     k->send_msi = apic_send_msi;
 }
 
-static const TypeInfo apic_info = {
-    .name          = TYPE_APIC,
-    .parent        = TYPE_APIC_COMMON,
-    .instance_size = sizeof(APICCommonState),
-    .class_init    = apic_class_init,
-};
-
-static void apic_register_types(void)
-{
-    type_register_static(&apic_info);
-}
-
-type_init(apic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(APICCommonState, TYPE_APIC, TYPE_APIC_COMMON)

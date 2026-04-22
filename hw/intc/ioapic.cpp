@@ -486,10 +486,10 @@ static const Property ioapic_properties[] = {
     DEFINE_PROP_UINT8("version", IOAPICCommonState, version, IOAPIC_VER_DEF),
 };
 
-static void ioapic_class_init(ObjectClass *klass, const void *data)
+void IOAPICCommonState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = ioapic_realize;
     k->unrealize = ioapic_unrealize;
@@ -502,16 +502,5 @@ static void ioapic_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, ioapic_properties);
 }
 
-static const TypeInfo ioapic_info = {
-    .name          = TYPE_IOAPIC,
-    .parent        = TYPE_IOAPIC_COMMON,
-    .instance_size = sizeof(IOAPICCommonState),
-    .class_init    = ioapic_class_init,
-};
-
-static void ioapic_register_types(void)
-{
-    type_register_static(&ioapic_info);
-}
-
-type_init(ioapic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IOAPICCommonState, TYPE_IOAPIC, TYPE_IOAPIC_COMMON)
