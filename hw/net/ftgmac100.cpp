@@ -1258,10 +1258,8 @@ static const Property ftgmac100_properties[] = {
     DEFINE_PROP_BOOL("dma64", FTGMAC100State, dma64, false),
 };
 
-static void ftgmac100_class_init(ObjectClass *klass, const void *data)
+void FTGMAC100State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_ftgmac100;
     device_class_set_legacy_reset(dc, ftgmac100_reset);
     device_class_set_props(dc, ftgmac100_properties);
@@ -1269,13 +1267,6 @@ static void ftgmac100_class_init(ObjectClass *klass, const void *data)
     dc->realize = ftgmac100_realize;
     dc->desc = "Faraday FTGMAC100 Gigabit Ethernet emulation";
 }
-
-static const TypeInfo ftgmac100_info = {
-    .name = TYPE_FTGMAC100,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FTGMAC100State),
-    .class_init = ftgmac100_class_init,
-};
 
 /*
  * AST2600 MII controller
@@ -1416,10 +1407,8 @@ static const Property aspeed_mii_properties[] = {
                      FTGMAC100State *),
 };
 
-static void aspeed_mii_class_init(ObjectClass *klass, const void *data)
+void AspeedMiiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_aspeed_mii;
     device_class_set_legacy_reset(dc, aspeed_mii_reset);
     dc->realize = aspeed_mii_realize;
@@ -1427,17 +1416,19 @@ static void aspeed_mii_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_mii_properties);
 }
 
-static const TypeInfo aspeed_mii_info = {
-    .name = TYPE_ASPEED_MII,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedMiiState),
-    .class_init = aspeed_mii_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void ftgmac100_register_types(void)
+static void aspeed_mii_register(void) __attribute__((constructor));
+static void aspeed_mii_register(void)
 {
-    type_register_static(&ftgmac100_info);
-    type_register_static(&aspeed_mii_info);
+    static TypeInfo info = {
+        .name = TYPE_ASPEED_MII,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedMiiState),
+        .class_init = qemu_device_detail::trampoline_class_init<AspeedMiiState>,
+    };
+    info.cpp_vtable = qemu_device_detail::extract_vtable<AspeedMiiState>();
+    type_register_static(&info);
 }
 
-type_init(ftgmac100_register_types)
+REGISTER_QEMU_DEVICE(FTGMAC100State, TYPE_FTGMAC100, TYPE_SYS_BUS_DEVICE)

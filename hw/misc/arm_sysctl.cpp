@@ -51,6 +51,10 @@ struct arm_sysctl_state {
     uint32_t *db_voltage;
     uint32_t db_num_clocks;
     uint32_t *db_clock_reset;
+
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_arm_sysctl_fields[] = {
@@ -596,17 +600,16 @@ static void arm_sysctl_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static void arm_sysctl_init(Object *obj)
+void arm_sysctl_state::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    arm_sysctl_state *s = ARM_SYSCTL(obj);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &arm_sysctl_ops, s,
+    memory_region_init_io(&this->iomem, OBJECT(dev), &arm_sysctl_ops, this,
                           "arm-sysctl", 0x1000);
-    sysbus_init_mmio(sd, &s->iomem);
+    sysbus_init_mmio(sd, &this->iomem);
     qdev_init_gpio_in(dev, arm_sysctl_gpio_set, 2);
-    qdev_init_gpio_out(dev, &s->pl110_mux_ctrl, 1);
+    qdev_init_gpio_out(dev, &this->pl110_mux_ctrl, 1);
 }
 
 static void arm_sysctl_realize(DeviceState *d, Error **errp)
@@ -616,13 +619,11 @@ static void arm_sysctl_realize(DeviceState *d, Error **errp)
     s->db_clock = g_new0(uint32_t, s->db_num_clocks);
 }
 
-static void arm_sysctl_finalize(Object *obj)
+void arm_sysctl_state::finalize()
 {
-    arm_sysctl_state *s = ARM_SYSCTL(obj);
-
-    g_free(s->db_voltage);
-    g_free(s->db_clock);
-    g_free(s->db_clock_reset);
+    g_free(this->db_voltage);
+    g_free(this->db_clock);
+    g_free(this->db_clock_reset);
 }
 
 static const Property arm_sysctl_properties[] = {
@@ -636,28 +637,13 @@ static const Property arm_sysctl_properties[] = {
                       db_clock_reset, qdev_prop_uint32, uint32_t),
 };
 
-static void arm_sysctl_class_init(ObjectClass *klass, const void *data)
+void arm_sysctl_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = arm_sysctl_realize;
     device_class_set_legacy_reset(dc, arm_sysctl_reset);
     dc->vmsd = &vmstate_arm_sysctl;
     device_class_set_props(dc, arm_sysctl_properties);
 }
 
-static const TypeInfo arm_sysctl_info = {
-    .name          = TYPE_ARM_SYSCTL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(arm_sysctl_state),
-    .instance_init = arm_sysctl_init,
-    .instance_finalize = arm_sysctl_finalize,
-    .class_init    = arm_sysctl_class_init,
-};
-
-static void arm_sysctl_register_types(void)
-{
-    type_register_static(&arm_sysctl_info);
-}
-
-type_init(arm_sysctl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(arm_sysctl_state, TYPE_ARM_SYSCTL, TYPE_SYS_BUS_DEVICE)

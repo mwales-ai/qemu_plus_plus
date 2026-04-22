@@ -54,12 +54,22 @@ struct UNINHostState {
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
     MemoryRegion pci_io;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct UNINState {
     SysBusDevice parent_obj;
 
     MemoryRegion mem;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_UNI_NORTH "uni-north"

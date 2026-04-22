@@ -83,6 +83,10 @@ struct MPTSASState {
     uint16_t reply_frame_size;
 
     SCSIBus bus;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void mptsas_fix_scsi_io_endianness(MPIMsgSCSIIORequest *req);

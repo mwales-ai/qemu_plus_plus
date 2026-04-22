@@ -116,6 +116,11 @@ struct IMXGPTState {
     qemu_irq irq;
 
     const IMXClk *clocks;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_GPT_H */

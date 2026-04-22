@@ -66,9 +66,9 @@ static void simba_pci_bridge_realize(PCIDevice *dev, Error **errp)
     pci_bridge_update_mappings(PCI_BRIDGE(br));
 }
 
-static void simba_pci_bridge_class_init(ObjectClass *klass, const void *data)
+void SimbaPCIBridge::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = simba_pci_bridge_realize;
@@ -82,20 +82,11 @@ static void simba_pci_bridge_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_pci_device;
 }
 
-static const TypeInfo simba_pci_bridge_info = {
-    .name          = TYPE_SIMBA_PCI_BRIDGE,
-    .parent        = TYPE_PCI_BRIDGE,
-    .class_init    = simba_pci_bridge_class_init,
-    .instance_size = sizeof(SimbaPCIBridge),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo simba_pci_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void simba_register_types(void)
-{
-    type_register_static(&simba_pci_bridge_info);
-}
-
-type_init(simba_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SimbaPCIBridge, TYPE_SIMBA_PCI_BRIDGE,
+                             TYPE_PCI_BRIDGE, simba_pci_bridge_interfaces)

@@ -18,6 +18,10 @@ typedef struct CXLUpstreamPort {
 
     DOECap doe_cdat;
     uint64_t sn;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } CXLUpstreamPort;
 
 #endif /* CXL_SUP_H */

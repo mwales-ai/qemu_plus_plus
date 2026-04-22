@@ -309,11 +309,9 @@ static void pc87312_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void pc87312_initfn(Object *obj)
+void PC87312State::init()
 {
-    PC87312State *s = PC87312(obj);
-
-    memory_region_init_io(&s->io, obj, &pc87312_io_ops, s, "pc87312", 2);
+    memory_region_init_io(&this->io, OBJECT(this), &pc87312_io_ops, this, "pc87312", 2);
 }
 
 static const VMStateField vmstate_pc87312_fields[] = {
@@ -336,9 +334,9 @@ static const Property pc87312_properties[] = {
     DEFINE_PROP_UINT8("config", PC87312State, config, 1),
 };
 
-static void pc87312_class_init(ObjectClass *klass, const void *data)
+void PC87312State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
     device_class_set_legacy_reset(dc, pc87312_reset);

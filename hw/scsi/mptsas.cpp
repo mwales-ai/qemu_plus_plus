@@ -1409,10 +1409,10 @@ static const Property mptsas_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),
 };
 
-static void mptsas1068_class_init(ObjectClass *oc, const void *data)
+void MPTSASState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
 
     pc->realize = mptsas_scsi_realize;
     pc->exit = mptsas_scsi_uninit;
@@ -1434,17 +1434,6 @@ static const InterfaceInfo mptsas_interfaces[] = {
     { },
 };
 
-static const TypeInfo mptsas_info = {
-    .name = TYPE_MPTSAS1068,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MPTSASState),
-    .class_init = mptsas1068_class_init,
-    .interfaces = mptsas_interfaces,
-};
-
-static void mptsas_register_types(void)
-{
-    type_register_static(&mptsas_info);
-}
-
-type_init(mptsas_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(MPTSASState, TYPE_MPTSAS1068, TYPE_PCI_DEVICE,
+                             mptsas_interfaces)

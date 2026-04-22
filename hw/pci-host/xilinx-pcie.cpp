@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
 #include "hw/pci-host/xilinx-pcie.h"
+#include "qom/cpp/object.h"
 
 enum root_cfg_reg {
     /* Interrupt Decode Register */
@@ -146,14 +147,13 @@ static const char *xilinx_pcie_host_root_bus_path(PCIHostState *host_bridge,
     return "0000:00";
 }
 
-static void xilinx_pcie_host_init(Object *obj)
+void XilinxPCIEHost::init()
 {
-    XilinxPCIEHost *s = XILINX_PCIE_HOST(obj);
-    XilinxPCIERoot *root = &s->root;
+    XilinxPCIERoot *r = &root;
 
-    object_initialize_child(obj, "root", root, TYPE_XILINX_PCIE_ROOT);
-    qdev_prop_set_int32(DEVICE(root), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(root), "multifunction", false);
+    object_initialize_child(OBJECT(this), "root", r, TYPE_XILINX_PCIE_ROOT);
+    qdev_prop_set_int32(DEVICE(r), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(DEVICE(r), "multifunction", false);
 }
 
 static const Property xilinx_pcie_host_props[] = {
@@ -165,9 +165,9 @@ static const Property xilinx_pcie_host_props[] = {
     DEFINE_PROP_BOOL("link_up", XilinxPCIEHost, link_up, true),
 };
 
-static void xilinx_pcie_host_class_init(ObjectClass *klass, const void *data)
+void XilinxPCIEHost::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = xilinx_pcie_host_root_bus_path;
@@ -177,13 +177,7 @@ static void xilinx_pcie_host_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, xilinx_pcie_host_props);
 }
 
-static const TypeInfo xilinx_pcie_host_info = {
-    .name       = TYPE_XILINX_PCIE_HOST,
-    .parent     = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(XilinxPCIEHost),
-    .instance_init = xilinx_pcie_host_init,
-    .class_init = xilinx_pcie_host_class_init,
-};
+/* XilinxPCIEHost registered via REGISTER_QEMU_DEVICE below */
 
 static uint32_t xilinx_pcie_root_config_read(PCIDevice *d,
                                              uint32_t address, int len)
@@ -322,10 +316,11 @@ static const TypeInfo xilinx_pcie_root_info = {
     .interfaces = xilinx_pcie_root_interfaces,
 };
 
-static void xilinx_pcie_register(void)
+REGISTER_QEMU_DEVICE(XilinxPCIEHost, TYPE_XILINX_PCIE_HOST,
+                     TYPE_PCIE_HOST_BRIDGE)
+
+static void xilinx_pcie_secondary_register(void) __attribute__((constructor));
+static void xilinx_pcie_secondary_register(void)
 {
     type_register_static(&xilinx_pcie_root_info);
-    type_register_static(&xilinx_pcie_host_info);
 }
-
-type_init(xilinx_pcie_register)

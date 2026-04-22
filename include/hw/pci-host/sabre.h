@@ -45,6 +45,11 @@ struct SabreState {
     unsigned int irq_request;
     uint32_t reset_control;
     unsigned int nr_resets;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_SABRE "sabre"

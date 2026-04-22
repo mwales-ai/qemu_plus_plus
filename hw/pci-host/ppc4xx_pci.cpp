@@ -33,6 +33,7 @@
 #include "hw/pci/pci_host.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 struct PCIMasterMap {
     uint32_t la;
@@ -73,7 +74,7 @@ struct PPC4xxPCIState {
     void realize(Error **errp);
     static void realizeWrapper(DeviceState *dev, Error **errp);
 
-    static void pcihostClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void hostBridgeClassInit(ObjectClass *klass, const void *data);
 };
 
@@ -310,25 +311,17 @@ static const TypeInfo ppc4xx_host_bridge_info = {
     .interfaces = ppc4xx_host_bridge_interfaces,
 };
 
-void PPC4xxPCIState::pcihostClassInit(ObjectClass *klass, const void *data)
+void PPC4xxPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = PPC4xxPCIState::realizeWrapper;
     dc->vmsd = &vmstate_ppc4xx_pci;
 }
 
-static const TypeInfo ppc4xx_pcihost_info = {
-    .name          = TYPE_PPC4xx_PCI_HOST,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(PPC4xxPCIState),
-    .class_init    = PPC4xxPCIState::pcihostClassInit,
-};
+REGISTER_QEMU_DEVICE(PPC4xxPCIState, TYPE_PPC4xx_PCI_HOST,
+                     TYPE_PCI_HOST_BRIDGE)
 
-static void ppc4xx_pci_register_types(void)
+static void ppc4xx_secondary_register_types(void) __attribute__((constructor));
+static void ppc4xx_secondary_register_types(void)
 {
-    type_register_static(&ppc4xx_pcihost_info);
     type_register_static(&ppc4xx_host_bridge_info);
 }
-
-type_init(ppc4xx_pci_register_types)

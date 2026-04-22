@@ -39,6 +39,7 @@
 #include "qemu/module.h"
 #include "system/runstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /*
  * Chipset docs:
@@ -402,49 +403,49 @@ static void sabre_realize(DeviceState *dev, Error **errp)
     pci_realize_and_unref(pci_dev, phb->bus, &error_fatal);
 }
 
-static void sabre_init(Object *obj)
+void SabreState::init()
 {
-    SabreState *s = SABRE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     unsigned int i;
 
     for (i = 0; i < 8; i++) {
-        s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
+        pci_irq_map[i] = (0x1f << 6) | (i << 2);
     }
     for (i = 0; i < 2; i++) {
-        s->pci_err_irq_map[i] = (0x1f << 6) | 0x30;
+        pci_err_irq_map[i] = (0x1f << 6) | 0x30;
     }
     for (i = 0; i < 32; i++) {
-        s->obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;
+        obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;
     }
-    qdev_init_gpio_in_named(DEVICE(s), pci_sabre_set_irq, "pbm-irq", MAX_IVEC);
-    qdev_init_gpio_out_named(DEVICE(s), s->ivec_irqs, "ivec-irq", MAX_IVEC);
-    s->irq_request = NO_IRQ_REQUEST;
-    s->pci_irq_in = 0ULL;
+    qdev_init_gpio_in_named(DEVICE(this), pci_sabre_set_irq, "pbm-irq", MAX_IVEC);
+    qdev_init_gpio_out_named(DEVICE(this), ivec_irqs, "ivec-irq", MAX_IVEC);
+    irq_request = NO_IRQ_REQUEST;
+    pci_irq_in = 0ULL;
 
     /* IOMMU */
     object_property_add_link(obj, "iommu", TYPE_SUN4U_IOMMU,
-                             (Object **) &s->iommu,
+                             (Object **) &this->iommu,
                              qdev_prop_allow_set_link_before_realize,
                              0);
 
     /* sabre_config */
-    memory_region_init_io(&s->sabre_config, OBJECT(s), &sabre_config_ops, s,
+    memory_region_init_io(&sabre_config, OBJECT(this), &sabre_config_ops, this,
                           "sabre-config", 0x10000);
     /* at region 0 */
-    sysbus_init_mmio(sbd, &s->sabre_config);
+    sysbus_init_mmio(sbd, &sabre_config);
 
-    memory_region_init_io(&s->pci_config, OBJECT(s), &pci_config_ops, s,
+    memory_region_init_io(&pci_config, OBJECT(this), &pci_config_ops, this,
                           "sabre-pci-config", 0x1000000);
     /* at region 1 */
-    sysbus_init_mmio(sbd, &s->pci_config);
+    sysbus_init_mmio(sbd, &pci_config);
 
     /* pci_ioport */
-    memory_region_init(&s->pci_ioport, OBJECT(s), "sabre-pci-ioport",
+    memory_region_init(&pci_ioport, OBJECT(this), "sabre-pci-ioport",
                        0x1000000);
 
     /* at region 2 */
-    sysbus_init_mmio(sbd, &s->pci_ioport);
+    sysbus_init_mmio(sbd, &pci_ioport);
 }
 
 static void sabre_pci_realize(PCIDevice *d, Error **errp)
@@ -472,15 +473,17 @@ static void sabre_pci_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo sabre_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo sabre_pci_info = {
     .name          = TYPE_SABRE_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SabrePCIState),
     .class_init    = sabre_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = sabre_pci_interfaces,
 };
 
 static char *sabre_ofw_unit_address(const SysBusDevice *dev)
@@ -497,9 +500,9 @@ static const Property sabre_properties[] = {
     DEFINE_PROP_UINT64("mem-base", SabreState, mem_base, 0),
 };
 
-static void sabre_class_init(ObjectClass *klass, const void *data)
+void SabreState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = sabre_realize;
@@ -510,18 +513,10 @@ static void sabre_class_init(ObjectClass *klass, const void *data)
     sbc->explicit_ofw_unit_address = sabre_ofw_unit_address;
 }
 
-static const TypeInfo sabre_info = {
-    .name          = TYPE_SABRE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(SabreState),
-    .instance_init = sabre_init,
-    .class_init    = sabre_class_init,
-};
+REGISTER_QEMU_DEVICE(SabreState, TYPE_SABRE, TYPE_PCI_HOST_BRIDGE)
 
-static void sabre_register_types(void)
+static void sabre_secondary_register_types(void) __attribute__((constructor));
+static void sabre_secondary_register_types(void)
 {
-    type_register_static(&sabre_info);
     type_register_static(&sabre_pci_info);
 }
-
-type_init(sabre_register_types)

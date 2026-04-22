@@ -50,6 +50,11 @@ struct PC87312State {
     uint8_t selected_index;
 
     uint8_t regs[3];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

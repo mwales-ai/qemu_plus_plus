@@ -17,6 +17,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/cxl/cxl.h"
 #include "qapi/error.h"
+#include "qom/cpp/object.h"
 
 typedef struct CXLDownstreamPort {
     /*< private >*/
@@ -24,6 +25,8 @@ typedef struct CXLDownstreamPort {
 
     /*< public >*/
     CXLComponentState cxl_cstate;
+
+    static void classInit(DeviceClass *dc);
 } CXLDownstreamPort;
 
 #define CXL_DOWNSTREAM_PORT_MSI_OFFSET 0x70
@@ -224,10 +227,10 @@ static const Property cxl_dsp_props[] = {
                                 width, PCIE_LINK_WIDTH_16),
 };
 
-static void cxl_dsp_class_init(ObjectClass *oc, const void *data)
+void CXLDownstreamPort::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, cxl_dsp_props);
     k->config_write = cxl_dsp_config_write;
@@ -247,17 +250,5 @@ static const InterfaceInfo cxl_dsp_interfaces[] = {
     { }
 };
 
-static const TypeInfo cxl_dsp_info = {
-    .name = TYPE_CXL_DSP,
-    .parent = TYPE_PCIE_SLOT,
-    .instance_size = sizeof(CXLDownstreamPort),
-    .class_init = cxl_dsp_class_init,
-    .interfaces = cxl_dsp_interfaces,
-};
-
-static void cxl_dsp_register_type(void)
-{
-    type_register_static(&cxl_dsp_info);
-}
-
-type_init(cxl_dsp_register_type);
+REGISTER_QEMU_DEVICE_IFACES(CXLDownstreamPort, TYPE_CXL_DSP,
+                            TYPE_PCIE_SLOT, cxl_dsp_interfaces)

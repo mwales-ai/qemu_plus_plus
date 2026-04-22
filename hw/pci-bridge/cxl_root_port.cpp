@@ -29,6 +29,7 @@
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "hw/cxl/cxl.h"
+#include "qom/cpp/object.h"
 
 #define CXL_ROOT_PORT_DID 0x7075
 
@@ -49,6 +50,8 @@ typedef struct CXLRootPort {
 
     CXLComponentState cxl_cstate;
     PCIResReserve res_reserve;
+
+    static void classInit(DeviceClass *dc);
 } CXLRootPort;
 
 #define TYPE_CXL_ROOT_PORT "cxl-rp"
@@ -266,12 +269,12 @@ static void cxl_rp_write_config(PCIDevice *d, uint32_t address, uint32_t val,
     cxl_rp_dvsec_write_config(d, address, val, len);
 }
 
-static void cxl_root_port_class_init(ObjectClass *oc, const void *data)
+void CXLRootPort::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc        = DEVICE_CLASS(oc);
-    PCIDeviceClass *k      = PCI_DEVICE_CLASS(oc);
-    ResettableClass *rc    = RESETTABLE_CLASS(oc);
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *k      = PCI_DEVICE_CLASS(klass);
+    ResettableClass *rc    = RESETTABLE_CLASS(klass);
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = CXL_ROOT_PORT_DID;
@@ -298,17 +301,5 @@ static const InterfaceInfo cxl_root_port_interfaces[] = {
     { }
 };
 
-static const TypeInfo cxl_root_port_info = {
-    .name = TYPE_CXL_ROOT_PORT,
-    .parent = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(CXLRootPort),
-    .class_init = cxl_root_port_class_init,
-    .interfaces = cxl_root_port_interfaces,
-};
-
-static void cxl_register(void)
-{
-    type_register_static(&cxl_root_port_info);
-}
-
-type_init(cxl_register);
+REGISTER_QEMU_DEVICE_IFACES(CXLRootPort, TYPE_CXL_ROOT_PORT,
+                            TYPE_PCIE_ROOT_PORT, cxl_root_port_interfaces)

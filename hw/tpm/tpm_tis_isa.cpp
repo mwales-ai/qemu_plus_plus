@@ -38,6 +38,9 @@ struct TPMStateISA {
 
     /*< public >*/
     TPMState state; /* not a QOM object */
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(TPMStateISA, TPM_TIS_ISA)
@@ -106,12 +109,11 @@ static const Property tpm_tis_isa_properties[] = {
     DEFINE_PROP_BOOL("ppi", TPMStateISA, state.ppi_enabled, true),
 };
 
-static void tpm_tis_isa_initfn(Object *obj)
+void TPMStateISA::init()
 {
-    TPMStateISA *isadev = TPM_TIS_ISA(obj);
-    TPMState *s = &isadev->state;
+    TPMState *s = &this->state;
 
-    memory_region_init_io(&s->mmio, obj, &tpm_tis_memory_ops,
+    memory_region_init_io(&s->mmio, OBJECT(this), &tpm_tis_memory_ops,
                           s, "tpm-tis-mmio",
                           TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
 }
@@ -175,9 +177,9 @@ static void build_tpm_tis_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void tpm_tis_isa_class_init(ObjectClass *klass, const void *data)
+void TPMStateISA::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
@@ -198,18 +200,6 @@ static const InterfaceInfo tpm_tis_isa_interfaces[] = {
     { }
 };
 
-static const TypeInfo tpm_tis_isa_info = {
-    .name = TYPE_TPM_TIS_ISA,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(TPMStateISA),
-    .instance_init = tpm_tis_isa_initfn,
-    .class_init  = tpm_tis_isa_class_init,
-    .interfaces = tpm_tis_isa_interfaces,
-};
-
-static void tpm_tis_isa_register(void)
-{
-    type_register_static(&tpm_tis_isa_info);
-}
-
-type_init(tpm_tis_isa_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(TPMStateISA, TYPE_TPM_TIS_ISA,
+                             TYPE_ISA_DEVICE, tpm_tis_isa_interfaces)

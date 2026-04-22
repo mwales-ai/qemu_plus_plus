@@ -37,6 +37,9 @@ struct TPMStateSysBus {
 
     /*< public >*/
     TPMState state; /* not a QOM object */
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(TPMStateSysBus, TPM_TIS_SYSBUS)
@@ -104,17 +107,16 @@ static const Property tpm_tis_sysbus_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", TPMStateSysBus, state.be_driver),
 };
 
-static void tpm_tis_sysbus_initfn(Object *obj)
+void TPMStateSysBus::init()
 {
-    TPMStateSysBus *sbdev = TPM_TIS_SYSBUS(obj);
-    TPMState *s = &sbdev->state;
+    TPMState *s = &this->state;
 
-    memory_region_init_io(&s->mmio, obj, &tpm_tis_memory_ops,
+    memory_region_init_io(&s->mmio, OBJECT(this), &tpm_tis_memory_ops,
                           s, "tpm-tis-mmio",
                           TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &s->mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &s->irq);
 }
 
 static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
@@ -133,9 +135,9 @@ static void tpm_tis_sysbus_realizefn(DeviceState *dev, Error **errp)
     }
 }
 
-static void tpm_tis_sysbus_class_init(ObjectClass *klass, const void *data)
+void TPMStateSysBus::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
     device_class_set_props(dc, tpm_tis_sysbus_properties);
@@ -153,18 +155,6 @@ static const InterfaceInfo tpm_tis_sysbus_interfaces[] = {
     { }
 };
 
-static const TypeInfo tpm_tis_sysbus_info = {
-    .name = TYPE_TPM_TIS_SYSBUS,
-    .parent = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TPMStateSysBus),
-    .instance_init = tpm_tis_sysbus_initfn,
-    .class_init  = tpm_tis_sysbus_class_init,
-    .interfaces = tpm_tis_sysbus_interfaces,
-};
-
-static void tpm_tis_sysbus_register(void)
-{
-    type_register_static(&tpm_tis_sysbus_info);
-}
-
-type_init(tpm_tis_sysbus_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(TPMStateSysBus, TYPE_TPM_TIS_SYSBUS,
+                             TYPE_DYNAMIC_SYS_BUS_DEVICE, tpm_tis_sysbus_interfaces)

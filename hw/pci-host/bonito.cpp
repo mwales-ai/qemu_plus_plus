@@ -54,6 +54,7 @@
 #include "hw/registerfields.h"
 #include "qom/object.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /* #define DEBUG_BONITO */
 
@@ -261,7 +262,7 @@ struct BonitoState {
     static void setIrq(void *opaque, int irq_num, int level);
     static int mapIrq(PCIDevice *pci_dev, int irq_num);
     static void hostRealize(DeviceState *dev, Error **errp);
-    static void hostClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void PCIBonitoState::writel(void *opaque, hwaddr addr,
@@ -789,35 +790,29 @@ void PCIBonitoState::pciClassInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo bonito_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo bonito_pci_info = {
     .name          = TYPE_PCI_BONITO,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBonitoState),
     .class_init    = PCIBonitoState::pciClassInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = bonito_pci_interfaces,
 };
 
-void BonitoState::hostClassInit(ObjectClass *klass, const void *data)
+void BonitoState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = BonitoState::hostRealize;
 }
 
-static const TypeInfo bonito_host_info = {
-    .name          = TYPE_BONITO_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(BonitoState),
-    .class_init    = BonitoState::hostClassInit,
-};
+REGISTER_QEMU_DEVICE(BonitoState, TYPE_BONITO_PCI_HOST_BRIDGE,
+                     TYPE_PCI_HOST_BRIDGE)
 
-static void bonito_register_types(void)
+static void bonito_secondary_register_types(void) __attribute__((constructor));
+static void bonito_secondary_register_types(void)
 {
-    type_register_static(&bonito_host_info);
     type_register_static(&bonito_pci_info);
 }
-
-type_init(bonito_register_types)

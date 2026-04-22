@@ -60,6 +60,11 @@ struct XilinxPCIEHost {
     XilinxPCIEInt intr_fifo[16];
     unsigned int intr_fifo_r, intr_fifo_w;
     uint32_t rpscr;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_XILINX_PCIE_H */

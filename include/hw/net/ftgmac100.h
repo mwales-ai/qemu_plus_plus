@@ -72,6 +72,10 @@ struct FTGMAC100State {
     uint32_t txdes0_edotr;
     uint32_t rxdes0_edorr;
     bool dma64;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_ASPEED_MII "aspeed-mmi"
@@ -89,6 +93,10 @@ struct AspeedMiiState {
     MemoryRegion iomem;
     uint32_t phycr;
     uint32_t phydata;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

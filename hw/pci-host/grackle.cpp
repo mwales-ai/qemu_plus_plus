@@ -63,30 +63,30 @@ static void grackle_realize(DeviceState *dev, Error **errp)
     pci_create_simple(phb->bus, 0, "grackle");
 }
 
-static void grackle_init(Object *obj)
+void GrackleState::init()
 {
-    GrackleState *s = GRACKLE_PCI_HOST_BRIDGE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    PCIHostState *phb = PCI_HOST_BRIDGE(this);
 
-    memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
-    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+    memory_region_init(&this->pci_mmio, OBJECT(this), "pci-mmio", 0x100000000ULL);
+    memory_region_init_io(&this->pci_io, OBJECT(this), &unassigned_io_ops, obj,
                           "pci-isa-mmio", 0x00200000);
 
-    memory_region_init_alias(&s->pci_hole, OBJECT(s), "pci-hole", &s->pci_mmio,
+    memory_region_init_alias(&this->pci_hole, OBJECT(this), "pci-hole", &this->pci_mmio,
                              0x80000000ULL, 0x7e000000ULL);
 
     memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops,
-                          DEVICE(obj), "pci-conf-idx", 0x1000);
+                          DEVICE(this), "pci-conf-idx", 0x1000);
     memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops,
-                          DEVICE(obj), "pci-data-idx", 0x1000);
+                          DEVICE(this), "pci-data-idx", 0x1000);
 
     sysbus_init_mmio(sbd, &phb->conf_mem);
     sysbus_init_mmio(sbd, &phb->data_mem);
-    sysbus_init_mmio(sbd, &s->pci_hole);
-    sysbus_init_mmio(sbd, &s->pci_io);
+    sysbus_init_mmio(sbd, &this->pci_hole);
+    sysbus_init_mmio(sbd, &this->pci_io);
 
-    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
+    qdev_init_gpio_out(DEVICE(this), this->irqs, ARRAY_SIZE(this->irqs));
 }
 
 static void grackle_pci_realize(PCIDevice *d, Error **errp)
@@ -116,14 +116,6 @@ static const InterfaceInfo grackle_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo grackle_pci_info = {
-    .name          = "grackle",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = grackle_pci_class_init,
-    .interfaces = grackle_pci_interfaces,
-};
-
 static char *grackle_ofw_unit_address(const SysBusDevice *dev)
 {
     GrackleState *s = GRACKLE_PCI_HOST_BRIDGE(dev);
@@ -135,9 +127,9 @@ static const Property grackle_properties[] = {
     DEFINE_PROP_UINT32("ofw-addr", GrackleState, ofw_addr, -1),
 };
 
-static void grackle_class_init(ObjectClass *klass, const void *data)
+void GrackleState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = grackle_realize;
@@ -147,18 +139,19 @@ static void grackle_class_init(ObjectClass *klass, const void *data)
     sbc->explicit_ofw_unit_address = grackle_ofw_unit_address;
 }
 
-static const TypeInfo grackle_host_info = {
-    .name          = TYPE_GRACKLE_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(GrackleState),
-    .instance_init = grackle_init,
-    .class_init    = grackle_class_init,
-};
-
-static void grackle_register_types(void)
+static void grackle_pci_register(void) __attribute__((constructor));
+static void grackle_pci_register(void)
 {
-    type_register_static(&grackle_pci_info);
-    type_register_static(&grackle_host_info);
+    static TypeInfo info = {
+        .name          = "grackle",
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIDevice),
+        .class_init = grackle_pci_class_init,
+        .interfaces = grackle_pci_interfaces,
+    };
+    type_register_static(&info);
 }
 
-type_init(grackle_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GrackleState, TYPE_GRACKLE_PCI_HOST_BRIDGE,
+                      TYPE_PCI_HOST_BRIDGE)

@@ -16,6 +16,7 @@
 #include "hw/pci/pcie.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci-bridge/cxl_upstream_port.h"
+#include "qom/cpp/object.h"
 /*
  * Null value of all Fs suggested by IEEE RA guidelines for use of
  * EU, OUI and CID
@@ -357,10 +358,10 @@ static const Property cxl_upstream_props[] = {
                                 width, PCIE_LINK_WIDTH_16),
 };
 
-static void cxl_upstream_class_init(ObjectClass *oc, const void *data)
+void CXLUpstreamPort::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->config_write = cxl_usp_write_config;
     k->config_read = cxl_usp_read_config;
@@ -381,17 +382,5 @@ static const InterfaceInfo cxl_usp_interfaces[] = {
     { }
 };
 
-static const TypeInfo cxl_usp_info = {
-    .name = TYPE_CXL_USP,
-    .parent = TYPE_PCIE_PORT,
-    .instance_size = sizeof(CXLUpstreamPort),
-    .class_init = cxl_upstream_class_init,
-    .interfaces = cxl_usp_interfaces,
-};
-
-static void cxl_usp_register_type(void)
-{
-    type_register_static(&cxl_usp_info);
-}
-
-type_init(cxl_usp_register_type);
+REGISTER_QEMU_DEVICE_IFACES(CXLUpstreamPort, TYPE_CXL_USP,
+                            TYPE_PCIE_PORT, cxl_usp_interfaces)

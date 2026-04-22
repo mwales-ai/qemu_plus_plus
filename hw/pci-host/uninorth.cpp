@@ -30,6 +30,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/uninorth.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -134,11 +135,11 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
      */
 }
 
-static void pci_unin_main_init(Object *obj)
+void UNINHostState::init()
 {
-    UNINHostState *s = UNI_NORTH_PCI_HOST_BRIDGE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    PCIHostState *h = PCI_HOST_BRIDGE(this);
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
@@ -147,21 +148,21 @@ static void pci_unin_main_init(Object *obj)
     memory_region_init_io(&h->data_mem, OBJECT(h), &unin_data_ops, obj,
                           "unin-pci-conf-data", 0x1000);
 
-    memory_region_init(&s->pci_mmio, OBJECT(s), "unin-pci-mmio",
+    memory_region_init(&pci_mmio, OBJECT(this), "unin-pci-mmio",
                        0x100000000ULL);
-    memory_region_init_io(&s->pci_io, OBJECT(s), &unassigned_io_ops, obj,
+    memory_region_init_io(&pci_io, OBJECT(this), &unassigned_io_ops, obj,
                           "unin-pci-isa-mmio", 0x00800000);
 
-    memory_region_init_alias(&s->pci_hole, OBJECT(s),
-                             "unin-pci-hole", &s->pci_mmio,
+    memory_region_init_alias(&pci_hole, OBJECT(this),
+                             "unin-pci-hole", &pci_mmio,
                              0x80000000ULL, 0x10000000ULL);
 
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
-    sysbus_init_mmio(sbd, &s->pci_hole);
-    sysbus_init_mmio(sbd, &s->pci_io);
+    sysbus_init_mmio(sbd, &pci_hole);
+    sysbus_init_mmio(sbd, &pci_io);
 
-    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
+    qdev_init_gpio_out(DEVICE(this), irqs, ARRAY_SIZE(irqs));
 }
 
 static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
@@ -436,9 +437,9 @@ static const Property pci_unin_main_pci_host_props[] = {
     DEFINE_PROP_UINT32("ofw-addr", UNINHostState, ofw_addr, -1),
 };
 
-static void pci_unin_main_class_init(ObjectClass *klass, const void *data)
+void UNINHostState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
     dc->realize = pci_unin_main_realize;
@@ -448,13 +449,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, const void *data)
     sbc->explicit_ofw_unit_address = pci_unin_main_ofw_unit_address;
 }
 
-static const TypeInfo pci_unin_main_info = {
-    .name          = TYPE_UNI_NORTH_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINHostState),
-    .instance_init = pci_unin_main_init,
-    .class_init    = pci_unin_main_class_init,
-};
+/* UNINHostState (main) registered via REGISTER_QEMU_DEVICE below */
 
 static void pci_u3_agp_class_init(ObjectClass *klass, const void *data)
 {
@@ -534,44 +529,34 @@ static const MemoryRegionOps unin_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void unin_init(Object *obj)
+void UNINState::init()
 {
-    UNINState *s = UNI_NORTH(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->mem, obj, &unin_ops, s, "unin", 0x1000);
+    memory_region_init_io(&mem, OBJECT(this), &unin_ops, this, "unin", 0x1000);
 
-    sysbus_init_mmio(sbd, &s->mem);
+    sysbus_init_mmio(sbd, &mem);
 }
 
-static void unin_class_init(ObjectClass *klass, const void *data)
+void UNINState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo unin_info = {
-    .name          = TYPE_UNI_NORTH,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(UNINState),
-    .instance_init = unin_init,
-    .class_init    = unin_class_init,
-};
+REGISTER_QEMU_DEVICE(UNINHostState, TYPE_UNI_NORTH_PCI_HOST_BRIDGE,
+                     TYPE_PCI_HOST_BRIDGE)
 
-static void unin_register_types(void)
+REGISTER_QEMU_DEVICE(UNINState, TYPE_UNI_NORTH, TYPE_SYS_BUS_DEVICE)
+
+static void unin_secondary_register_types(void) __attribute__((constructor));
+static void unin_secondary_register_types(void)
 {
     type_register_static(&unin_main_pci_host_info);
     type_register_static(&u3_agp_pci_host_info);
     type_register_static(&unin_agp_pci_host_info);
     type_register_static(&unin_internal_pci_host_info);
 
-    type_register_static(&pci_unin_main_info);
     type_register_static(&pci_u3_agp_info);
     type_register_static(&pci_unin_agp_info);
     type_register_static(&pci_unin_internal_info);
-
-    type_register_static(&unin_info);
 }
-
-type_init(unin_register_types)

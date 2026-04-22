@@ -520,21 +520,17 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
     s->timer = ptimer_init(imx_gpt_timeout, s, PTIMER_POLICY_LEGACY);
 }
 
-static void imx_gpt_class_init(ObjectClass *klass, const void *data)
+void IMXGPTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = imx_gpt_realize;
     device_class_set_legacy_reset(dc, imx_gpt_reset);
     dc->vmsd = &vmstate_imx_timer_gpt;
     dc->desc = "i.MX general timer";
 }
 
-static void imx25_gpt_init(Object *obj)
+void IMXGPTState::init()
 {
-    IMXGPTState *s = IMX_GPT(obj);
-
-    s->clocks = imx25_gpt_clocks;
+    this->clocks = imx25_gpt_clocks;
 }
 
 static void imx31_gpt_init(Object *obj)
@@ -572,47 +568,34 @@ static void imx8mp_gpt_init(Object *obj)
     s->clocks = imx8mp_gpt_clocks;
 }
 
-static const TypeInfo imx25_gpt_info = {
-    .name = TYPE_IMX25_GPT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXGPTState),
-    .instance_init = imx25_gpt_init,
-    .class_init = imx_gpt_class_init,
-};
-
-static const TypeInfo imx31_gpt_info = {
-    .name = TYPE_IMX31_GPT,
-    .parent = TYPE_IMX25_GPT,
-    .instance_init = imx31_gpt_init,
-};
-
-static const TypeInfo imx6_gpt_info = {
-    .name = TYPE_IMX6_GPT,
-    .parent = TYPE_IMX25_GPT,
-    .instance_init = imx6_gpt_init,
-};
-
-static const TypeInfo imx6ul_gpt_info = {
-    .name = TYPE_IMX6UL_GPT,
-    .parent = TYPE_IMX25_GPT,
-    .instance_init = imx6ul_gpt_init,
-};
-
-static const TypeInfo imx7_gpt_info = {
-    .name = TYPE_IMX7_GPT,
-    .parent = TYPE_IMX25_GPT,
-    .instance_init = imx7_gpt_init,
-};
-
-static const TypeInfo imx8mp_gpt_info = {
-    .name = TYPE_IMX8MP_GPT,
-    .parent = TYPE_IMX25_GPT,
-    .instance_init = imx8mp_gpt_init,
-};
-
-static void imx_gpt_register_types(void)
+static void imx_gpt_subtypes_register(void) __attribute__((constructor));
+static void imx_gpt_subtypes_register(void)
 {
-    type_register_static(&imx25_gpt_info);
+    static TypeInfo imx31_gpt_info = {
+        .name = TYPE_IMX31_GPT,
+        .parent = TYPE_IMX25_GPT,
+        .instance_init = imx31_gpt_init,
+    };
+    static TypeInfo imx6_gpt_info = {
+        .name = TYPE_IMX6_GPT,
+        .parent = TYPE_IMX25_GPT,
+        .instance_init = imx6_gpt_init,
+    };
+    static TypeInfo imx6ul_gpt_info = {
+        .name = TYPE_IMX6UL_GPT,
+        .parent = TYPE_IMX25_GPT,
+        .instance_init = imx6ul_gpt_init,
+    };
+    static TypeInfo imx7_gpt_info = {
+        .name = TYPE_IMX7_GPT,
+        .parent = TYPE_IMX25_GPT,
+        .instance_init = imx7_gpt_init,
+    };
+    static TypeInfo imx8mp_gpt_info = {
+        .name = TYPE_IMX8MP_GPT,
+        .parent = TYPE_IMX25_GPT,
+        .instance_init = imx8mp_gpt_init,
+    };
     type_register_static(&imx31_gpt_info);
     type_register_static(&imx6_gpt_info);
     type_register_static(&imx6ul_gpt_info);
@@ -620,4 +603,5 @@ static void imx_gpt_register_types(void)
     type_register_static(&imx8mp_gpt_info);
 }
 
-type_init(imx_gpt_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXGPTState, TYPE_IMX25_GPT, TYPE_SYS_BUS_DEVICE)

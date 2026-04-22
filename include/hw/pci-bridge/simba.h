@@ -34,6 +34,10 @@
 struct SimbaPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"

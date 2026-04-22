@@ -9514,10 +9514,10 @@ static const VMStateDescription nvme_vmstate = {
     .unmigratable = 1,
 };
 
-static void nvme_class_init(ObjectClass *oc, const void *data)
+void NvmeCtrl::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
 
     pc->realize = nvme_realize;
     pc->config_write = nvme_pci_write_config;
@@ -9533,41 +9533,33 @@ static void nvme_class_init(ObjectClass *oc, const void *data)
     device_class_set_legacy_reset(dc, nvme_pci_reset);
 }
 
-static void nvme_instance_init(Object *obj)
+void NvmeCtrl::init()
 {
-    NvmeCtrl *n = NVME(obj);
-
-    device_add_bootindex_property(obj, &n->name_space.blkconf.bootindex,
+    device_add_bootindex_property(OBJECT(this), &this->name_space.blkconf.bootindex,
                                   "bootindex", "/namespace@1,0",
-                                  DEVICE(obj));
+                                  DEVICE(this));
 
-    object_property_add(obj, "smart_critical_warning", "uint8",
+    object_property_add(OBJECT(this), "smart_critical_warning", "uint8",
                         nvme_get_smart_warning,
                         nvme_set_smart_warning, NULL, NULL);
 }
 
-static const TypeInfo nvme_info = {
-    .name          = TYPE_NVME,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(NvmeCtrl),
-    .instance_init = nvme_instance_init,
-    .class_init    = nvme_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+static const InterfaceInfo nvme_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
 };
 
-static const TypeInfo nvme_bus_info = {
-    .name = TYPE_NVME_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(NvmeBus),
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(NvmeCtrl, TYPE_NVME,
+                             TYPE_PCI_DEVICE, nvme_interfaces)
 
-static void nvme_register_types(void)
+static void nvme_bus_register(void) __attribute__((constructor));
+static void nvme_bus_register(void)
 {
-    type_register_static(&nvme_info);
-    type_register_static(&nvme_bus_info);
+    static TypeInfo info = {
+        .name = TYPE_NVME_BUS,
+        .parent = TYPE_BUS,
+        .instance_size = sizeof(NvmeBus),
+    };
+    type_register_static(&info);
 }
-
-type_init(nvme_register_types)

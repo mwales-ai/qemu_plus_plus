@@ -387,6 +387,9 @@ struct XilinxAXIEnet {
 
     /* Whether axienet_eth_rx_notify should flush incoming queue. */
     bool need_flush;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void axienet_rx_reset(XilinxAXIEnet *s)
@@ -984,20 +987,19 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
     s->txmem = static_cast<uint8_t *>(g_malloc(s->c_txmem));
 }
 
-static void xilinx_enet_init(Object *obj)
+void XilinxAXIEnet::init()
 {
-    XilinxAXIEnet *s = XILINX_AXI_ENET(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    object_initialize_child(OBJECT(s), "axistream-connected-target",
-                            &s->rx_data_dev, TYPE_XILINX_AXI_ENET_DATA_STREAM);
-    object_initialize_child(OBJECT(s), "axistream-control-connected-target",
-                            &s->rx_control_dev,
+    object_initialize_child(OBJECT(this), "axistream-connected-target",
+                            &this->rx_data_dev, TYPE_XILINX_AXI_ENET_DATA_STREAM);
+    object_initialize_child(OBJECT(this), "axistream-control-connected-target",
+                            &this->rx_control_dev,
                             TYPE_XILINX_AXI_ENET_CONTROL_STREAM);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &this->irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &enet_ops, s, "enet", 0x40000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&this->iomem, OBJECT(this), &enet_ops, this, "enet", 0x40000);
+    sysbus_init_mmio(sbd, &this->iomem);
 }
 
 static const Property xilinx_enet_properties[] = {
@@ -1011,10 +1013,8 @@ static const Property xilinx_enet_properties[] = {
                      tx_control_dev, TYPE_STREAM_SINK, StreamSink *),
 };
 
-static void xilinx_enet_class_init(ObjectClass *klass, const void *data)
+void XilinxAXIEnet::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = xilinx_enet_realize;
     device_class_set_props(dc, xilinx_enet_properties);
     device_class_set_legacy_reset(dc, xilinx_axienet_reset);
@@ -1036,25 +1036,9 @@ static void xilinx_enet_data_stream_class_init(ObjectClass *klass,
     ssc->push = xilinx_axienet_data_stream_push;
 }
 
-static const TypeInfo xilinx_enet_info = {
-    .name          = TYPE_XILINX_AXI_ENET,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XilinxAXIEnet),
-    .instance_init = xilinx_enet_init,
-    .class_init    = xilinx_enet_class_init,
-};
-
 static const InterfaceInfo xilinx_enet_data_stream_if[] = {
     { TYPE_STREAM_SINK },
     { }
-};
-
-static const TypeInfo xilinx_enet_data_stream_info = {
-    .name          = TYPE_XILINX_AXI_ENET_DATA_STREAM,
-    .parent        = TYPE_OBJECT,
-    .instance_size = sizeof(XilinxAXIEnetStreamSink),
-    .class_init    = xilinx_enet_data_stream_class_init,
-    .interfaces    = xilinx_enet_data_stream_if,
 };
 
 static const InterfaceInfo xilinx_enet_control_stream_if[] = {
@@ -1062,19 +1046,26 @@ static const InterfaceInfo xilinx_enet_control_stream_if[] = {
     { }
 };
 
-static const TypeInfo xilinx_enet_control_stream_info = {
-    .name          = TYPE_XILINX_AXI_ENET_CONTROL_STREAM,
-    .parent        = TYPE_OBJECT,
-    .instance_size = sizeof(XilinxAXIEnetStreamSink),
-    .class_init    = xilinx_enet_control_stream_class_init,
-    .interfaces    = xilinx_enet_control_stream_if,
-};
-
-static void xilinx_enet_register_types(void)
+static void xilinx_enet_streams_register(void) __attribute__((constructor));
+static void xilinx_enet_streams_register(void)
 {
-    type_register_static(&xilinx_enet_info);
-    type_register_static(&xilinx_enet_data_stream_info);
-    type_register_static(&xilinx_enet_control_stream_info);
+    static TypeInfo data_stream_info = {
+        .name          = TYPE_XILINX_AXI_ENET_DATA_STREAM,
+        .parent        = TYPE_OBJECT,
+        .instance_size = sizeof(XilinxAXIEnetStreamSink),
+        .class_init    = xilinx_enet_data_stream_class_init,
+        .interfaces    = xilinx_enet_data_stream_if,
+    };
+    static TypeInfo control_stream_info = {
+        .name          = TYPE_XILINX_AXI_ENET_CONTROL_STREAM,
+        .parent        = TYPE_OBJECT,
+        .instance_size = sizeof(XilinxAXIEnetStreamSink),
+        .class_init    = xilinx_enet_control_stream_class_init,
+        .interfaces    = xilinx_enet_control_stream_if,
+    };
+    type_register_static(&data_stream_info);
+    type_register_static(&control_stream_info);
 }
 
-type_init(xilinx_enet_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XilinxAXIEnet, TYPE_XILINX_AXI_ENET, TYPE_SYS_BUS_DEVICE)
