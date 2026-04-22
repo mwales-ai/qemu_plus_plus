@@ -679,29 +679,27 @@ static const MemoryRegionOps ich9_rst_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
-static void ich9_lpc_initfn(Object *obj)
+void ICH9LPCState::init()
 {
-    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
-
     static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
     static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
 
-    object_initialize_child(obj, "rtc", &lpc->rtc, TYPE_MC146818_RTC);
+    object_initialize_child(OBJECT(this), "rtc", &this->rtc, TYPE_MC146818_RTC);
 
-    qdev_init_gpio_out_named(DEVICE(lpc), lpc->gsi, ICH9_GPIO_GSI,
+    qdev_init_gpio_out_named(DEVICE(this), this->gsi, ICH9_GPIO_GSI,
                              IOAPIC_NUM_PINS);
 
-    object_property_add_uint8_ptr(obj, ACPI_PM_PROP_SCI_INT,
-                                  &lpc->sci_gsi, OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
+    object_property_add_uint8_ptr(OBJECT(this), ACPI_PM_PROP_SCI_INT,
+                                  &this->sci_gsi, OBJ_PROP_FLAG_READ);
+    object_property_add_uint8_ptr(OBJECT(this), ACPI_PM_PROP_ACPI_ENABLE_CMD,
                                   &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
+    object_property_add_uint8_ptr(OBJECT(this), ACPI_PM_PROP_ACPI_DISABLE_CMD,
                                   &acpi_disable_cmd, OBJ_PROP_FLAG_READ);
-    object_property_add_uint64_ptr(obj, ICH9_LPC_SMI_NEGOTIATED_FEAT_PROP,
-                                   &lpc->smi_negotiated_features,
+    object_property_add_uint64_ptr(OBJECT(this), ICH9_LPC_SMI_NEGOTIATED_FEAT_PROP,
+                                   &this->smi_negotiated_features,
                                    OBJ_PROP_FLAG_READ);
 
-    ich9_pm_add_properties(obj, &lpc->pm);
+    ich9_pm_add_properties(OBJECT(this), &this->pm);
 }
 
 static void ich9_lpc_realize(PCIDevice *d, Error **errp)
@@ -887,9 +885,9 @@ static void build_ich9_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     qbus_build_aml(bus, scope);
 }
 
-static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
+void ICH9LPCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
@@ -929,18 +927,6 @@ static const InterfaceInfo ich9_lpc_interfaces[] = {
     { }
 };
 
-static const TypeInfo ich9_lpc_info = {
-    .name       = TYPE_ICH9_LPC_DEVICE,
-    .parent     = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ICH9LPCState),
-    .instance_init = ich9_lpc_initfn,
-    .class_init  = ich9_lpc_class_init,
-    .interfaces = ich9_lpc_interfaces,
-};
-
-static void ich9_lpc_register(void)
-{
-    type_register_static(&ich9_lpc_info);
-}
-
-type_init(ich9_lpc_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ICH9LPCState, TYPE_ICH9_LPC_DEVICE,
+                             TYPE_PCI_DEVICE, ich9_lpc_interfaces)

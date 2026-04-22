@@ -78,11 +78,9 @@ static int i2c_ddc_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static void i2c_ddc_init(Object *obj)
+void I2CDDCState::init()
 {
-    I2CDDCState *s = I2CDDC(obj);
-
-    qemu_edid_generate(s->edid_blob, sizeof(s->edid_blob), &s->edid_info);
+    qemu_edid_generate(this->edid_blob, sizeof(this->edid_blob), &this->edid_info);
 }
 
 static const VMStateDescription vmstate_i2c_ddc = {
@@ -99,10 +97,10 @@ static const Property i2c_ddc_properties[] = {
     DEFINE_EDID_PROPERTIES(I2CDDCState, edid_info),
 };
 
-static void i2c_ddc_class_init(ObjectClass *oc, const void *data)
+void I2CDDCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    I2CSlaveClass *isc = I2C_SLAVE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, i2c_ddc_reset);
     dc->vmsd = &vmstate_i2c_ddc;
@@ -112,17 +110,5 @@ static void i2c_ddc_class_init(ObjectClass *oc, const void *data)
     isc->send = i2c_ddc_tx;
 }
 
-static const TypeInfo i2c_ddc_info = {
-    .name = TYPE_I2CDDC,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(I2CDDCState),
-    .instance_init = i2c_ddc_init,
-    .class_init = i2c_ddc_class_init
-};
-
-static void ddc_register_devices(void)
-{
-    type_register_static(&i2c_ddc_info);
-}
-
-type_init(ddc_register_devices);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(I2CDDCState, TYPE_I2CDDC, TYPE_I2C_SLAVE)

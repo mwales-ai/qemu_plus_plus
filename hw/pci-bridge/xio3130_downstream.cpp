@@ -155,9 +155,15 @@ static const VMStateDescription vmstate_xio3130_downstream = {
     .fields = vmstate_xio3130_downstream_fields,
 };
 
-static void xio3130_downstream_class_init(ObjectClass *klass, const void *data)
+struct XIO3130Downstream {
+    PCIESlot parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void XIO3130Downstream::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->config_write = xio3130_downstream_write_config;
@@ -173,19 +179,11 @@ static void xio3130_downstream_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, xio3130_downstream_props);
 }
 
-static const TypeInfo xio3130_downstream_info = {
-    .name          = TYPE_XIO3130_DOWNSTREAM,
-    .parent        = TYPE_PCIE_SLOT,
-    .class_init    = xio3130_downstream_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+static const InterfaceInfo xio3130_downstream_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
 };
 
-static void xio3130_downstream_register_types(void)
-{
-    type_register_static(&xio3130_downstream_info);
-}
-
-type_init(xio3130_downstream_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(XIO3130Downstream, TYPE_XIO3130_DOWNSTREAM,
+                             TYPE_PCIE_SLOT, xio3130_downstream_interfaces)

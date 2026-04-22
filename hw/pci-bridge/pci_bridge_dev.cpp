@@ -52,6 +52,9 @@ struct PCIBridgeDev {
 
     /* additional resources to reserve */
     PCIResReserve res_reserve;
+
+    void finalize();
+    static void classInit(DeviceClass *dc);
 };
 
 static void pci_bridge_dev_realize(PCIDevice *dev, Error **errp)
@@ -141,10 +144,10 @@ static void pci_bridge_dev_exitfn(PCIDevice *dev)
     pci_bridge_exitfn(dev);
 }
 
-static void pci_bridge_dev_instance_finalize(Object *obj)
+void PCIBridgeDev::finalize()
 {
     /* this function is idempotent and handles (PCIDevice.shpc == NULL) */
-    shpc_free(PCI_DEVICE(obj));
+    shpc_free(PCI_DEVICE(this));
 }
 
 static void pci_bridge_dev_write_config(PCIDevice *d,
@@ -246,9 +249,9 @@ void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
     shpc_device_unplug_request_cb(hotplug_dev, dev, errp);
 }
 
-static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
+void PCIBridgeDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
@@ -274,14 +277,9 @@ static const InterfaceInfo pci_bridge_dev_interfaces[] = {
     { }
 };
 
-static const TypeInfo pci_bridge_dev_info = {
-    .name              = TYPE_PCI_BRIDGE_DEV,
-    .parent            = TYPE_PCI_BRIDGE,
-    .instance_size     = sizeof(PCIBridgeDev),
-    .instance_finalize = pci_bridge_dev_instance_finalize,
-    .class_init        = pci_bridge_dev_class_init,
-    .interfaces = pci_bridge_dev_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIBridgeDev, TYPE_PCI_BRIDGE_DEV,
+                             TYPE_PCI_BRIDGE, pci_bridge_dev_interfaces)
 
 /*
  * Multiseat bridge.  Same as the standard pci bridge, only with a
@@ -297,17 +295,14 @@ static void pci_bridge_dev_seat_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Standard PCI Bridge (multiseat)";
 }
 
-static const TypeInfo pci_bridge_dev_seat_info = {
-    .name              = TYPE_PCI_BRIDGE_SEAT_DEV,
-    .parent            = TYPE_PCI_BRIDGE_DEV,
-    .instance_size     = sizeof(PCIBridgeDev),
-    .class_init        = pci_bridge_dev_seat_class_init,
-};
-
-static void pci_bridge_dev_register(void)
+static void pci_bridge_dev_seat_register(void) __attribute__((constructor));
+static void pci_bridge_dev_seat_register(void)
 {
-    type_register_static(&pci_bridge_dev_info);
-    type_register_static(&pci_bridge_dev_seat_info);
+    static TypeInfo info = {
+        .name              = TYPE_PCI_BRIDGE_SEAT_DEV,
+        .parent            = TYPE_PCI_BRIDGE_DEV,
+        .instance_size     = sizeof(PCIBridgeDev),
+        .class_init        = pci_bridge_dev_seat_class_init,
+    };
+    type_register_static(&info);
 }
-
-type_init(pci_bridge_dev_register);

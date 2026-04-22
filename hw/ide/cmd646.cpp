@@ -317,34 +317,27 @@ static const Property cmd646_ide_properties[] = {
     DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
 };
 
-static void cmd646_ide_class_init(ObjectClass *klass, const void *data)
+struct Cmd646IDEState : PCIIDEState
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, cmd646_reset);
-    dc->vmsd = &vmstate_ide_pci;
-    k->realize = pci_cmd646_ide_realize;
-    k->exit = pci_cmd646_ide_exitfn;
-    k->vendor_id = PCI_VENDOR_ID_CMD;
-    k->device_id = PCI_DEVICE_ID_CMD_646;
-    k->revision = 0x07;
-    k->class_id = PCI_CLASS_STORAGE_IDE;
-    k->config_read = cmd646_pci_config_read;
-    k->config_write = cmd646_pci_config_write;
-    device_class_set_props(dc, cmd646_ide_properties);
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-}
-
-static const TypeInfo cmd646_ide_info = {
-    .name          = "cmd646-ide",
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = cmd646_ide_class_init,
+        device_class_set_legacy_reset(dc, cmd646_reset);
+        dc->vmsd = &vmstate_ide_pci;
+        k->realize = pci_cmd646_ide_realize;
+        k->exit = pci_cmd646_ide_exitfn;
+        k->vendor_id = PCI_VENDOR_ID_CMD;
+        k->device_id = PCI_DEVICE_ID_CMD_646;
+        k->revision = 0x07;
+        k->class_id = PCI_CLASS_STORAGE_IDE;
+        k->config_read = cmd646_pci_config_read;
+        k->config_write = cmd646_pci_config_write;
+        device_class_set_props(dc, cmd646_ide_properties);
+        set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    }
 };
 
-static void cmd646_ide_register_types(void)
-{
-    type_register_static(&cmd646_ide_info);
-}
-
-type_init(cmd646_ide_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Cmd646IDEState, "cmd646-ide", TYPE_PCI_IDE)

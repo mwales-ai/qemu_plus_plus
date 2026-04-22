@@ -116,14 +116,12 @@ static void pci_ich9_reset(DeviceState *dev)
     ahci_reset(&d->ahci);
 }
 
-static void pci_ich9_ahci_init(Object *obj)
+void AHCIPCIState::init()
 {
-    AHCIPCIState *d = ICH9_AHCI(obj);
-
-    qemu_init_irq_child(obj, "update-irq", &d->irq,
-                        pci_ich9_ahci_update_irq, d, 0);
-    ahci_init(&d->ahci, DEVICE(obj));
-    d->ahci.irq = &d->irq;
+    qemu_init_irq_child(OBJECT(this), "update-irq", &this->irq,
+                        pci_ich9_ahci_update_irq, this, 0);
+    ahci_init(&this->ahci, DEVICE(this));
+    this->ahci.irq = &this->irq;
 }
 
 static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
@@ -182,9 +180,9 @@ static void pci_ich9_uninit(PCIDevice *dev)
     ahci_uninit(&d->ahci);
 }
 
-static void ich_ahci_class_init(ObjectClass *klass, const void *data)
+void AHCIPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_ich9_ahci_realize;
@@ -203,18 +201,6 @@ static const InterfaceInfo ich_ahci_interfaces[] = {
     { },
 };
 
-static const TypeInfo ich_ahci_info = {
-    .name          = TYPE_ICH9_AHCI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(AHCIPCIState),
-    .instance_init = pci_ich9_ahci_init,
-    .class_init    = ich_ahci_class_init,
-    .interfaces = ich_ahci_interfaces,
-};
-
-static void ich_ahci_register_types(void)
-{
-    type_register_static(&ich_ahci_info);
-}
-
-type_init(ich_ahci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(AHCIPCIState, TYPE_ICH9_AHCI,
+                             TYPE_PCI_DEVICE, ich_ahci_interfaces)

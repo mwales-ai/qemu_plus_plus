@@ -245,9 +245,15 @@ static void via_ide_exitfn(PCIDevice *dev)
     }
 }
 
-static void via_ide_class_init(ObjectClass *klass, const void *data)
+struct ViaIDE {
+    PCIIDEState parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void ViaIDE::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, via_ide_reset);
@@ -266,15 +272,5 @@ static void via_ide_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo via_ide_info = {
-    .name          = TYPE_VIA_IDE,
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = via_ide_class_init,
-};
-
-static void via_ide_register_types(void)
-{
-    type_register_static(&via_ide_info);
-}
-
-type_init(via_ide_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ViaIDE, TYPE_VIA_IDE, TYPE_PCI_IDE)

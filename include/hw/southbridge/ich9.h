@@ -72,6 +72,11 @@ struct ICH9LPCState {
     Notifier machine_ready;
 
     qemu_irq gsi[IOAPIC_NUM_PINS];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define ICH9_MASK(bit, ms_bit, ls_bit) \

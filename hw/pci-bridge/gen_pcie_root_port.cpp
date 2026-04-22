@@ -43,6 +43,8 @@ struct GenPCIERootPort {
 
     /* additional resources to reserve */
     PCIResReserve res_reserve;
+
+    static void classInit(DeviceClass *dc);
 };
 
 static uint8_t gen_rp_aer_vector(const PCIDevice *d)
@@ -153,9 +155,9 @@ static const Property gen_rp_props[] = {
                                 width, PCIE_LINK_WIDTH_32),
 };
 
-static void gen_rp_dev_class_init(ObjectClass *klass, const void *data)
+void GenPCIERootPort::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
 
@@ -174,15 +176,5 @@ static void gen_rp_dev_class_init(ObjectClass *klass, const void *data)
     rpc->acs_offset = GEN_PCIE_ROOT_PORT_ACS_OFFSET;
 }
 
-static const TypeInfo gen_rp_dev_info = {
-    .name          = TYPE_GEN_PCIE_ROOT_PORT,
-    .parent        = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(GenPCIERootPort),
-    .class_init    = gen_rp_dev_class_init,
-};
-
- static void gen_rp_register_types(void)
- {
-    type_register_static(&gen_rp_dev_info);
- }
- type_init(gen_rp_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GenPCIERootPort, TYPE_GEN_PCIE_ROOT_PORT, TYPE_PCIE_ROOT_PORT)

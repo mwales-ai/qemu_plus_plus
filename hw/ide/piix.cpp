@@ -178,9 +178,15 @@ static void pci_piix_ide_exitfn(PCIDevice *dev)
 }
 
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
-static void piix3_ide_class_init(ObjectClass *klass, const void *data)
+struct PIIX3IDE {
+    PCIIDEState parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void PIIX3IDE::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, piix_ide_reset);
@@ -194,11 +200,8 @@ static void piix3_ide_class_init(ObjectClass *klass, const void *data)
     dc->hotpluggable = false;
 }
 
-static const TypeInfo piix3_ide_info = {
-    .name          = TYPE_PIIX3_IDE,
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = piix3_ide_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PIIX3IDE, TYPE_PIIX3_IDE, TYPE_PCI_IDE)
 
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
 static void piix4_ide_class_init(ObjectClass *klass, const void *data)
@@ -217,16 +220,13 @@ static void piix4_ide_class_init(ObjectClass *klass, const void *data)
     dc->hotpluggable = false;
 }
 
-static const TypeInfo piix4_ide_info = {
-    .name          = TYPE_PIIX4_IDE,
-    .parent        = TYPE_PCI_IDE,
-    .class_init    = piix4_ide_class_init,
-};
-
-static void piix_ide_register_types(void)
+static void piix4_ide_register(void) __attribute__((constructor));
+static void piix4_ide_register(void)
 {
-    type_register_static(&piix3_ide_info);
-    type_register_static(&piix4_ide_info);
+    static TypeInfo info = {
+        .name          = TYPE_PIIX4_IDE,
+        .parent        = TYPE_PCI_IDE,
+        .class_init    = piix4_ide_class_init,
+    };
+    type_register_static(&info);
 }
-
-type_init(piix_ide_register_types)

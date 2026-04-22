@@ -32,6 +32,11 @@ struct I2CDDCState {
     uint8_t reg;
     qemu_edid_info edid_info;
     uint8_t edid_blob[128];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

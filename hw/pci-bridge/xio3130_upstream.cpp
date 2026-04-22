@@ -125,9 +125,15 @@ static const VMStateDescription vmstate_xio3130_upstream = {
     .fields = vmstate_xio3130_upstream_fields,
 };
 
-static void xio3130_upstream_class_init(ObjectClass *klass, const void *data)
+struct XIO3130Upstream {
+    PCIEPort parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void XIO3130Upstream::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->config_write = xio3130_upstream_write_config;
@@ -142,19 +148,11 @@ static void xio3130_upstream_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_xio3130_upstream;
 }
 
-static const TypeInfo xio3130_upstream_info = {
-    .name          = "x3130-upstream",
-    .parent        = TYPE_PCIE_PORT,
-    .class_init    = xio3130_upstream_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+static const InterfaceInfo xio3130_upstream_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
 };
 
-static void xio3130_upstream_register_types(void)
-{
-    type_register_static(&xio3130_upstream_info);
-}
-
-type_init(xio3130_upstream_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(XIO3130Upstream, "x3130-upstream",
+                             TYPE_PCIE_PORT, xio3130_upstream_interfaces)

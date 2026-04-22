@@ -30,6 +30,8 @@ struct PCIEPCIBridge {
     OnOffAuto msi;
     MemoryRegion shpc_bar;
     /*< public >*/
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_PCIE_PCI_BRIDGE_DEV "pcie-pci-bridge"
@@ -143,10 +145,10 @@ static const VMStateDescription pcie_pci_bridge_dev_vmstate = {
         .fields = pcie_pci_bridge_dev_vmstate_fields,
 };
 
-static void pcie_pci_bridge_class_init(ObjectClass *klass, const void *data)
+void PCIEPCIBridge::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_REDHAT;
@@ -169,17 +171,6 @@ static const InterfaceInfo pcie_pci_bridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo pcie_pci_bridge_info = {
-        .name = TYPE_PCIE_PCI_BRIDGE_DEV,
-        .parent = TYPE_PCI_BRIDGE,
-        .instance_size = sizeof(PCIEPCIBridge),
-        .class_init = pcie_pci_bridge_class_init,
-        .interfaces = pcie_pci_bridge_interfaces,
-};
-
-static void pciepci_register(void)
-{
-    type_register_static(&pcie_pci_bridge_info);
-}
-
-type_init(pciepci_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIEPCIBridge, TYPE_PCIE_PCI_BRIDGE_DEV,
+                             TYPE_PCI_BRIDGE, pcie_pci_bridge_interfaces)

@@ -53,11 +53,13 @@
 #define I82801ba_SSVID_SVID     0
 #define I82801ba_SSVID_SSID     0
 
-typedef struct I82801b11Bridge {
+struct I82801b11Bridge {
     /*< private >*/
     PCIBridge parent_obj;
     /*< public >*/
-} I82801b11Bridge;
+
+    static void classInit(DeviceClass *dc);
+};
 
 static void i82801b11_bridge_realize(PCIDevice *d, Error **errp)
 {
@@ -87,10 +89,10 @@ static const VMStateDescription i82801b11_bridge_dev_vmstate = {
     }
 };
 
-static void i82801b11_bridge_class_init(ObjectClass *klass, const void *data)
+void I82801b11Bridge::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801BA_11;
@@ -102,20 +104,11 @@ static void i82801b11_bridge_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo i82801b11_bridge_info = {
-    .name          = "i82801b11-bridge",
-    .parent        = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(I82801b11Bridge),
-    .class_init    = i82801b11_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo i82801b11_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void d2pbr_register(void)
-{
-    type_register_static(&i82801b11_bridge_info);
-}
-
-type_init(d2pbr_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(I82801b11Bridge, "i82801b11-bridge",
+                             TYPE_PCI_BRIDGE, i82801b11_bridge_interfaces)

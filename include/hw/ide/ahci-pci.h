@@ -19,6 +19,11 @@ struct AHCIPCIState {
 
     AHCIState ahci;
     IRQState irq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

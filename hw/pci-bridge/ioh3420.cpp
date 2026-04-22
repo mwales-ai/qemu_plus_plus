@@ -98,9 +98,19 @@ static const VMStateDescription vmstate_ioh3420 = {
     .fields = vmstate_ioh3420_fields,
 };
 
-static void ioh3420_class_init(ObjectClass *klass, const void *data)
+/*
+ * IOH3420 uses PCIESlot as its instance type (inherited from TYPE_PCIE_ROOT_PORT).
+ * No custom struct needed — just a classInit to set device IDs and callbacks.
+ */
+struct IOH3420 {
+    PCIESlot parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void IOH3420::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
 
@@ -118,15 +128,5 @@ static void ioh3420_class_init(ObjectClass *klass, const void *data)
     rpc->ssid = IOH_EP_SSVID_SSID;
 }
 
-static const TypeInfo ioh3420_info = {
-    .name          = "ioh3420",
-    .parent        = TYPE_PCIE_ROOT_PORT,
-    .class_init    = ioh3420_class_init,
-};
-
-static void ioh3420_register_types(void)
-{
-    type_register_static(&ioh3420_info);
-}
-
-type_init(ioh3420_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IOH3420, "ioh3420", TYPE_PCIE_ROOT_PORT)
