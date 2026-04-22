@@ -370,18 +370,6 @@ void PC87312State::classInit(DeviceClass *dc)
     sc->ide.get_irq    = get_ide_irq;
 }
 
-static const TypeInfo pc87312_type_info = {
-    .name          = TYPE_PC87312,
-    .parent        = TYPE_ISA_SUPERIO,
-    .instance_size = sizeof(PC87312State),
-    .instance_init = pc87312_initfn,
-    .class_init    = pc87312_class_init,
-    /* FIXME use a qdev drive property instead of drive_get() */
-};
-
-static void pc87312_register_types(void)
-{
-    type_register_static(&pc87312_type_info);
-}
-
-type_init(pc87312_register_types)
+/* FIXME use a qdev drive property instead of drive_get() */
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PC87312State, TYPE_PC87312, TYPE_ISA_SUPERIO)

@@ -1296,69 +1296,67 @@ static const GraphicHwOps xlnx_dp_gfx_ops = {
     .gfx_update  = xlnx_dp_update_display,
 };
 
-static void xlnx_dp_init(Object *obj)
+void XlnxDPState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    XlnxDPState *s = XLNX_DP(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init(&s->container, obj, TYPE_XLNX_DP, DP_CONTAINER_SIZE);
+    memory_region_init(&this->container, obj, TYPE_XLNX_DP, DP_CONTAINER_SIZE);
 
-    memory_region_init_io(&s->core_iomem, obj, &dp_ops, s, TYPE_XLNX_DP
-                          ".core", sizeof(s->core_registers));
-    memory_region_add_subregion(&s->container, DP_CORE_REG_OFFSET,
-                                &s->core_iomem);
+    memory_region_init_io(&this->core_iomem, obj, &dp_ops, this, TYPE_XLNX_DP
+                          ".core", sizeof(this->core_registers));
+    memory_region_add_subregion(&this->container, DP_CORE_REG_OFFSET,
+                                &this->core_iomem);
 
-    memory_region_init_io(&s->vblend_iomem, obj, &vblend_ops, s, TYPE_XLNX_DP
-                          ".v_blend", sizeof(s->vblend_registers));
-    memory_region_add_subregion(&s->container, DP_VBLEND_REG_OFFSET,
-                                &s->vblend_iomem);
+    memory_region_init_io(&this->vblend_iomem, obj, &vblend_ops, this, TYPE_XLNX_DP
+                          ".v_blend", sizeof(this->vblend_registers));
+    memory_region_add_subregion(&this->container, DP_VBLEND_REG_OFFSET,
+                                &this->vblend_iomem);
 
-    memory_region_init_io(&s->avbufm_iomem, obj, &avbufm_ops, s, TYPE_XLNX_DP
-                          ".av_buffer_manager", sizeof(s->avbufm_registers));
-    memory_region_add_subregion(&s->container, DP_AVBUF_REG_OFFSET,
-                                &s->avbufm_iomem);
+    memory_region_init_io(&this->avbufm_iomem, obj, &avbufm_ops, this, TYPE_XLNX_DP
+                          ".av_buffer_manager", sizeof(this->avbufm_registers));
+    memory_region_add_subregion(&this->container, DP_AVBUF_REG_OFFSET,
+                                &this->avbufm_iomem);
 
-    memory_region_init_io(&s->audio_iomem, obj, &audio_ops, s, TYPE_XLNX_DP
-                          ".audio", sizeof(s->audio_registers));
-    memory_region_add_subregion(&s->container, 0xC000, &s->audio_iomem);
+    memory_region_init_io(&this->audio_iomem, obj, &audio_ops, this, TYPE_XLNX_DP
+                          ".audio", sizeof(this->audio_registers));
+    memory_region_add_subregion(&this->container, 0xC000, &this->audio_iomem);
 
-    sysbus_init_mmio(sbd, &s->container);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &this->container);
+    sysbus_init_irq(sbd, &this->irq);
 
     object_property_add_link(obj, "dpdma", TYPE_XLNX_DPDMA,
-                             (Object **) &s->dpdma,
+                             (Object **) &this->dpdma,
                              xlnx_dp_set_dpdma,
                              OBJ_PROP_LINK_STRONG);
 
     /*
      * Initialize AUX Bus.
      */
-    s->aux_bus = aux_bus_init(DEVICE(obj), "aux");
+    this->aux_bus = aux_bus_init(DEVICE(this), "aux");
 
     /*
      * Initialize DPCD and EDID. Once we have added the objects as
      * child properties of this device, we can drop the reference we
      * hold to them, leaving the child-property as the only reference.
      */
-    s->dpcd = DPCD(qdev_new("dpcd"));
-    object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd));
-    object_unref(s->dpcd);
+    this->dpcd = DPCD(qdev_new("dpcd"));
+    object_property_add_child(OBJECT(this), "dpcd", OBJECT(this->dpcd));
+    object_unref(this->dpcd);
 
-    s->edid = I2CDDC(qdev_new("i2c-ddc"));
-    i2c_slave_set_address(I2C_SLAVE(s->edid), 0x50);
-    object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid));
-    object_unref(s->edid);
+    this->edid = I2CDDC(qdev_new("i2c-ddc"));
+    i2c_slave_set_address(I2C_SLAVE(this->edid), 0x50);
+    object_property_add_child(OBJECT(this), "edid", OBJECT(this->edid));
+    object_unref(this->edid);
 
-    fifo8_create(&s->rx_fifo, 16);
-    fifo8_create(&s->tx_fifo, 16);
+    fifo8_create(&this->rx_fifo, 16);
+    fifo8_create(&this->tx_fifo, 16);
 }
 
-static void xlnx_dp_finalize(Object *obj)
+void XlnxDPState::finalize()
 {
-    XlnxDPState *s = XLNX_DP(obj);
-
-    fifo8_destroy(&s->tx_fifo);
-    fifo8_destroy(&s->rx_fifo);
+    fifo8_destroy(&this->tx_fifo);
+    fifo8_destroy(&this->rx_fifo);
 }
 
 static void vblank_hit(void *opaque)
@@ -1464,28 +1462,13 @@ static const Property xlnx_dp_device_properties[] = {
     DEFINE_AUDIO_PROPERTIES(XlnxDPState, audio_be),
 };
 
-static void xlnx_dp_class_init(ObjectClass *oc, const void *data)
+void XlnxDPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->realize = xlnx_dp_realize;
     dc->vmsd = &vmstate_dp;
     device_class_set_legacy_reset(dc, xlnx_dp_reset);
     device_class_set_props(dc, xlnx_dp_device_properties);
 }
 
-static const TypeInfo xlnx_dp_info = {
-    .name          = TYPE_XLNX_DP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxDPState),
-    .instance_init = xlnx_dp_init,
-    .instance_finalize = xlnx_dp_finalize,
-    .class_init    = xlnx_dp_class_init,
-};
-
-static void xlnx_dp_register_types(void)
-{
-    type_register_static(&xlnx_dp_info);
-}
-
-type_init(xlnx_dp_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxDPState, TYPE_XLNX_DP, TYPE_SYS_BUS_DEVICE)

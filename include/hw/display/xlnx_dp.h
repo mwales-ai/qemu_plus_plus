@@ -110,6 +110,12 @@ struct XlnxDPState {
     I2CDDCState *edid;
 
     ptimer_state *vblank;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_XLNX_DP "xlnx.v-dp"

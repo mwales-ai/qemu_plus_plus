@@ -28,6 +28,7 @@ extern "C" {
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/cxl/cxl.h"
+#include "qom/cpp/object.h"
 #include "system/numa.h"
 #include "hw/boards.h"
 
@@ -433,9 +434,9 @@ static const Property pxb_dev_properties[] = {
     DEFINE_PROP_BOOL("bypass_iommu", PXBDev, bypass_iommu, false),
 };
 
-static void pxb_dev_class_init(ObjectClass *klass, const void *data)
+void PXBDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pxb_dev_realize;
@@ -455,13 +456,7 @@ static const InterfaceInfo pxb_dev_interfaces[] = {
     { },
 };
 
-static const TypeInfo pxb_dev_info = {
-    .name          = TYPE_PXB_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PXBDev),
-    .class_init    = pxb_dev_class_init,
-    .interfaces    = pxb_dev_interfaces,
-};
+/* PXBDev registered via REGISTER_QEMU_DEVICE_IFACES below */
 
 static void pxb_pcie_dev_realize(PCIDevice *dev, Error **errp)
 {
@@ -554,16 +549,17 @@ static const TypeInfo pxb_cxl_dev_info = {
     .interfaces    = pxb_cxl_dev_interfaces,
 };
 
-static void pxb_register_types(void)
+REGISTER_QEMU_DEVICE_IFACES(PXBDev, TYPE_PXB_DEV, TYPE_PCI_DEVICE,
+                            pxb_dev_interfaces)
+
+static void pxb_secondary_register_types(void) __attribute__((constructor));
+static void pxb_secondary_register_types(void)
 {
     type_register_static(&pxb_bus_info);
     type_register_static(&pxb_pcie_bus_info);
     type_register_static(&pxb_cxl_bus_info);
     type_register_static(&pxb_host_info);
     type_register_static(&cxl_host_info);
-    type_register_static(&pxb_dev_info);
     type_register_static(&pxb_pcie_dev_info);
     type_register_static(&pxb_cxl_dev_info);
 }
-
-type_init(pxb_register_types)

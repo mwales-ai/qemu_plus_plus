@@ -49,6 +49,8 @@ struct sii9022_state {
     bool ddc_req;
     bool ddc_skip_finish;
     bool ddc;
+
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_sii9022_fields[] = {
@@ -173,9 +175,9 @@ static void sii9022_realize(DeviceState *dev, Error **errp)
     i2c_slave_create_simple(bus, TYPE_I2CDDC, 0x50);
 }
 
-static void sii9022_class_init(ObjectClass *klass, const void *data)
+void sii9022_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->event = sii9022_event;
@@ -186,16 +188,5 @@ static void sii9022_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_sii9022;
 }
 
-static const TypeInfo sii9022_info = {
-    .name          = TYPE_SII9022,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(sii9022_state),
-    .class_init    = sii9022_class_init,
-};
-
-static void sii9022_register_types(void)
-{
-    type_register_static(&sii9022_info);
-}
-
-type_init(sii9022_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(sii9022_state, TYPE_SII9022, TYPE_I2C_SLAVE)

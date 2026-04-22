@@ -101,6 +101,10 @@ typedef struct PXBDev {
     uint8_t bus_nr;
     uint16_t numa_node;
     bool bypass_iommu;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } PXBDev;
 
 typedef struct PXBPCIEDev {
