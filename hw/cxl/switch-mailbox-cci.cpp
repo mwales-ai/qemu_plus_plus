@@ -71,9 +71,9 @@ static const Property cxl_switch_cci_props[] = {
                      target, TYPE_CXL_USP, PCIDevice *),
 };
 
-static void cswmbcci_class_init(ObjectClass *oc, const void *data)
+void CSWMBCCIDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
     pc->realize = cswbcci_realize;
@@ -98,16 +98,6 @@ static const InterfaceInfo cswmbcci_interfaces[] = {
     { },
 };
 
-static const TypeInfo cswmbcci_info = {
-    .name = TYPE_CXL_SWITCH_MAILBOX_CCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(CSWMBCCIDev),
-    .class_init = cswmbcci_class_init,
-    .interfaces = cswmbcci_interfaces,
-};
-
-static void cxl_switch_mailbox_cci_register(void)
-{
-    type_register_static(&cswmbcci_info);
-}
-type_init(cxl_switch_mailbox_cci_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(CSWMBCCIDev, TYPE_CXL_SWITCH_MAILBOX_CCI,
+                             TYPE_PCI_DEVICE, cswmbcci_interfaces)

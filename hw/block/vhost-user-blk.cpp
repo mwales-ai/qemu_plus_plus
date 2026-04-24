@@ -554,11 +554,10 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev)
     vhost_user_cleanup(&s->vhost_user);
 }
 
-static void vhost_user_blk_instance_init(Object *obj)
+void VHostUserBlk::init()
 {
-    VHostUserBlk *s = VHOST_USER_BLK(obj);
-
-    device_add_bootindex_property(obj, &s->bootindex, "bootindex",
+    Object *obj = OBJECT(this);
+    device_add_bootindex_property(obj, &bootindex, "bootindex",
                                   "/disk@0,0", DEVICE(obj));
 }
 
@@ -595,9 +594,9 @@ static const Property vhost_user_blk_properties[] = {
                      skip_get_vring_base_on_force_shutdown, false),
 };
 
-static void vhost_user_blk_class_init(ObjectClass *klass, const void *data)
+void VHostUserBlk::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vhost_user_blk_properties);
@@ -614,17 +613,5 @@ static void vhost_user_blk_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = vhost_user_blk_get_vhost;
 }
 
-static const TypeInfo vhost_user_blk_info = {
-    .name = TYPE_VHOST_USER_BLK,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VHostUserBlk),
-    .instance_init = vhost_user_blk_instance_init,
-    .class_init = vhost_user_blk_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_user_blk_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserBlk, TYPE_VHOST_USER_BLK, TYPE_VIRTIO_DEVICE)

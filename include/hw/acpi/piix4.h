@@ -68,6 +68,11 @@ struct PIIX4PMState {
     CPUHotplugState cpuhp_state;
 
     MemHotplugState acpi_memory_hotplug;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

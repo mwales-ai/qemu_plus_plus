@@ -229,10 +229,10 @@ static const Property virtio_input_host_properties[] = {
     DEFINE_PROP_STRING("evdev", VirtIOInputHost, evdev),
 };
 
-static void virtio_input_host_class_init(ObjectClass *klass, const void *data)
+void VirtIOInputHost::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOInputClass *vic = VIRTIO_INPUT_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd           = &vmstate_virtio_input_host;
     device_class_set_props(dc, virtio_input_host_properties);
@@ -241,26 +241,12 @@ static void virtio_input_host_class_init(ObjectClass *klass, const void *data)
     vic->handle_status = virtio_input_host_handle_status;
 }
 
-static void virtio_input_host_init(Object *obj)
+void VirtIOInputHost::init()
 {
-    VirtIOInput *vinput = VIRTIO_INPUT(obj);
+    VirtIOInput *vinput = VIRTIO_INPUT(this);
 
     virtio_input_init_config(vinput, virtio_input_host_config);
 }
 
-static const TypeInfo virtio_input_host_info = {
-    .name          = TYPE_VIRTIO_INPUT_HOST,
-    .parent        = TYPE_VIRTIO_INPUT,
-    .instance_size = sizeof(VirtIOInputHost),
-    .instance_init = virtio_input_host_init,
-    .class_init    = virtio_input_host_class_init,
-};
-
-/* ----------------------------------------------------------------- */
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_input_host_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOInputHost, TYPE_VIRTIO_INPUT_HOST, TYPE_VIRTIO_INPUT)

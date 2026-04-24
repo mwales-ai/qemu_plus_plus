@@ -31,6 +31,10 @@ struct ISAParallelState {
     uint32_t isairq;
     ParallelState state;
     PortioList portio_list;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void isa_parallel_set_iobase(ISADevice *parallel, hwaddr iobase);

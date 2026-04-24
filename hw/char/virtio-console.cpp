@@ -36,6 +36,8 @@ struct VirtConsole {
 
     CharFrontend chr;
     guint watch;
+
+    static void classInit(DeviceClass *dc);
 };
 
 /*
@@ -282,9 +284,9 @@ static const Property virtserialport_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtConsole, chr),
 };
 
-static void virtserialport_class_init(ObjectClass *klass, const void *data)
+void VirtConsole::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->realize = virtconsole_realize;
@@ -296,17 +298,11 @@ static void virtserialport_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtserialport_properties);
 }
 
-static const TypeInfo virtserialport_info = {
-    .name          = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
-    .parent        = TYPE_VIRTIO_SERIAL_PORT,
-    .instance_size = sizeof(VirtConsole),
-    .class_init    = virtserialport_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtConsole, TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
+                      TYPE_VIRTIO_SERIAL_PORT)
 
-static void virtconsole_register_types(void)
+__attribute__((constructor)) static void virtconsole_register_subtype(void)
 {
-    type_register_static(&virtserialport_info);
     type_register_static(&virtconsole_info);
 }
-
-type_init(virtconsole_register_types)

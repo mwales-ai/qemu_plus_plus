@@ -113,9 +113,9 @@ struct ICH9SMBState {
         return pm_smbus_vmstate_needed();
     }
 
-    static void classInit(ObjectClass *klass, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
         PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
         AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
@@ -151,21 +151,12 @@ const VMStateDescription ICH9SMBState::vmstate_ich9_smbus = {
     }
 };
 
-static const TypeInfo ich9_smb_info = {
-    .name   = TYPE_ICH9_SMB_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ICH9SMBState),
-    .class_init = ICH9SMBState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+static const InterfaceInfo ich9_smb_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
 };
 
-static void ich9_smb_register(void)
-{
-    type_register_static(&ich9_smb_info);
-}
-
-type_init(ich9_smb_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ICH9SMBState, TYPE_ICH9_SMB_DEVICE,
+                             TYPE_PCI_DEVICE, ich9_smb_interfaces)

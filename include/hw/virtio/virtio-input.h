@@ -100,6 +100,11 @@ struct VirtIOInputHost {
     VirtIOInput                       parent_obj;
     char                              *evdev;
     int                               fd;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct VHostUserInput {

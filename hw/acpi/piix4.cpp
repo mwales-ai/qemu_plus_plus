@@ -515,12 +515,11 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_properties(s);
 }
 
-static void piix4_pm_init(Object *obj)
+void PIIX4PMState::init()
 {
-    PIIX4PMState *s = PIIX4_PM(obj);
-
-    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->smi_irq, "smi-irq", 1);
+    Object *obj = OBJECT(this);
+    qdev_init_gpio_out(DEVICE(obj), &irq, 1);
+    qdev_init_gpio_out_named(DEVICE(obj), &smi_irq, "smi-irq", 1);
 }
 
 static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
@@ -638,9 +637,9 @@ static const Property piix4_pm_properties[] = {
                       not_migrate_acpi_index, false),
 };
 
-static void piix4_pm_class_init(ObjectClass *klass, const void *data)
+void PIIX4PMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
@@ -677,18 +676,6 @@ static const InterfaceInfo piix4_pm_interfaces[] = {
     { }
 };
 
-static const TypeInfo piix4_pm_info = {
-    .name          = TYPE_PIIX4_PM,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PIIX4PMState),
-    .instance_init  = piix4_pm_init,
-    .class_init    = piix4_pm_class_init,
-    .interfaces = piix4_pm_interfaces,
-};
-
-static void piix4_pm_register_types(void)
-{
-    type_register_static(&piix4_pm_info);
-}
-
-type_init(piix4_pm_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PIIX4PMState, TYPE_PIIX4_PM,
+                             TYPE_PCI_DEVICE, piix4_pm_interfaces)

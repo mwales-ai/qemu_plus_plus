@@ -579,22 +579,17 @@ vhost_user_gpu_guest_notifier_mask(VirtIODevice *vdev, int idx, bool mask)
     vhost_virtqueue_mask(&g->vhost->dev, vdev, idx, mask);
 }
 
-static void
-vhost_user_gpu_instance_init(Object *obj)
+void VhostUserGPU::init()
 {
-    VhostUserGPU *g = VHOST_USER_GPU(obj);
-
-    g->vhost = VHOST_USER_BACKEND(object_new(TYPE_VHOST_USER_BACKEND));
-    object_property_add_alias(obj, "chardev",
-                              OBJECT(g->vhost), "chardev");
+    vhost = VHOST_USER_BACKEND(object_new(TYPE_VHOST_USER_BACKEND));
+    object_property_add_alias(OBJECT(this), "chardev",
+                              OBJECT(vhost), "chardev");
 }
 
-static void
-vhost_user_gpu_instance_finalize(Object *obj)
+void
+VhostUserGPU::finalize()
 {
-    VhostUserGPU *g = VHOST_USER_GPU(obj);
-
-    object_unref(OBJECT(g->vhost));
+    object_unref(OBJECT(vhost));
 }
 
 static void
@@ -666,10 +661,9 @@ static const Property vhost_user_gpu_properties[] = {
     VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf),
 };
 
-static void
-vhost_user_gpu_class_init(ObjectClass *klass, const void *data)
+void VhostUserGPU::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_CLASS(klass);
 
@@ -687,20 +681,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, vhost_user_gpu_properties);
 }
 
-static const TypeInfo vhost_user_gpu_info = {
-    .name = TYPE_VHOST_USER_GPU,
-    .parent = TYPE_VIRTIO_GPU_BASE,
-    .instance_size = sizeof(VhostUserGPU),
-    .instance_init = vhost_user_gpu_instance_init,
-    .instance_finalize = vhost_user_gpu_instance_finalize,
-    .class_init = vhost_user_gpu_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VhostUserGPU, TYPE_VHOST_USER_GPU, TYPE_VIRTIO_GPU_BASE)
 module_obj(TYPE_VHOST_USER_GPU);
 module_kconfig(VHOST_USER_GPU);
-
-static void vhost_user_gpu_register_types(void)
-{
-    type_register_static(&vhost_user_gpu_info);
-}
-
-type_init(vhost_user_gpu_register_types)

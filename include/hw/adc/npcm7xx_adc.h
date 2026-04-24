@@ -60,6 +60,11 @@ struct NPCM7xxADCState {
     uint32_t     iref;
 
     uint16_t     calibration_r_values[NPCM7XX_ADC_NUM_CALIB];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NPCM7XX_ADC "npcm7xx-adc"

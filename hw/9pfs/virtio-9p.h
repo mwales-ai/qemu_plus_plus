@@ -16,6 +16,10 @@ struct V9fsVirtioState {
     size_t config_size;
     VirtQueueElement *elems[MAX_REQ];
     V9fsState state;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"

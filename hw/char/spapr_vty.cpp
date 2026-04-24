@@ -18,6 +18,8 @@ struct SpaprVioVty {
     CharFrontend chardev;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
@@ -177,9 +179,9 @@ static const VMStateDescription vmstate_spapr_vty = {
     .fields = vmstate_spapr_vty_fields,
 };
 
-static void spapr_vty_class_init(ObjectClass *klass, const void *data)
+void SpaprVioVty::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->realize = spapr_vty_realize;
@@ -190,13 +192,6 @@ static void spapr_vty_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, spapr_vty_properties);
     dc->vmsd = &vmstate_spapr_vty;
 }
-
-static const TypeInfo spapr_vty_info = {
-    .name          = TYPE_VIO_SPAPR_VTY_DEVICE,
-    .parent        = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size = sizeof(SpaprVioVty),
-    .class_init    = spapr_vty_class_init,
-};
 
 extern "C" SpaprVioDevice *spapr_vty_get_default(SpaprVioBus *bus)
 {
@@ -245,11 +240,12 @@ extern "C" SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg
     return sdev;
 }
 
-static void spapr_vty_register_types(void)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprVioVty, TYPE_VIO_SPAPR_VTY_DEVICE,
+                      TYPE_VIO_SPAPR_DEVICE)
+
+__attribute__((constructor)) static void spapr_vty_register_hypercalls(void)
 {
     spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
     spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
-    type_register_static(&spapr_vty_info);
 }
-
-type_init(spapr_vty_register_types)

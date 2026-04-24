@@ -250,9 +250,9 @@ static const Property virtio_9p_properties[] = {
     DEFINE_PROP_STRING("fsdev", V9fsVirtioState, state.fsconf.fsdev_id),
 };
 
-static void virtio_9p_class_init(ObjectClass *klass, const void *data)
+void V9fsVirtioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, virtio_9p_properties);
@@ -265,16 +265,5 @@ static void virtio_9p_class_init(ObjectClass *klass, const void *data)
     vdc->reset = virtio_9p_reset;
 }
 
-static const TypeInfo virtio_device_info = {
-    .name = TYPE_VIRTIO_9P,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(V9fsVirtioState),
-    .class_init = virtio_9p_class_init,
-};
-
-static void virtio_9p_register_types(void)
-{
-    type_register_static(&virtio_device_info);
-}
-
-type_init(virtio_9p_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(V9fsVirtioState, TYPE_VIRTIO_9P, TYPE_VIRTIO_DEVICE)

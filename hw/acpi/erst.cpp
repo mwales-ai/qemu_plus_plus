@@ -152,7 +152,7 @@ typedef struct {
 /*
  * Main ERST device state structure
  */
-typedef struct {
+struct ERSTDeviceState {
     PCIDevice parent_obj;
 
     /* Backend storage */
@@ -180,7 +180,8 @@ typedef struct {
     unsigned last_record_index;
     unsigned next_record_index;
 
-} ERSTDeviceState;
+    static void classInit(DeviceClass *dc);
+};
 
 /*******************************************************************/
 /*******************************************************************/
@@ -1018,9 +1019,9 @@ static const Property erst_properties[] = {
                      default_record_size, ERST_RECORD_SIZE),
 };
 
-static void erst_class_init(ObjectClass *klass, const void *data)
+void ERSTDeviceState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     trace_acpi_erst_class_init_in();
@@ -1039,20 +1040,11 @@ static void erst_class_init(ObjectClass *klass, const void *data)
     trace_acpi_erst_class_init_out();
 }
 
-static const TypeInfo erst_type_info = {
-    .name          = TYPE_ACPI_ERST,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ERSTDeviceState),
-    .class_init    = erst_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+static const InterfaceInfo erst_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
 };
 
-static void erst_register_types(void)
-{
-    type_register_static(&erst_type_info);
-}
-
-type_init(erst_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ERSTDeviceState, TYPE_ACPI_ERST,
+                             TYPE_PCI_DEVICE, erst_interfaces)

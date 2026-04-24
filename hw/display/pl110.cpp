@@ -80,6 +80,7 @@ struct PL110State {
     MemoryRegion *fbmem;
 
     /* ----- methods ----- */
+    void init();
     void realize(Error **errp);
 
     static void classInit(DeviceClass *dc);
@@ -589,11 +590,9 @@ void PL110State::realize(Error **errp)
     con = graphic_console_init(dev, 0, &pl110_gfx_ops, this);
 }
 
-static void pl110_init(Object *obj)
+void PL110State::init()
 {
-    PL110State *s = reinterpret_cast<PL110State *>(obj);
-
-    s->version = VERSION_PL110;
+    version = VERSION_PL110;
 }
 
 static void pl110_versatile_init(Object *obj)
@@ -618,18 +617,10 @@ void PL110State::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL110State, TYPE_PL110, TYPE_SYS_BUS_DEVICE)
 
-static void pl110_register_types(void)
+static void pl110_register_subtypes(void)
 {
-    static TypeInfo pl110_info = {
-        .name          = TYPE_PL110,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(PL110State),
-        .instance_init = pl110_init,
-        .class_init    = qemu_device_detail::trampoline_class_init<PL110State>,
-    };
-    pl110_info.cpp_vtable = qemu_device_detail::extract_vtable<PL110State>();
-
     static TypeInfo pl110_versatile_info = {
         .name          = "pl110_versatile",
         .parent        = TYPE_PL110,
@@ -642,9 +633,8 @@ static void pl110_register_types(void)
         .instance_init = pl111_init,
     };
 
-    type_register_static(&pl110_info);
     type_register_static(&pl110_versatile_info);
     type_register_static(&pl111_info);
 }
 
-type_init(pl110_register_types)
+type_init(pl110_register_subtypes)

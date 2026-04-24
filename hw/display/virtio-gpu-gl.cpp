@@ -187,9 +187,9 @@ static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
     g_array_unref(g->capset_ids);
 }
 
-static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
+void VirtIOGPUGL::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
@@ -205,21 +205,10 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_gpu_gl_properties);
 }
 
-static const TypeInfo virtio_gpu_gl_info = {
-    .name = TYPE_VIRTIO_GPU_GL,
-    .parent = TYPE_VIRTIO_GPU,
-    .instance_size = sizeof(VirtIOGPUGL),
-    .class_init = virtio_gpu_gl_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOGPUGL, TYPE_VIRTIO_GPU_GL, TYPE_VIRTIO_GPU)
 module_obj(TYPE_VIRTIO_GPU_GL);
 module_kconfig(VIRTIO_GPU);
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_gpu_gl_info);
-}
-
-type_init(virtio_register_types)
 
 module_dep("hw-display-virtio-gpu");
 module_dep("ui-opengl");

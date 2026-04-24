@@ -660,36 +660,23 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
     parallel_isa_realizefn_impl(isa, dev, errp);
 }
 
-struct ParallelISAMethods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-        AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
+void ISAParallelState::classInit(DeviceClass *dc)
+{
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
-        dc->realize = parallel_isa_realizefn;
-        dc->vmsd = &vmstate_parallel_isa;
-        adevc->build_dev_aml = parallel_isa_build_aml;
-        device_class_set_props(dc, parallel_isa_properties);
-        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    }
-};
+    dc->realize = parallel_isa_realizefn;
+    dc->vmsd = &vmstate_parallel_isa;
+    adevc->build_dev_aml = parallel_isa_build_aml;
+    device_class_set_props(dc, parallel_isa_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
 
 static const InterfaceInfo parallel_isa_interfaces[] = {
     { TYPE_ACPI_DEV_AML_IF },
     { },
 };
 
-static const TypeInfo parallel_isa_info = {
-    .name          = TYPE_ISA_PARALLEL,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAParallelState),
-    .class_init    = ParallelISAMethods::classInit,
-    .interfaces = parallel_isa_interfaces,
-};
-
-static void parallel_register_types(void)
-{
-    type_register_static(&parallel_isa_info);
-}
-
-type_init(parallel_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ISAParallelState, TYPE_ISA_PARALLEL,
+                             TYPE_ISA_DEVICE, parallel_isa_interfaces)

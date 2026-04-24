@@ -64,6 +64,9 @@ struct FDCtrlISABus {
     PortioList portio_list;
     int32_t bootindexA;
     int32_t bootindexB;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void fdctrl_external_reset_isa(DeviceState *d)
@@ -298,9 +301,9 @@ static const Property isa_fdc_properties[] = {
                         FloppyDriveType),
 };
 
-static void isabus_fdc_class_init(ObjectClass *klass, const void *data)
+void FDCtrlISABus::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     dc->desc = "virtual floppy controller";
@@ -313,14 +316,13 @@ static void isabus_fdc_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static void isabus_fdc_instance_init(Object *obj)
+void FDCtrlISABus::init()
 {
-    FDCtrlISABus *isa = ISA_FDC(obj);
-
-    device_add_bootindex_property(obj, &isa->bootindexA,
+    Object *obj = OBJECT(this);
+    device_add_bootindex_property(obj, &bootindexA,
                                   "bootindexA", "/floppy@0",
                                   DEVICE(obj));
-    device_add_bootindex_property(obj, &isa->bootindexB,
+    device_add_bootindex_property(obj, &bootindexB,
                                   "bootindexB", "/floppy@1",
                                   DEVICE(obj));
 }
@@ -330,18 +332,6 @@ static const InterfaceInfo isa_fdc_interfaces[] = {
     { },
 };
 
-static const TypeInfo isa_fdc_info = {
-    .name          = TYPE_ISA_FDC,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(FDCtrlISABus),
-    .instance_init = isabus_fdc_instance_init,
-    .class_init    = isabus_fdc_class_init,
-    .interfaces    = isa_fdc_interfaces,
-};
-
-static void isa_fdc_register_types(void)
-{
-    type_register_static(&isa_fdc_info);
-}
-
-type_init(isa_fdc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(FDCtrlISABus, TYPE_ISA_FDC,
+                             TYPE_ISA_DEVICE, isa_fdc_interfaces)

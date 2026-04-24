@@ -249,8 +249,15 @@ static void kvm_apic_unrealize(DeviceState *dev)
 {
 }
 
-static void kvm_apic_class_init(ObjectClass *klass, const void *data)
+struct KVMAPICState {
+    APICCommonState parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void KVMAPICState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     APICCommonClass *k = APIC_COMMON_CLASS(klass);
 
     k->realize = kvm_apic_realize;
@@ -266,16 +273,5 @@ static void kvm_apic_class_init(ObjectClass *klass, const void *data)
     k->send_msi = kvm_send_msi;
 }
 
-static const TypeInfo kvm_apic_info = {
-    .name = "kvm-apic",
-    .parent = TYPE_APIC_COMMON,
-    .instance_size = sizeof(APICCommonState),
-    .class_init = kvm_apic_class_init,
-};
-
-static void kvm_apic_register_types(void)
-{
-    type_register_static(&kvm_apic_info);
-}
-
-type_init(kvm_apic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(KVMAPICState, "kvm-apic", TYPE_APIC_COMMON)

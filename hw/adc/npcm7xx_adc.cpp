@@ -230,28 +230,28 @@ static void npcm7xx_adc_hold_reset(Object *obj, ResetType type)
     qemu_irq_lower(s->irq);
 }
 
-static void npcm7xx_adc_init(Object *obj)
+void NPCM7xxADCState::init()
 {
-    NPCM7xxADCState *s = NPCM7XX_ADC(obj);
+    Object *obj = OBJECT(this);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int i;
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    timer_init_ns(&s->conv_timer, QEMU_CLOCK_VIRTUAL,
-            npcm7xx_adc_convert_done, s);
-    memory_region_init_io(&s->iomem, obj, &npcm7xx_adc_ops, s,
+    timer_init_ns(&conv_timer, QEMU_CLOCK_VIRTUAL,
+            npcm7xx_adc_convert_done, this);
+    memory_region_init_io(&iomem, obj, &npcm7xx_adc_ops, this,
                           TYPE_NPCM7XX_ADC, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
-    s->clock = qdev_init_clock_in(DEVICE(s), "clock", NULL, NULL, 0);
+    sysbus_init_mmio(sbd, &iomem);
+    clock = qdev_init_clock_in(DEVICE(this), "clock", NULL, NULL, 0);
 
     for (i = 0; i < NPCM7XX_ADC_NUM_INPUTS; ++i) {
         object_property_add_uint32_ptr(obj, "adci[*]",
-                &s->adci[i], OBJ_PROP_FLAG_READWRITE);
+                &adci[i], OBJ_PROP_FLAG_READWRITE);
     }
     object_property_add_uint32_ptr(obj, "vref",
-            &s->vref, OBJ_PROP_FLAG_WRITE);
-    npcm7xx_adc_calibrate(s);
+            &vref, OBJ_PROP_FLAG_WRITE);
+    npcm7xx_adc_calibrate(this);
 }
 
 static const VMStateField vmstate_npcm7xx_adc_fields[] = {
@@ -278,10 +278,10 @@ static const Property npcm7xx_timer_properties[] = {
     DEFINE_PROP_UINT32("iref", NPCM7xxADCState, iref, NPCM7XX_ADC_DEFAULT_IREF),
 };
 
-static void npcm7xx_adc_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxADCState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "NPCM7xx ADC Module";
     dc->vmsd = &vmstate_npcm7xx_adc;
@@ -291,17 +291,5 @@ static void npcm7xx_adc_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, npcm7xx_timer_properties);
 }
 
-static const TypeInfo npcm7xx_adc_info = {
-    .name               = TYPE_NPCM7XX_ADC,
-    .parent             = TYPE_SYS_BUS_DEVICE,
-    .instance_size      = sizeof(NPCM7xxADCState),
-    .instance_init      = npcm7xx_adc_init,
-    .class_init         = npcm7xx_adc_class_init,
-};
-
-static void npcm7xx_adc_register_types(void)
-{
-    type_register_static(&npcm7xx_adc_info);
-}
-
-type_init(npcm7xx_adc_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NPCM7xxADCState, TYPE_NPCM7XX_ADC, TYPE_SYS_BUS_DEVICE)

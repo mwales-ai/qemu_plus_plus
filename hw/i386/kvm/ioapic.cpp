@@ -56,6 +56,8 @@ typedef struct KVMIOAPICState KVMIOAPICState;
 struct KVMIOAPICState {
     IOAPICCommonState ioapic;
     uint32_t kvm_gsi_base;
+
+    static void classInit(DeviceClass *dc);
 };
 
 static void kvm_ioapic_get(IOAPICCommonState *s)
@@ -142,10 +144,10 @@ static const Property kvm_ioapic_properties[] = {
     DEFINE_PROP_UINT32("gsi_base", KVMIOAPICState, kvm_gsi_base, 0),
 };
 
-static void kvm_ioapic_class_init(ObjectClass *klass, const void *data)
+void KVMIOAPICState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize   = kvm_ioapic_realize;
     k->pre_save  = kvm_ioapic_get;
@@ -154,16 +156,5 @@ static void kvm_ioapic_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, kvm_ioapic_properties);
 }
 
-static const TypeInfo kvm_ioapic_info = {
-    .name  = TYPE_KVM_IOAPIC,
-    .parent = TYPE_IOAPIC_COMMON,
-    .instance_size = sizeof(KVMIOAPICState),
-    .class_init = kvm_ioapic_class_init,
-};
-
-static void kvm_ioapic_register_types(void)
-{
-    type_register_static(&kvm_ioapic_info);
-}
-
-type_init(kvm_ioapic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(KVMIOAPICState, TYPE_KVM_IOAPIC, TYPE_IOAPIC_COMMON)
