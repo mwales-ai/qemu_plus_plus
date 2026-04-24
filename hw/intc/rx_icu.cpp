@@ -318,27 +318,25 @@ static void rxicu_realize(DeviceState *dev, Error **errp)
     icu->req_irq = -1;
 }
 
-static void rxicu_init(Object *obj)
+void RXICUState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    RXICUState *icu = RX_ICU(obj);
+    SysBusDevice *d = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&icu->memory, OBJECT(icu), &icu_ops,
-                          icu, "rx-icu", 0x600);
-    sysbus_init_mmio(d, &icu->memory);
+    memory_region_init_io(&memory, OBJECT(this), &icu_ops,
+                          this, "rx-icu", 0x600);
+    sysbus_init_mmio(d, &memory);
 
     qdev_init_gpio_in(DEVICE(d), rxicu_set_irq, NR_IRQS);
     qdev_init_gpio_in_named(DEVICE(d), rxicu_ack_irq, "ack", 1);
-    sysbus_init_irq(d, &icu->_irq);
-    sysbus_init_irq(d, &icu->_fir);
-    sysbus_init_irq(d, &icu->_swi);
+    sysbus_init_irq(d, &_irq);
+    sysbus_init_irq(d, &_fir);
+    sysbus_init_irq(d, &_swi);
 }
 
-static void rxicu_fini(Object *obj)
+void RXICUState::finalize()
 {
-    RXICUState *icu = RX_ICU(obj);
-    g_free(icu->map);
-    g_free(icu->init_sense);
+    g_free(map);
+    g_free(init_sense);
 }
 
 static const VMStateDescription vmstate_rxicu = {
@@ -368,27 +366,12 @@ static const Property rxicu_properties[] = {
                       qdev_prop_uint8, uint8_t),
 };
 
-static void rxicu_class_init(ObjectClass *klass, const void *data)
+void RXICUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = rxicu_realize;
     dc->vmsd = &vmstate_rxicu;
     device_class_set_props(dc, rxicu_properties);
 }
 
-static const TypeInfo rxicu_info = {
-    .name = TYPE_RX_ICU,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RXICUState),
-    .instance_init = rxicu_init,
-    .instance_finalize = rxicu_fini,
-    .class_init = rxicu_class_init,
-};
-
-static void rxicu_register_types(void)
-{
-    type_register_static(&rxicu_info);
-}
-
-type_init(rxicu_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RXICUState, TYPE_RX_ICU, TYPE_SYS_BUS_DEVICE)

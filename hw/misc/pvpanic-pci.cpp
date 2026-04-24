@@ -28,10 +28,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(PVPanicPCIState, PVPANIC_PCI_DEVICE)
 /*
  * PVPanicPCIState for PCI device
  */
-typedef struct PVPanicPCIState {
+struct PVPanicPCIState {
     PCIDevice dev;
     PVPanicState pvpanic;
-} PVPanicPCIState;
+
+    static void classInit(DeviceClass *dc);
+};
 
 static const VMStateDescription vmstate_pvpanic_pci = {
     .name = "pvpanic-pci",
@@ -58,9 +60,9 @@ static const Property pvpanic_pci_properties[] = {
                       PVPANIC_EVENTS),
 };
 
-static void pvpanic_pci_class_init(ObjectClass *klass, const void *data)
+void PVPanicPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, pvpanic_pci_properties);
@@ -75,20 +77,11 @@ static void pvpanic_pci_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo pvpanic_pci_info = {
-    .name          = TYPE_PVPANIC_PCI_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PVPanicPCIState),
-    .class_init    = pvpanic_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+static const InterfaceInfo pvpanic_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
 };
 
-static void pvpanic_register_types(void)
-{
-    type_register_static(&pvpanic_pci_info);
-}
-
-type_init(pvpanic_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PVPanicPCIState, TYPE_PVPANIC_PCI_DEVICE,
+                             TYPE_PCI_DEVICE, pvpanic_pci_interfaces)

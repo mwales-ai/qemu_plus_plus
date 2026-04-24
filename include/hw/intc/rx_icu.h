@@ -68,6 +68,12 @@ struct RXICUState {
     qemu_irq _irq;
     qemu_irq _fir;
     qemu_irq _swi;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_RX_ICU "rx-icu"

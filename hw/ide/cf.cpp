@@ -31,9 +31,15 @@ static const Property ide_cf_properties[] = {
                 IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
 };
 
-static void ide_cf_class_init(ObjectClass *klass, const void *data)
+struct IDECFState {
+    IDEDrive parent_obj;
+
+    static void classInit(DeviceClass *dc);
+};
+
+void IDECFState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
 
     k->realize  = ide_cf_realize;
@@ -42,16 +48,5 @@ static void ide_cf_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, ide_cf_properties);
 }
 
-static const TypeInfo ide_cf_info = {
-    .name          = "ide-cf",
-    .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
-    .class_init    = ide_cf_class_init,
-};
-
-static void ide_cf_register_type(void)
-{
-    type_register_static(&ide_cf_info);
-}
-
-type_init(ide_cf_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IDECFState, "ide-cf", TYPE_IDE_DEVICE)
