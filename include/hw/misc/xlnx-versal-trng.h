@@ -35,7 +35,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(XlnxVersalTRng, XLNX_VERSAL_TRNG);
 
 #define RMAX_XLNX_VERSAL_TRNG ((0xf0 / 4) + 1)
 
-typedef struct XlnxVersalTRng {
+struct XlnxVersalTRng {
     SysBusDevice parent_obj;
     qemu_irq irq;
     GRand *prng;
@@ -53,7 +53,13 @@ typedef struct XlnxVersalTRng {
     RegisterInfoArray *reg_array;
     uint32_t regs[RMAX_XLNX_VERSAL_TRNG];
     RegisterInfo regs_info[RMAX_XLNX_VERSAL_TRNG];
-} XlnxVersalTRng;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #undef RMAX_XLNX_VERSAL_TRNG
 #endif

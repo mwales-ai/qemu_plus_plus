@@ -63,6 +63,11 @@ struct Max78000AesState {
 
 
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

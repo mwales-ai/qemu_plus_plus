@@ -479,12 +479,9 @@ static void tz_mpc_reset(DeviceState *dev)
     memset(s->blk_lut, 0, s->blk_max * sizeof(uint32_t));
 }
 
-static void tz_mpc_init(Object *obj)
+void TZMPC::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    TZMPC *s = TZ_MPC(obj);
-
-    qdev_init_gpio_out_named(dev, &s->irq, "irq", 1);
+    qdev_init_gpio_out_named(DEVICE(this), &irq, "irq", 1);
 }
 
 static void tz_mpc_realize(DeviceState *dev, Error **errp)
@@ -590,23 +587,16 @@ static const Property tz_mpc_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void tz_mpc_class_init(ObjectClass *klass, const void *data)
+void TZMPC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = tz_mpc_realize;
     dc->vmsd = &tz_mpc_vmstate;
     device_class_set_legacy_reset(dc, tz_mpc_reset);
     device_class_set_props(dc, tz_mpc_properties);
 }
 
-static const TypeInfo tz_mpc_info = {
-    .name = TYPE_TZ_MPC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TZMPC),
-    .instance_init = tz_mpc_init,
-    .class_init = tz_mpc_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(TZMPC, TYPE_TZ_MPC, TYPE_SYS_BUS_DEVICE)
 
 static void tz_mpc_iommu_memory_region_class_init(ObjectClass *klass,
                                                   const void *data)
@@ -618,16 +608,12 @@ static void tz_mpc_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->num_indexes = tz_mpc_num_indexes;
 }
 
-static const TypeInfo tz_mpc_iommu_memory_region_info = {
-    .name = TYPE_TZ_MPC_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = tz_mpc_iommu_memory_region_class_init,
-};
-
-static void tz_mpc_register_types(void)
+static void __attribute__((constructor)) register_tz_mpc_iommu(void)
 {
-    type_register_static(&tz_mpc_info);
+    static const TypeInfo tz_mpc_iommu_memory_region_info = {
+        .name = TYPE_TZ_MPC_IOMMU_MEMORY_REGION,
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .class_init = tz_mpc_iommu_memory_region_class_init,
+    };
     type_register_static(&tz_mpc_iommu_memory_region_info);
 }
-
-type_init(tz_mpc_register_types);

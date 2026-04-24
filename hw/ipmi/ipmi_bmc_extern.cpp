@@ -86,6 +86,10 @@ struct IPMIBmcExtern {
 
     /* A reset event is pending to be sent upstream. */
     bool send_reset;
+
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
 };
 
 static unsigned char
@@ -497,28 +501,24 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
                              chr_event, NULL, ibe, NULL, true);
 }
 
-static void ipmi_bmc_extern_init(Object *obj)
+void IPMIBmcExtern::init()
 {
-    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
-
-    ibe->extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, ibe);
+    extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, this);
 }
 
-static void ipmi_bmc_extern_finalize(Object *obj)
+void IPMIBmcExtern::finalize()
 {
-    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
-
-    timer_free(ibe->extern_timer);
+    timer_free(extern_timer);
 }
 
 static const Property ipmi_bmc_extern_properties[] = {
     DEFINE_PROP_CHR("chardev", IPMIBmcExtern, chr),
 };
 
-static void ipmi_bmc_extern_class_init(ObjectClass *oc, const void *data)
+void IPMIBmcExtern::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    IPMIBmcClass *bk = IPMI_BMC_CLASS(klass);
 
     bk->handle_command = ipmi_bmc_extern_handle_command;
     bk->handle_reset = ipmi_bmc_extern_handle_reset;
@@ -528,18 +528,5 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, ipmi_bmc_extern_properties);
 }
 
-static const TypeInfo ipmi_bmc_extern_type = {
-    .name          = TYPE_IPMI_BMC_EXTERN,
-    .parent        = TYPE_IPMI_BMC,
-    .instance_size = sizeof(IPMIBmcExtern),
-    .instance_init = ipmi_bmc_extern_init,
-    .instance_finalize = ipmi_bmc_extern_finalize,
-    .class_init    = ipmi_bmc_extern_class_init,
- };
-
-static void ipmi_bmc_extern_register_types(void)
-{
-    type_register_static(&ipmi_bmc_extern_type);
-}
-
-type_init(ipmi_bmc_extern_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IPMIBmcExtern, TYPE_IPMI_BMC_EXTERN, TYPE_IPMI_BMC)

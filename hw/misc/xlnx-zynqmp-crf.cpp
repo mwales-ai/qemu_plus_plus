@@ -207,21 +207,20 @@ static const MemoryRegionOps crf_ops = {
     },
 };
 
-static void __attribute__((used)) crf_init(Object *obj)
+void XlnxZynqMPCRF::init()
 {
-    XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
     reg_array =
-        register_init_block32(DEVICE(obj), crf_regs_info,
+        register_init_block32(DEVICE(this), crf_regs_info,
                               ARRAY_SIZE(crf_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &crf_ops,
                               XLNX_ZYNQMP_CRF_ERR_DEBUG,
                               CRF_R_MAX * 4);
     sysbus_init_mmio(sbd, &reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq_ir);
+    sysbus_init_irq(sbd, &irq_ir);
 }
 
 static const VMStateField vmstate_crf_fields[] = {
@@ -236,27 +235,15 @@ static const VMStateDescription vmstate_crf = {
     .fields = vmstate_crf_fields,
 };
 
-static void crf_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPCRF::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_crf;
     rc->phases.enter = crf_reset_enter;
     rc->phases.hold = crf_reset_hold;
 }
 
-static const TypeInfo crf_info = {
-    .name              = TYPE_XLNX_ZYNQMP_CRF,
-    .parent            = TYPE_SYS_BUS_DEVICE,
-    .instance_size     = sizeof(XlnxZynqMPCRF),
-    .instance_init     = crf_init,
-    .class_init        = crf_class_init,
-};
-
-static void crf_register_types(void)
-{
-    type_register_static(&crf_info);
-}
-
-type_init(crf_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPCRF, TYPE_XLNX_ZYNQMP_CRF, TYPE_SYS_BUS_DEVICE)

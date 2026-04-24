@@ -87,6 +87,11 @@ struct XlnxZynqMPAPUCtrl {
 
     uint32_t regs[APU_R_MAX];
     RegisterInfo regs_info[APU_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

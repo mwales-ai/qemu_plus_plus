@@ -74,6 +74,11 @@ struct XlnxVersalPmcIouSlcr {
 
     uint32_t regs[XILINX_VERSAL_PMC_IOU_SLCR_R_MAX];
     RegisterInfo regs_info[XILINX_VERSAL_PMC_IOU_SLCR_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* XLNX_VERSAL_PMC_IOU_SLCR_H */

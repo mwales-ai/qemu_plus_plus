@@ -65,6 +65,12 @@ struct MPS2SCC {
     uint32_t cfg0_reset;
 
     qemu_irq remap;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

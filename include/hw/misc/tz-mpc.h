@@ -75,6 +75,11 @@ struct TZMPC {
 
     AddressSpace downstream_as;
     AddressSpace blocked_io_as;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

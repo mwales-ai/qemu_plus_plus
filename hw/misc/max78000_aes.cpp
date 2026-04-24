@@ -193,38 +193,23 @@ static const VMStateDescription vmstate_max78000_aes = {
     .fields = vmstate_max78000_aes_fields,
 };
 
-static void max78000_aes_init(Object *obj)
+void Max78000AesState::init()
 {
-    Max78000AesState *s = MAX78000_AES(obj);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    memory_region_init_io(&s->mmio, obj, &max78000_aes_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &max78000_aes_ops, this,
                         TYPE_MAX78000_AES, 0xc00);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void max78000_aes_class_init(ObjectClass *klass, const void *data)
+void Max78000AesState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     rc->phases.hold = max78000_aes_reset_hold;
     dc->vmsd = &vmstate_max78000_aes;
-
 }
 
-static const TypeInfo max78000_aes_info = {
-    .name          = TYPE_MAX78000_AES,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Max78000AesState),
-    .instance_init = max78000_aes_init,
-    .class_init    = max78000_aes_class_init,
-};
-
-static void max78000_aes_register_types(void)
-{
-    type_register_static(&max78000_aes_info);
-}
-
-type_init(max78000_aes_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Max78000AesState, TYPE_MAX78000_AES, TYPE_SYS_BUS_DEVICE)

@@ -478,32 +478,31 @@ static void npcm7xx_pwm_hold_reset(Object *obj, ResetType type)
     }
 }
 
-static void npcm7xx_pwm_init(Object *obj)
+void NPCM7xxPWMState::init()
 {
-    NPCM7xxPWMState *s = NPCM7XX_PWM(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
 
-    QEMU_BUILD_BUG_ON(ARRAY_SIZE(s->pwm) != NPCM7XX_PWM_PER_MODULE);
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(pwm) != NPCM7XX_PWM_PER_MODULE);
     for (i = 0; i < NPCM7XX_PWM_PER_MODULE; i++) {
-        NPCM7xxPWM *p = &s->pwm[i];
-        p->module = s;
+        NPCM7xxPWM *p = &pwm[i];
+        p->module = this;
         p->index = i;
         sysbus_init_irq(sbd, &p->irq);
     }
 
-    memory_region_init_io(&s->iomem, obj, &npcm7xx_pwm_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &npcm7xx_pwm_ops, this,
                           TYPE_NPCM7XX_PWM, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
-    s->clock = qdev_init_clock_in(DEVICE(s), "clock", NULL, NULL, 0);
+    sysbus_init_mmio(sbd, &iomem);
+    clock = qdev_init_clock_in(DEVICE(this), "clock", NULL, NULL, 0);
 
     for (i = 0; i < NPCM7XX_PWM_PER_MODULE; ++i) {
-        object_property_add_uint32_ptr(obj, "freq[*]",
-                &s->pwm[i].freq, OBJ_PROP_FLAG_READ);
-        object_property_add_uint32_ptr(obj, "duty[*]",
-                &s->pwm[i].duty, OBJ_PROP_FLAG_READ);
+        object_property_add_uint32_ptr(OBJECT(this), "freq[*]",
+                &pwm[i].freq, OBJ_PROP_FLAG_READ);
+        object_property_add_uint32_ptr(OBJECT(this), "duty[*]",
+                &pwm[i].duty, OBJ_PROP_FLAG_READ);
     }
-    qdev_init_gpio_out_named(DEVICE(s), s->duty_gpio_out,
+    qdev_init_gpio_out_named(DEVICE(this), duty_gpio_out,
                              "duty-gpio-out", NPCM7XX_PWM_PER_MODULE);
 }
 
@@ -547,10 +546,10 @@ static const VMStateDescription vmstate_npcm7xx_pwm_module = {
     .fields = vmstate_npcm7xx_pwm_module_fields,
 };
 
-static void npcm7xx_pwm_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxPWMState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "NPCM7xx PWM Controller";
     dc->vmsd = &vmstate_npcm7xx_pwm_module;
@@ -558,16 +557,5 @@ static void npcm7xx_pwm_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = npcm7xx_pwm_hold_reset;
 }
 
-static const TypeInfo npcm7xx_pwm_info = {
-    .name               = TYPE_NPCM7XX_PWM,
-    .parent             = TYPE_SYS_BUS_DEVICE,
-    .instance_size      = sizeof(NPCM7xxPWMState),
-    .instance_init      = npcm7xx_pwm_init,
-    .class_init         = npcm7xx_pwm_class_init,
-};
-
-static void npcm7xx_pwm_register_type(void)
-{
-    type_register_static(&npcm7xx_pwm_info);
-}
-type_init(npcm7xx_pwm_register_type);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NPCM7xxPWMState, TYPE_NPCM7XX_PWM, TYPE_SYS_BUS_DEVICE)

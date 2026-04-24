@@ -475,26 +475,25 @@ static void npcm7xx_mft_hold_reset(Object *obj, ResetType type)
     qemu_irq_lower(s->irq);
 }
 
-static void npcm7xx_mft_init(Object *obj)
+void NPCM7xxMFTState::init()
 {
-    NPCM7xxMFTState *s = NPCM7XX_MFT(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &npcm7xx_mft_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &npcm7xx_mft_ops, this,
                           TYPE_NPCM7XX_MFT, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    s->clock_in = qdev_init_clock_in(dev, "clock-in", npcm7xx_mft_update_clock,
-                                     s, ClockUpdate);
-    s->clock_1 = qdev_init_clock_out(dev, "clock1");
-    s->clock_2 = qdev_init_clock_out(dev, "clock2");
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
+    clock_in = qdev_init_clock_in(dev, "clock-in", npcm7xx_mft_update_clock,
+                                     this, ClockUpdate);
+    clock_1 = qdev_init_clock_out(dev, "clock1");
+    clock_2 = qdev_init_clock_out(dev, "clock2");
 
     for (int i = 0; i < NPCM7XX_PWM_PER_MODULE; ++i) {
-        object_property_add(obj, "max_rpm[*]", "uint32",
+        object_property_add(OBJECT(this), "max_rpm[*]", "uint32",
                             npcm7xx_mft_get_max_rpm,
                             npcm7xx_mft_set_max_rpm,
-                            NULL, &s->max_rpm[i]);
+                            NULL, &max_rpm[i]);
     }
     qdev_init_gpio_in_named(dev, npcm7xx_mft_duty_handler, "duty",
                             NPCM7XX_MFT_FANIN_COUNT);
@@ -517,10 +516,10 @@ static const VMStateDescription vmstate_npcm7xx_mft = {
     .fields = vmstate_npcm7xx_mft_fields,
 };
 
-static void npcm7xx_mft_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxMFTState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "NPCM7xx MFT Controller";
     dc->vmsd = &vmstate_npcm7xx_mft;
@@ -528,16 +527,5 @@ static void npcm7xx_mft_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = npcm7xx_mft_hold_reset;
 }
 
-static const TypeInfo npcm7xx_mft_info = {
-    .name               = TYPE_NPCM7XX_MFT,
-    .parent             = TYPE_SYS_BUS_DEVICE,
-    .instance_size      = sizeof(NPCM7xxMFTState),
-    .instance_init      = npcm7xx_mft_init,
-    .class_init         = npcm7xx_mft_class_init,
-};
-
-static void npcm7xx_mft_register_type(void)
-{
-    type_register_static(&npcm7xx_mft_info);
-}
-type_init(npcm7xx_mft_register_type);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NPCM7xxMFTState, TYPE_NPCM7XX_MFT, TYPE_SYS_BUS_DEVICE)

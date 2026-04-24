@@ -69,6 +69,9 @@ struct SMBusIPMIDevice {
     uint8_t waiting_rsp;
 
     uint32_t uuid;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void smbus_ipmi_handle_event(IPMIInterface *ii)
@@ -329,11 +332,9 @@ static void smbus_ipmi_realize(DeviceState *dev, Error **errp)
     sid->bmc->intf = ii;
 }
 
-static void smbus_ipmi_init(Object *obj)
+void SMBusIPMIDevice::init()
 {
-    SMBusIPMIDevice *sid = SMBUS_IPMI(obj);
-
-    ipmi_bmc_find_and_link(obj, (Object **) &sid->bmc);
+    ipmi_bmc_find_and_link(OBJECT(this), (Object **) &bmc);
 }
 
 static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
@@ -351,12 +352,12 @@ static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
     info->uuid = sid->uuid;
 }
 
-static void smbus_ipmi_class_init(ObjectClass *oc, const void *data)
+void SMBusIPMIDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(oc);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(klass);
+    SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     sc->receive_byte = ipmi_receive_byte;
     sc->write_data = ipmi_write_data;
@@ -370,22 +371,12 @@ static void smbus_ipmi_class_init(ObjectClass *oc, const void *data)
     adevc->build_dev_aml = build_ipmi_dev_aml;
 }
 
-static const TypeInfo smbus_ipmi_info = {
-    .name          = TYPE_SMBUS_IPMI,
-    .parent        = TYPE_SMBUS_DEVICE,
-    .instance_size = sizeof(SMBusIPMIDevice),
-    .instance_init = smbus_ipmi_init,
-    .class_init    = smbus_ipmi_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { }
-    }
+static const InterfaceInfo smbus_ipmi_interfaces[] = {
+    { TYPE_IPMI_INTERFACE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { }
 };
 
-static void smbus_ipmi_register_types(void)
-{
-    type_register_static(&smbus_ipmi_info);
-}
-
-type_init(smbus_ipmi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SMBusIPMIDevice, TYPE_SMBUS_IPMI,
+                             TYPE_SMBUS_DEVICE, smbus_ipmi_interfaces)

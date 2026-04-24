@@ -381,14 +381,13 @@ static void mps2_scc_reset(DeviceState *dev)
     }
 }
 
-static void mps2_scc_init(Object *obj)
+void MPS2SCC::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MPS2SCC *s = MPS2_SCC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &mps2_scc_ops, s, "mps2-scc", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->remap, "remap", 1);
+    memory_region_init_io(&iomem, OBJECT(this), &mps2_scc_ops, this, "mps2-scc", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    qdev_init_gpio_out_named(DEVICE(this), &remap, "remap", 1);
 }
 
 static void mps2_scc_realize(DeviceState *dev, Error **errp)
@@ -405,11 +404,9 @@ static void mps2_scc_realize(DeviceState *dev, Error **errp)
     s->oscclk = g_new0(uint32_t, s->num_oscclk);
 }
 
-static void mps2_scc_finalize(Object *obj)
+void MPS2SCC::finalize()
 {
-    MPS2SCC *s = MPS2_SCC(obj);
-
-    g_free(s->oscclk_reset);
+    g_free(oscclk_reset);
 }
 
 static bool cfg7_needed(void *opaque)
@@ -480,28 +477,13 @@ static const Property mps2_scc_properties[] = {
                       qdev_prop_uint32, uint32_t),
 };
 
-static void mps2_scc_class_init(ObjectClass *klass, const void *data)
+void MPS2SCC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = mps2_scc_realize;
     dc->vmsd = &mps2_scc_vmstate;
     device_class_set_legacy_reset(dc, mps2_scc_reset);
     device_class_set_props(dc, mps2_scc_properties);
 }
 
-static const TypeInfo mps2_scc_info = {
-    .name = TYPE_MPS2_SCC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MPS2SCC),
-    .instance_init = mps2_scc_init,
-    .instance_finalize = mps2_scc_finalize,
-    .class_init = mps2_scc_class_init,
-};
-
-static void mps2_scc_register_types(void)
-{
-    type_register_static(&mps2_scc_info);
-}
-
-type_init(mps2_scc_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MPS2SCC, TYPE_MPS2_SCC, TYPE_SYS_BUS_DEVICE)

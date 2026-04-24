@@ -1385,27 +1385,26 @@ static void xlnx_versal_pmc_iou_slcr_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, &s->ospi_mux_sel, "ospi-mux-sel", 1);
 }
 
-static void xlnx_versal_pmc_iou_slcr_init(Object *obj)
+void XlnxVersalPmcIouSlcr::init()
 {
-    XlnxVersalPmcIouSlcr *s = XILINX_VERSAL_PMC_IOU_SLCR(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
+    memory_region_init(&iomem, OBJECT(this), TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
                        XILINX_VERSAL_PMC_IOU_SLCR_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), pmc_iou_slcr_regs_info,
+        register_init_block32(DEVICE(this), pmc_iou_slcr_regs_info,
                               ARRAY_SIZE(pmc_iou_slcr_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &pmc_iou_slcr_ops,
                               XILINX_VERSAL_PMC_IOU_SLCR_ERR_DEBUG,
                               XILINX_VERSAL_PMC_IOU_SLCR_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq_parity_imr);
-    sysbus_init_irq(sbd, &s->irq_imr);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq_parity_imr);
+    sysbus_init_irq(sbd, &irq_imr);
 }
 
 static const VMStateField vmstate_pmc_iou_slcr_fields[] = {
@@ -1421,10 +1420,9 @@ static const VMStateDescription vmstate_pmc_iou_slcr = {
     .fields = vmstate_pmc_iou_slcr_fields,
 };
 
-static void xlnx_versal_pmc_iou_slcr_class_init(ObjectClass *klass,
-                                                const void *data)
+void XlnxVersalPmcIouSlcr::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = xlnx_versal_pmc_iou_slcr_realize;
@@ -1433,17 +1431,6 @@ static void xlnx_versal_pmc_iou_slcr_class_init(ObjectClass *klass,
     rc->phases.hold  = xlnx_versal_pmc_iou_slcr_reset_hold;
 }
 
-static const TypeInfo xlnx_versal_pmc_iou_slcr_info = {
-    .name          = TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalPmcIouSlcr),
-    .instance_init = xlnx_versal_pmc_iou_slcr_init,
-    .class_init    = xlnx_versal_pmc_iou_slcr_class_init,
-};
-
-static void xlnx_versal_pmc_iou_slcr_register_types(void)
-{
-    type_register_static(&xlnx_versal_pmc_iou_slcr_info);
-}
-
-type_init(xlnx_versal_pmc_iou_slcr_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxVersalPmcIouSlcr, TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
+                      TYPE_SYS_BUS_DEVICE)

@@ -98,6 +98,11 @@ struct NPCM7xxPWMState {
     uint32_t    pcr;
     uint32_t    pier;
     uint32_t    piir;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* NPCM7XX_PWM_H */

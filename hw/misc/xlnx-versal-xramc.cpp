@@ -186,21 +186,20 @@ static void xram_ctrl_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->ram);
 }
 
-static void __attribute__((used)) xram_ctrl_init(Object *obj)
+void XlnxXramCtrl::init()
 {
-    XlnxXramCtrl *s = XLNX_XRAM_CTRL(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
     reg_array =
-        register_init_block32(DEVICE(obj), xram_ctrl_regs_info,
+        register_init_block32(DEVICE(this), xram_ctrl_regs_info,
                               ARRAY_SIZE(xram_ctrl_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &xram_ctrl_ops,
                               XLNX_XRAM_CTRL_ERR_DEBUG,
                               XRAM_CTRL_R_MAX * 4);
     sysbus_init_mmio(sbd, &reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 }
 
 static const VMStateField vmstate_xram_ctrl_fields[] = {
@@ -219,10 +218,10 @@ static const Property xram_ctrl_properties[] = {
     DEFINE_PROP_UINT64("size", XlnxXramCtrl, cfg.size, 1 * MiB),
 };
 
-static void xram_ctrl_class_init(ObjectClass *klass, const void *data)
+void XlnxXramCtrl::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = xram_ctrl_realize;
     dc->vmsd = &vmstate_xram_ctrl;
@@ -232,17 +231,5 @@ static void xram_ctrl_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = xram_ctrl_reset_hold;
 }
 
-static const TypeInfo xram_ctrl_info = {
-    .name              = TYPE_XLNX_XRAM_CTRL,
-    .parent            = TYPE_SYS_BUS_DEVICE,
-    .instance_size     = sizeof(XlnxXramCtrl),
-    .instance_init     = xram_ctrl_init,
-    .class_init        = xram_ctrl_class_init,
-};
-
-static void xram_ctrl_register_types(void)
-{
-    type_register_static(&xram_ctrl_info);
-}
-
-type_init(xram_ctrl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxXramCtrl, TYPE_XLNX_XRAM_CTRL, TYPE_SYS_BUS_DEVICE)

@@ -176,37 +176,36 @@ static void zynqmp_apu_handle_wfi(void *opaque, int irq, int level)
     update_wfi_out(s);
 }
 
-static void __attribute__((used)) zynqmp_apu_init(Object *obj)
+void XlnxZynqMPAPUCtrl::init()
 {
-    XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(obj);
     RegisterInfoArray *reg_array;
     int i;
 
     reg_array =
-        register_init_block32(DEVICE(obj), zynqmp_apu_regs_info,
+        register_init_block32(DEVICE(this), zynqmp_apu_regs_info,
                               ARRAY_SIZE(zynqmp_apu_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &zynqmp_apu_ops,
                               XILINX_ZYNQMP_APU_ERR_DEBUG,
                               APU_R_MAX * 4);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &reg_array->mem);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq_imr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &reg_array->mem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq_imr);
 
     for (i = 0; i < APU_MAX_CPU; ++i) {
         g_autofree gchar *prop_name = g_strdup_printf("cpu%d", i);
-        object_property_add_link(obj, prop_name, TYPE_ARM_CPU,
-                                 (Object **)&s->cpus[i],
+        object_property_add_link(OBJECT(this), prop_name, TYPE_ARM_CPU,
+                                 (Object **)&cpus[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
     /* wfi_out is used to connect to PMU GPIs. */
-    qdev_init_gpio_out_named(DEVICE(obj), s->wfi_out, "wfi_out", 4);
+    qdev_init_gpio_out_named(DEVICE(this), wfi_out, "wfi_out", 4);
     /* CPU_POWER_STATUS is used to connect to INTC redirect. */
-    qdev_init_gpio_out_named(DEVICE(obj), s->cpu_power_status,
+    qdev_init_gpio_out_named(DEVICE(this), cpu_power_status,
                              "CPU_POWER_STATUS", 4);
     /* wfi_in is used as input from CPUs as wfi request. */
-    qdev_init_gpio_in_named(DEVICE(obj), zynqmp_apu_handle_wfi, "wfi_in", 4);
+    qdev_init_gpio_in_named(DEVICE(this), zynqmp_apu_handle_wfi, "wfi_in", 4);
 }
 
 static const VMStateField vmstate_zynqmp_apu_fields[] = {
@@ -221,10 +220,10 @@ static const VMStateDescription vmstate_zynqmp_apu = {
     .fields = vmstate_zynqmp_apu_fields,
 };
 
-static void zynqmp_apu_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPAPUCtrl::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_zynqmp_apu;
 
@@ -232,17 +231,6 @@ static void zynqmp_apu_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = zynqmp_apu_reset_hold;
 }
 
-static const TypeInfo zynqmp_apu_info = {
-    .name              = TYPE_XLNX_ZYNQMP_APU_CTRL,
-    .parent            = TYPE_SYS_BUS_DEVICE,
-    .instance_size     = sizeof(XlnxZynqMPAPUCtrl),
-    .instance_init     = zynqmp_apu_init,
-    .class_init        = zynqmp_apu_class_init,
-};
-
-static void zynqmp_apu_register_types(void)
-{
-    type_register_static(&zynqmp_apu_info);
-}
-
-type_init(zynqmp_apu_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPAPUCtrl, TYPE_XLNX_ZYNQMP_APU_CTRL,
+                      TYPE_SYS_BUS_DEVICE)

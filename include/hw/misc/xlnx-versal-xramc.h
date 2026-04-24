@@ -80,7 +80,7 @@ REG32(XRAM_SAFETY_CHK, 0xff8)
 
 #define XRAM_CTRL_R_MAX (R_XRAM_SAFETY_CHK + 1)
 
-typedef struct XlnxXramCtrl {
+struct XlnxXramCtrl {
     SysBusDevice parent_obj;
     MemoryRegion ram;
     qemu_irq irq;
@@ -92,5 +92,10 @@ typedef struct XlnxXramCtrl {
 
     uint32_t regs[XRAM_CTRL_R_MAX];
     RegisterInfo regs_info[XRAM_CTRL_R_MAX];
-} XlnxXramCtrl;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 #endif

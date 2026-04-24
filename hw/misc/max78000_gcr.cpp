@@ -307,14 +307,11 @@ static const VMStateDescription vmstate_max78000_gcr = {
     .fields = vmstate_max78000_gcr_fields,
 };
 
-static void max78000_gcr_init(Object *obj)
+void Max78000GcrState::init()
 {
-    Max78000GcrState *s = MAX78000_GCR(obj);
-
-    memory_region_init_io(&s->mmio, obj, &max78000_gcr_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &max78000_gcr_ops, this,
                           TYPE_MAX78000_GCR, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
 static void max78000_gcr_realize(DeviceState *dev, Error **errp)
@@ -324,9 +321,9 @@ static void max78000_gcr_realize(DeviceState *dev, Error **errp)
     address_space_init(&s->sram_as, s->sram, "sram");
 }
 
-static void max78000_gcr_class_init(ObjectClass *klass, const void *data)
+void Max78000GcrState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(dc, max78000_gcr_properties);
@@ -336,17 +333,5 @@ static void max78000_gcr_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = max78000_gcr_reset_hold;
 }
 
-static const TypeInfo max78000_gcr_info = {
-    .name          = TYPE_MAX78000_GCR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Max78000GcrState),
-    .instance_init = max78000_gcr_init,
-    .class_init     = max78000_gcr_class_init,
-};
-
-static void max78000_gcr_register_types(void)
-{
-    type_register_static(&max78000_gcr_info);
-}
-
-type_init(max78000_gcr_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Max78000GcrState, TYPE_MAX78000_GCR, TYPE_SYS_BUS_DEVICE)

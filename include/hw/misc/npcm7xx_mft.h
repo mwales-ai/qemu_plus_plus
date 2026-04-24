@@ -61,6 +61,11 @@ struct NPCM7xxMFTState {
 
     uint32_t    max_rpm[NPCM7XX_MFT_FANIN_COUNT];
     uint32_t    duty[NPCM7XX_MFT_FANIN_COUNT];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NPCM7XX_MFT "npcm7xx-mft"

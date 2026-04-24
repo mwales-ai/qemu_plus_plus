@@ -604,31 +604,28 @@ static const MemoryRegionOps trng_ops = {
     },
 };
 
-static void __attribute__((used)) trng_init(Object *obj)
+void XlnxVersalTRng::init()
 {
-    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    s->reg_array =
-        register_init_block32(DEVICE(obj), trng_regs_info,
+    reg_array =
+        register_init_block32(DEVICE(this), trng_regs_info,
                               ARRAY_SIZE(trng_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &trng_ops,
                               XLNX_VERSAL_TRNG_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &s->reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_irq(sbd, &irq);
 
-    s->prng = g_rand_new();
+    prng = g_rand_new();
 }
 
-static void __attribute__((used)) trng_finalize(Object *obj)
+void XlnxVersalTRng::finalize()
 {
-    XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
-
-    g_rand_free(s->prng);
-    s->prng = NULL;
+    g_rand_free(prng);
+    prng = NULL;
 }
 
 static void trng_reset_hold(Object *obj, ResetType type)
@@ -683,9 +680,9 @@ static const VMStateDescription vmstate_trng = {
     .fields = vmstate_trng_fields,
 };
 
-static void trng_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalTRng::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_trng;
@@ -698,18 +695,5 @@ static void trng_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, trng_props);
 }
 
-static const TypeInfo trng_info = {
-    .name          = TYPE_XLNX_VERSAL_TRNG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalTRng),
-    .instance_init = trng_init,
-    .instance_finalize = trng_finalize,
-    .class_init    = trng_class_init,
-};
-
-static void trng_register_types(void)
-{
-    type_register_static(&trng_info);
-}
-
-type_init(trng_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxVersalTRng, TYPE_XLNX_VERSAL_TRNG, TYPE_SYS_BUS_DEVICE)

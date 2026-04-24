@@ -56,14 +56,16 @@ extern "C" {
 
 #define GRLIB_PNP_MAX_REGS         (0x1000)
 
-typedef struct AHBPnp {
+struct AHBPnp {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
     uint32_t regs[GRLIB_PNP_MAX_REGS >> 2];
     uint8_t master_count;
     uint8_t slave_count;
-} AHBPnp;
+
+    static void classInit(DeviceClass *dc);
+};
 
 extern "C"
 void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
@@ -172,29 +174,22 @@ static void grlib_ahb_pnp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &ahb_pnp->iomem);
 }
 
-static void grlib_ahb_pnp_class_init(ObjectClass *klass, const void *data)
+void AHBPnp::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = grlib_ahb_pnp_realize;
 }
 
-static const TypeInfo grlib_ahb_pnp_info = {
-    .name          = TYPE_GRLIB_AHB_PNP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AHBPnp),
-    .class_init    = grlib_ahb_pnp_class_init,
-};
-
 /* APBPnp */
 
-typedef struct APBPnp {
+struct APBPnp {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
     uint32_t regs[GRLIB_PNP_MAX_REGS >> 2];
     uint32_t entry_count;
-} APBPnp;
+
+    static void classInit(DeviceClass *dc);
+};
 
 extern "C"
 void grlib_apb_pnp_add_entry(APBPnp *dev, uint32_t address, uint32_t mask,
@@ -285,24 +280,21 @@ static void grlib_apb_pnp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &apb_pnp->iomem);
 }
 
-static void grlib_apb_pnp_class_init(ObjectClass *klass, const void *data)
+void APBPnp::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = grlib_apb_pnp_realize;
 }
 
-static const TypeInfo grlib_apb_pnp_info = {
-    .name          = TYPE_GRLIB_APB_PNP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(APBPnp),
-    .class_init    = grlib_apb_pnp_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AHBPnp, TYPE_GRLIB_AHB_PNP, TYPE_SYS_BUS_DEVICE)
 
-static void grlib_ahb_apb_pnp_register_types(void)
+static void __attribute__((constructor)) register_grlib_apb_pnp(void)
 {
-    type_register_static(&grlib_ahb_pnp_info);
+    static const TypeInfo grlib_apb_pnp_info = {
+        .name          = TYPE_GRLIB_APB_PNP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(APBPnp),
+        .class_init    = trampoline_class_init<APBPnp>,
+    };
     type_register_static(&grlib_apb_pnp_info);
 }
-
-type_init(grlib_ahb_apb_pnp_register_types)
