@@ -40,6 +40,9 @@ struct PCIIPMIBTDevice {
     IPMIBT bt;
     bool irq_enabled;
     uint32_t uuid;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void pci_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
@@ -111,11 +114,9 @@ const VMStateDescription vmstate_PCIIPMIBTDevice = {
     .fields = vmstate_PCIIPMIBTDevice_fields,
 };
 
-static void pci_ipmi_bt_instance_init(Object *obj)
+void PCIIPMIBTDevice::init()
 {
-    PCIIPMIBTDevice *pib = PCI_IPMI_BT(obj);
-
-    ipmi_bmc_find_and_link(obj, (Object **) &pib->bt.bmc);
+    ipmi_bmc_find_and_link(OBJECT(this), (Object **) &bt.bmc);
 }
 
 static void *pci_ipmi_bt_get_backend_data(IPMIInterface *ii)
@@ -125,9 +126,9 @@ static void *pci_ipmi_bt_get_backend_data(IPMIInterface *ii)
     return &pib->bt;
 }
 
-static void pci_ipmi_bt_class_init(ObjectClass *oc, const void *data)
+void PCIIPMIBTDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
 
@@ -151,18 +152,6 @@ static const InterfaceInfo pci_ipmi_bt_interfaces[] = {
     { }
 };
 
-static const TypeInfo pci_ipmi_bt_info = {
-    .name          = TYPE_PCI_IPMI_BT,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIPMIBTDevice),
-    .instance_init = pci_ipmi_bt_instance_init,
-    .class_init    = pci_ipmi_bt_class_init,
-    .interfaces = pci_ipmi_bt_interfaces,
-};
-
-static void pci_ipmi_bt_register_types(void)
-{
-    type_register_static(&pci_ipmi_bt_info);
-}
-
-type_init(pci_ipmi_bt_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIIPMIBTDevice, TYPE_PCI_IPMI_BT,
+                             TYPE_PCI_DEVICE, pci_ipmi_bt_interfaces)

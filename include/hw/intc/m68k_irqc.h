@@ -29,7 +29,7 @@ enum {
 };
 #define M68K_IRQC_LEVEL_NUM (M68K_IRQC_LEVEL_7 - M68K_IRQC_LEVEL_1 + 1)
 
-typedef struct M68KIRQCState {
+struct M68KIRQCState {
     SysBusDevice parent_obj;
 
     uint8_t ipr;
@@ -37,6 +37,11 @@ typedef struct M68KIRQCState {
 
     /* statistics */
     uint64_t stats_irq_count[M68K_IRQC_LEVEL_NUM];
-} M68KIRQCState;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #endif

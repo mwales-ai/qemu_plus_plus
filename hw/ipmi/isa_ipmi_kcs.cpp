@@ -45,6 +45,9 @@ struct ISAIPMIKCSDevice {
     qemu_irq irq;
     IPMIKCS kcs;
     uint32_t uuid;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
@@ -131,11 +134,9 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
 }
 
-static void isa_ipmi_kcs_init(Object *obj)
+void ISAIPMIKCSDevice::init()
 {
-    ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(obj);
-
-    ipmi_bmc_find_and_link(obj, (Object **) &iik->kcs.bmc);
+    ipmi_bmc_find_and_link(OBJECT(this), (Object **) &kcs.bmc);
 }
 
 static void *isa_ipmi_kcs_get_backend_data(IPMIInterface *ii)
@@ -150,9 +151,9 @@ static const Property ipmi_isa_properties[] = {
     DEFINE_PROP_INT32("irq",   ISAIPMIKCSDevice, isairq,  5),
 };
 
-static void isa_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
+void ISAIPMIKCSDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
@@ -172,18 +173,6 @@ static const InterfaceInfo isa_ipmi_kcs_interfaces[] = {
     { }
 };
 
-static const TypeInfo isa_ipmi_kcs_info = {
-    .name          = TYPE_ISA_IPMI_KCS,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAIPMIKCSDevice),
-    .instance_init = isa_ipmi_kcs_init,
-    .class_init    = isa_ipmi_kcs_class_init,
-    .interfaces = isa_ipmi_kcs_interfaces,
-};
-
-static void ipmi_register_types(void)
-{
-    type_register_static(&isa_ipmi_kcs_info);
-}
-
-type_init(ipmi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ISAIPMIKCSDevice, TYPE_ISA_IPMI_KCS,
+                             TYPE_ISA_DEVICE, isa_ipmi_kcs_interfaces)

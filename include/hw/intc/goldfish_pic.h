@@ -30,6 +30,11 @@ struct GoldfishPICState {
     uint64_t stats_irq_count[32];
     /* for tracing */
     uint8_t idx;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

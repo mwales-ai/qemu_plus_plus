@@ -24,7 +24,7 @@ enum i2c_echo_state {
     I2C_ECHO_STATE_ACK,
 };
 
-typedef struct I2CEchoState {
+struct I2CEchoState {
     I2CSlave parent_obj;
 
     I2CBus *bus;
@@ -34,7 +34,9 @@ typedef struct I2CEchoState {
 
     unsigned int pos;
     uint8_t data[3];
-} I2CEchoState;
+
+    static void classInit(DeviceClass *dc);
+};
 
 static void i2c_echo_bh(void *opaque)
 {
@@ -145,10 +147,10 @@ static void i2c_echo_realize(DeviceState *dev, Error **errp)
     state->bh = qemu_bh_new(i2c_echo_bh, state);
 }
 
-static void i2c_echo_class_init(ObjectClass *oc, const void *data)
+void I2CEchoState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(oc);
-    DeviceClass *dc = DEVICE_CLASS(oc);
 
     dc->realize = i2c_echo_realize;
 
@@ -157,16 +159,5 @@ static void i2c_echo_class_init(ObjectClass *oc, const void *data)
     sc->send = i2c_echo_send;
 }
 
-static const TypeInfo i2c_echo = {
-    .name = TYPE_I2C_ECHO,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(I2CEchoState),
-    .class_init = i2c_echo_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&i2c_echo);
-}
-
-type_init(register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(I2CEchoState, TYPE_I2C_ECHO, TYPE_I2C_SLAVE)

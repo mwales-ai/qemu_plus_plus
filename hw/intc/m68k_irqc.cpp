@@ -65,9 +65,9 @@ static void m68k_irqc_reset(DeviceState *d)
     }
 }
 
-static void m68k_irqc_instance_init(Object *obj)
+void M68KIRQCState::init()
 {
-    qdev_init_gpio_in(DEVICE(obj), m68k_set_irq, M68K_IRQC_LEVEL_NUM);
+    qdev_init_gpio_in(DEVICE(this), m68k_set_irq, M68K_IRQC_LEVEL_NUM);
 }
 
 static void m68k_nmi(NMIState *n, int cpu_index, Error **errp)
@@ -90,9 +90,9 @@ static const Property m68k_irqc_properties[] = {
                      TYPE_M68K_CPU, ArchCPU *),
 };
 
-static void m68k_irqc_class_init(ObjectClass *oc, const void *data)
- {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+void M68KIRQCState::classInit(DeviceClass *dc)
+{
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     NMIClass *nc = NMI_CLASS(oc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
@@ -104,22 +104,12 @@ static void m68k_irqc_class_init(ObjectClass *oc, const void *data)
     ic->print_info = m68k_irqc_print_info;
 }
 
-static const TypeInfo m68k_irqc_type_info = {
-    .name = TYPE_M68K_IRQC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(M68KIRQCState),
-    .instance_init = m68k_irqc_instance_init,
-    .class_init = m68k_irqc_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_NMI },
-         { TYPE_INTERRUPT_STATS_PROVIDER },
-         { }
-    },
+static const InterfaceInfo m68k_irqc_interfaces[] = {
+     { TYPE_NMI },
+     { TYPE_INTERRUPT_STATS_PROVIDER },
+     { }
 };
 
-static void q800_irq_register_types(void)
-{
-    type_register_static(&m68k_irqc_type_info);
-}
-
-type_init(q800_irq_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(M68KIRQCState, TYPE_M68K_IRQC,
+                             TYPE_SYS_BUS_DEVICE, m68k_irqc_interfaces)

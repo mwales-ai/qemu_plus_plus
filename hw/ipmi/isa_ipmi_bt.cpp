@@ -45,6 +45,9 @@ struct ISAIPMIBTDevice {
     qemu_irq irq;
     IPMIBT bt;
     uint32_t uuid;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void isa_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
@@ -125,11 +128,9 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
 }
 
-static void isa_ipmi_bt_init(Object *obj)
+void ISAIPMIBTDevice::init()
 {
-    ISAIPMIBTDevice *iib = ISA_IPMI_BT(obj);
-
-    ipmi_bmc_find_and_link(obj, (Object **) &iib->bt.bmc);
+    ipmi_bmc_find_and_link(OBJECT(this), (Object **) &bt.bmc);
 }
 
 static void *isa_ipmi_bt_get_backend_data(IPMIInterface *ii)
@@ -144,9 +145,9 @@ static const Property ipmi_isa_properties[] = {
     DEFINE_PROP_INT32("irq",   ISAIPMIBTDevice, isairq,  5),
 };
 
-static void isa_ipmi_bt_class_init(ObjectClass *oc, const void *data)
+void ISAIPMIBTDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
@@ -166,18 +167,6 @@ static const InterfaceInfo isa_ipmi_bt_interfaces[] = {
     { }
 };
 
-static const TypeInfo isa_ipmi_bt_info = {
-    .name          = TYPE_ISA_IPMI_BT,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAIPMIBTDevice),
-    .instance_init = isa_ipmi_bt_init,
-    .class_init    = isa_ipmi_bt_class_init,
-    .interfaces = isa_ipmi_bt_interfaces,
-};
-
-static void ipmi_register_types(void)
-{
-    type_register_static(&isa_ipmi_bt_info);
-}
-
-type_init(ipmi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ISAIPMIBTDevice, TYPE_ISA_IPMI_BT,
+                             TYPE_ISA_DEVICE, isa_ipmi_bt_interfaces)

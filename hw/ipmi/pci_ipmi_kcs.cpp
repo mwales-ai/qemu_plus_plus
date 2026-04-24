@@ -40,6 +40,9 @@ struct PCIIPMIKCSDevice {
     IPMIKCS kcs;
     bool irq_enabled;
     uint32_t uuid;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void pci_ipmi_kcs_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
@@ -110,11 +113,9 @@ const VMStateDescription vmstate_PCIIPMIKCSDevice = {
     .fields = vmstate_PCIIPMIKCSDevice_fields,
 };
 
-static void pci_ipmi_kcs_instance_init(Object *obj)
+void PCIIPMIKCSDevice::init()
 {
-    PCIIPMIKCSDevice *pik = PCI_IPMI_KCS(obj);
-
-    ipmi_bmc_find_and_link(obj, (Object **) &pik->kcs.bmc);
+    ipmi_bmc_find_and_link(OBJECT(this), (Object **) &kcs.bmc);
 }
 
 static void *pci_ipmi_kcs_get_backend_data(IPMIInterface *ii)
@@ -124,9 +125,9 @@ static void *pci_ipmi_kcs_get_backend_data(IPMIInterface *ii)
     return &pik->kcs;
 }
 
-static void pci_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
+void PCIIPMIKCSDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
 
@@ -150,18 +151,6 @@ static const InterfaceInfo pci_ipmi_kcs_interfaces[] = {
     { }
 };
 
-static const TypeInfo pci_ipmi_kcs_info = {
-    .name          = TYPE_PCI_IPMI_KCS,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIPMIKCSDevice),
-    .instance_init = pci_ipmi_kcs_instance_init,
-    .class_init    = pci_ipmi_kcs_class_init,
-    .interfaces = pci_ipmi_kcs_interfaces,
-};
-
-static void pci_ipmi_kcs_register_types(void)
-{
-    type_register_static(&pci_ipmi_kcs_info);
-}
-
-type_init(pci_ipmi_kcs_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIIPMIKCSDevice, TYPE_PCI_IPMI_KCS,
+                             TYPE_PCI_DEVICE, pci_ipmi_kcs_interfaces)

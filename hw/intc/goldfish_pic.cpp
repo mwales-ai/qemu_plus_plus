@@ -178,26 +178,25 @@ static const VMStateDescription vmstate_goldfish_pic = {
     .fields = vmstate_goldfish_pic_fields,
 };
 
-static void goldfish_pic_instance_init(Object *obj)
+void GoldfishPICState::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    GoldfishPICState *s = GOLDFISH_PIC(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
-    trace_goldfish_pic_instance_init(s);
+    trace_goldfish_pic_instance_init(this);
 
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(dev, &iomem);
+    sysbus_init_irq(dev, &irq);
 
-    qdev_init_gpio_in(DEVICE(obj), goldfish_irq_request, GOLDFISH_PIC_IRQ_NB);
+    qdev_init_gpio_in(DEVICE(this), goldfish_irq_request, GOLDFISH_PIC_IRQ_NB);
 }
 
 static const Property goldfish_pic_properties[] = {
     DEFINE_PROP_UINT8("index", GoldfishPICState, idx, 0),
 };
 
-static void goldfish_pic_class_init(ObjectClass *oc, const void *data)
+void GoldfishPICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(oc);
 
     device_class_set_legacy_reset(dc, goldfish_pic_reset);
@@ -213,18 +212,6 @@ static const InterfaceInfo goldfish_pic_interfaces[] = {
      { }
 };
 
-static const TypeInfo goldfish_pic_info = {
-    .name = TYPE_GOLDFISH_PIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .class_init = goldfish_pic_class_init,
-    .instance_init = goldfish_pic_instance_init,
-    .instance_size = sizeof(GoldfishPICState),
-    .interfaces = goldfish_pic_interfaces,
-};
-
-static void goldfish_pic_register_types(void)
-{
-    type_register_static(&goldfish_pic_info);
-}
-
-type_init(goldfish_pic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(GoldfishPICState, TYPE_GOLDFISH_PIC,
+                             TYPE_SYS_BUS_DEVICE, goldfish_pic_interfaces)

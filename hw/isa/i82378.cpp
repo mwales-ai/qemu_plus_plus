@@ -101,7 +101,7 @@ struct I82378State {
         isa_create_simple(isabus, "i82374");
     }
 
-    void initfn()
+    void init()
     {
         DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
@@ -115,16 +115,10 @@ struct I82378State {
         s->realize(errp);
     }
 
-    static void instanceInit(Object *obj)
+    static void classInit(DeviceClass *dc)
     {
-        I82378State *s = reinterpret_cast<I82378State *>(obj);
-        s->initfn();
-    }
-
-    static void classInit(ObjectClass *klass, const void *data)
-    {
+        ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
         PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         k->realize = pciRealize;
         k->vendor_id = PCI_VENDOR_ID_INTEL;
@@ -155,18 +149,6 @@ static const InterfaceInfo i82378_interfaces[] = {
     { },
 };
 
-static const TypeInfo i82378_type_info = {
-    .name = TYPE_I82378,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(I82378State),
-    .instance_init = I82378State::instanceInit,
-    .class_init = I82378State::classInit,
-    .interfaces = i82378_interfaces,
-};
-
-static void i82378_register_types(void)
-{
-    type_register_static(&i82378_type_info);
-}
-
-type_init(i82378_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(I82378State, TYPE_I82378,
+                             TYPE_PCI_DEVICE, i82378_interfaces)
