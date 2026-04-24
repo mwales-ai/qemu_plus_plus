@@ -133,6 +133,8 @@ struct UASDevice {
     /* usb 3.0 only */
     USBPacket                 *data3[UAS_MAX_STREAMS + 1];
     USBPacket                 *status3[UAS_MAX_STREAMS + 1];
+
+    static void classInit(DeviceClass *dc);
 };
 
 struct UASRequest {
@@ -987,9 +989,9 @@ static const Property uas_properties[] = {
     DEFINE_PROP_UINT32("log-scsi-req", UASDevice, requestlog, 0),
 };
 
-static void usb_uas_class_initfn(ObjectClass *klass, const void *data)
+void UASDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_uas_realize;
@@ -1008,16 +1010,5 @@ static void usb_uas_class_initfn(ObjectClass *klass, const void *data)
     device_class_set_props(dc, uas_properties);
 }
 
-static const TypeInfo uas_info = {
-    .name          = TYPE_USB_UAS,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(UASDevice),
-    .class_init    = usb_uas_class_initfn,
-};
-
-static void usb_uas_register_types(void)
-{
-    type_register_static(&uas_info);
-}
-
-type_init(usb_uas_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(UASDevice, TYPE_USB_UAS, TYPE_USB_DEVICE)

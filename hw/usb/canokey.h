@@ -60,6 +60,10 @@ typedef struct CanoKeyState {
 
     /* Properties */
     char *file; /* canokey-file */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } CanoKeyState;
 
 #endif /* CANOKEY_H */

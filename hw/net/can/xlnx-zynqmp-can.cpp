@@ -1163,25 +1163,25 @@ static void xlnx_zynqmp_can_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->can_timer);
 }
 
-static void xlnx_zynqmp_can_init(Object *obj)
+void XlnxZynqMPCANState::init()
 {
-    XlnxZynqMPCANState *s = XLNX_ZYNQMP_CAN(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_ZYNQMP_CAN,
+    memory_region_init(&iomem, obj, TYPE_XLNX_ZYNQMP_CAN,
                         XLNX_ZYNQMP_CAN_R_MAX * 4);
-    reg_array = register_init_block32(DEVICE(obj), can_regs_info,
+    reg_array = register_init_block32(DEVICE(this), can_regs_info,
                                ARRAY_SIZE(can_regs_info),
-                               s->reg_info, s->regs,
+                               reg_info, regs,
                                &can_ops,
                                XLNX_ZYNQMP_CAN_ERR_DEBUG,
                                XLNX_ZYNQMP_CAN_R_MAX * 4);
 
-    memory_region_add_subregion(&s->iomem, 0x00, &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    memory_region_add_subregion(&iomem, 0x00, &reg_array->mem);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
 static const VMStateField vmstate_can_fields[] = {
@@ -1207,9 +1207,9 @@ static const Property xlnx_zynqmp_can_properties[] = {
                      CanBusState *),
 };
 
-static void xlnx_zynqmp_can_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPCANState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.enter = xlnx_zynqmp_can_reset_init;
@@ -1219,17 +1219,6 @@ static void xlnx_zynqmp_can_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_can;
 }
 
-static const TypeInfo can_info = {
-    .name          = TYPE_XLNX_ZYNQMP_CAN,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPCANState),
-    .instance_init = xlnx_zynqmp_can_init,
-    .class_init    = xlnx_zynqmp_can_class_init,
-};
-
-static void can_register_types(void)
-{
-    type_register_static(&can_info);
-}
-
-type_init(can_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPCANState, TYPE_XLNX_ZYNQMP_CAN,
+                      TYPE_SYS_BUS_DEVICE)

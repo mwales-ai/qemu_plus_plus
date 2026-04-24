@@ -170,26 +170,26 @@ static const MemoryRegionOps usb2_ctrl_regs_ops = {
     },
 };
 
-static void __attribute__((used)) usb2_ctrl_regs_init(Object *obj)
+void VersalUsb2CtrlRegs::init()
 {
-    VersalUsb2CtrlRegs *s = XILINX_VERSAL_USB2_CTRL_REGS(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
+    memory_region_init(&iomem, obj, TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
                        USB2_REGS_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), usb2_ctrl_regs_regs_info,
+        register_init_block32(DEVICE(this), usb2_ctrl_regs_regs_info,
                               ARRAY_SIZE(usb2_ctrl_regs_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &usb2_ctrl_regs_ops,
                               XILINX_VERSAL_USB2_CTRL_REGS_ERR_DEBUG,
                               USB2_REGS_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq_ir);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq_ir);
 }
 
 static const VMStateField vmstate_usb2_ctrl_regs_fields[] = {
@@ -204,9 +204,9 @@ static const VMStateDescription vmstate_usb2_ctrl_regs = {
     .fields = vmstate_usb2_ctrl_regs_fields
 };
 
-static void usb2_ctrl_regs_class_init(ObjectClass *klass, const void *data)
+void VersalUsb2CtrlRegs::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.enter = usb2_ctrl_regs_reset_init;
@@ -214,17 +214,6 @@ static void usb2_ctrl_regs_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_usb2_ctrl_regs;
 }
 
-static const TypeInfo usb2_ctrl_regs_info = {
-    .name          = TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VersalUsb2CtrlRegs),
-    .instance_init = usb2_ctrl_regs_init,
-    .class_init    = usb2_ctrl_regs_class_init,
-};
-
-static void usb2_ctrl_regs_register_types(void)
-{
-    type_register_static(&usb2_ctrl_regs_info);
-}
-
-type_init(usb2_ctrl_regs_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VersalUsb2CtrlRegs, TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
+                      TYPE_SYS_BUS_DEVICE)

@@ -43,6 +43,11 @@ typedef struct VersalUsb2CtrlRegs {
 
     uint32_t regs[USB2_REGS_R_MAX];
     RegisterInfo regs_info[USB2_REGS_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } VersalUsb2CtrlRegs;
 
 #endif

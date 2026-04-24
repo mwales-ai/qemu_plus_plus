@@ -78,6 +78,9 @@ struct CtuCanPCIState {
 
     char            *model; /* The model that support, only SJA1000 now. */
     CanBusState     *canbus[CTUCAN_PCI_CORE_COUNT];
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void ctucan_pci_reset(DeviceState *dev)
@@ -211,25 +214,25 @@ static const VMStateDescription vmstate_ctucan_pci = {
     .fields = vmstate_ctucan_pci_fields,
 };
 
-static void ctucan_pci_instance_init(Object *obj)
+void CtuCanPCIState::init()
 {
-    CtuCanPCIState *d = CTUCAN_PCI_DEV(obj);
+    Object *obj = OBJECT(this);
 
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
-                             (Object **)&d->canbus[0],
+                             (Object **)&canbus[0],
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 #if CTUCAN_PCI_CORE_COUNT >= 2
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
-                             (Object **)&d->canbus[1],
+                             (Object **)&canbus[1],
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 #endif
 }
 
-static void ctucan_pci_class_init(ObjectClass *klass, const void *data)
+void CtuCanPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = ctucan_pci_realize;
@@ -251,21 +254,9 @@ static const InterfaceInfo ctucan_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo ctucan_pci_info = {
-    .name          = TYPE_CTUCAN_PCI_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(CtuCanPCIState),
-    .instance_init = ctucan_pci_instance_init,
-    .class_init    = ctucan_pci_class_init,
-    .interfaces = ctucan_pci_interfaces,
-};
-
-static void ctucan_pci_register_types(void)
-{
-    type_register_static(&ctucan_pci_info);
-}
-
-type_init(ctucan_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(CtuCanPCIState, TYPE_CTUCAN_PCI_DEV,
+                             TYPE_PCI_DEVICE, ctucan_pci_interfaces)
 
 static void __attribute__((constructor)) init_ctucan_ops(void)
 {

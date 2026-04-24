@@ -74,6 +74,11 @@ typedef struct XlnxZynqMPCANState {
     Fifo32              txhpb_fifo;
 
     ptimer_state        *can_timer;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } XlnxZynqMPCANState;
 
 #endif

@@ -300,9 +300,9 @@ static const Property canokey_properties[] = {
     DEFINE_PROP_STRING("file", CanoKeyState, file),
 };
 
-static void canokey_class_init(ObjectClass *klass, const void *data)
+void CanoKeyState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->product_desc   = "CanoKey QEMU";
@@ -318,16 +318,5 @@ static void canokey_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo canokey_info = {
-    .name = TYPE_CANOKEY,
-    .parent = TYPE_USB_DEVICE,
-    .instance_size = sizeof(CanoKeyState),
-    .class_init = canokey_class_init
-};
-
-static void canokey_register_types(void)
-{
-    type_register_static(&canokey_info);
-}
-
-type_init(canokey_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CanoKeyState, TYPE_CANOKEY, TYPE_USB_DEVICE)

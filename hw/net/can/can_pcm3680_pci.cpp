@@ -72,6 +72,9 @@ struct Pcm3680iPCIState {
 
     char            *model; /* The model that support, only SJA1000 now. */
     CanBusState     *canbus[PCM3680i_PCI_SJA_COUNT];
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void pcm3680i_pci_reset(DeviceState *dev)
@@ -201,23 +204,23 @@ static const VMStateDescription vmstate_pcm3680i_pci = {
     .fields = vmstate_pcm3680i_pci_fields,
 };
 
-static void pcm3680i_pci_instance_init(Object *obj)
+void Pcm3680iPCIState::init()
 {
-    Pcm3680iPCIState *d = PCM3680i_PCI_DEV(obj);
+    Object *obj = OBJECT(this);
 
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
-                             (Object **)&d->canbus[0],
+                             (Object **)&canbus[0],
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
-                             (Object **)&d->canbus[1],
+                             (Object **)&canbus[1],
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 }
 
-static void pcm3680i_pci_class_init(ObjectClass *klass, const void *data)
+void Pcm3680iPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pcm3680i_pci_realize;
@@ -239,21 +242,9 @@ static const InterfaceInfo pcm3680i_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo pcm3680i_pci_info = {
-    .name          = TYPE_CAN_PCI_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(Pcm3680iPCIState),
-    .instance_init = pcm3680i_pci_instance_init,
-    .class_init    = pcm3680i_pci_class_init,
-    .interfaces = pcm3680i_pci_interfaces,
-};
-
-static void pcm3680i_pci_register_types(void)
-{
-    type_register_static(&pcm3680i_pci_info);
-}
-
-type_init(pcm3680i_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(Pcm3680iPCIState, TYPE_CAN_PCI_DEV,
+                             TYPE_PCI_DEVICE, pcm3680i_pci_interfaces)
 
 static void __attribute__((constructor)) init_pcm3680i_ops(void)
 {

@@ -89,19 +89,19 @@ static const struct MemoryRegionOps chipidea_dc_ops = {
     },
 };
 
-static void chipidea_init(Object *obj)
+void ChipideaState::init()
 {
-    EHCIState *ehci = &SYS_BUS_EHCI(obj)->ehci;
-    ChipideaState *ci = CHIPIDEA(obj);
+    Object *obj = OBJECT(this);
+    EHCIState *ehci = &SYS_BUS_EHCI(this)->ehci;
     int i;
 
-    for (i = 0; static_cast<size_t>(i) < ARRAY_SIZE(ci->iomem); i++) {
+    for (i = 0; static_cast<size_t>(i) < ARRAY_SIZE(iomem); i++) {
         const struct {
             const char *name;
             hwaddr offset;
             uint64_t size;
             const struct MemoryRegionOps *ops;
-        } regions[ARRAY_SIZE(ci->iomem)] = {
+        } regions[ARRAY_SIZE(iomem)] = {
             /*
              * Registers located between offsets 0x000 and 0xFC
              */
@@ -131,22 +131,22 @@ static void chipidea_init(Object *obj)
             },
         };
 
-        memory_region_init_io(&ci->iomem[i],
+        memory_region_init_io(&iomem[i],
                               obj,
                               regions[i].ops,
-                              ci,
+                              this,
                               regions[i].name,
                               regions[i].size);
 
         memory_region_add_subregion(&ehci->mem,
                                     regions[i].offset,
-                                    &ci->iomem[i]);
+                                    &iomem[i]);
     }
 }
 
-static void chipidea_class_init(ObjectClass *klass, const void *data)
+void ChipideaState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(klass);
 
     /*
@@ -161,16 +161,5 @@ static void chipidea_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Chipidea USB Module";
 }
 
-static const TypeInfo chipidea_info = {
-    .name          = TYPE_CHIPIDEA,
-    .parent        = TYPE_SYS_BUS_EHCI,
-    .instance_size = sizeof(ChipideaState),
-    .instance_init = chipidea_init,
-    .class_init    = chipidea_class_init,
-};
-
-static void chipidea_register_type(void)
-{
-    type_register_static(&chipidea_info);
-}
-type_init(chipidea_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ChipideaState, TYPE_CHIPIDEA, TYPE_SYS_BUS_EHCI)

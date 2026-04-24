@@ -84,6 +84,9 @@ struct KvaserPCIState {
     uint32_t        s5920_irqstate;
 
     CanBusState     *canbus;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void kvaser_pci_irq_handler(void *opaque, int irq_num, int level)
@@ -265,19 +268,19 @@ static const VMStateDescription vmstate_kvaser_pci = {
     .fields = vmstate_kvaser_pci_fields,
 };
 
-static void kvaser_pci_instance_init(Object *obj)
+void KvaserPCIState::init()
 {
-    KvaserPCIState *d = KVASER_PCI_DEV(obj);
+    Object *obj = OBJECT(this);
 
     object_property_add_link(obj, "canbus", TYPE_CAN_BUS,
-                             (Object **)&d->canbus,
+                             (Object **)&canbus,
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 }
 
-static void kvaser_pci_class_init(ObjectClass *klass, const void *data)
+void KvaserPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = kvaser_pci_realize;
@@ -297,18 +300,6 @@ static const InterfaceInfo kvaser_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo kvaser_pci_info = {
-    .name          = TYPE_CAN_PCI_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(KvaserPCIState),
-    .instance_init = kvaser_pci_instance_init,
-    .class_init    = kvaser_pci_class_init,
-    .interfaces = kvaser_pci_interfaces,
-};
-
-static void kvaser_pci_register_types(void)
-{
-    type_register_static(&kvaser_pci_info);
-}
-
-type_init(kvaser_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(KvaserPCIState, TYPE_CAN_PCI_DEV,
+                             TYPE_PCI_DEVICE, kvaser_pci_interfaces)
