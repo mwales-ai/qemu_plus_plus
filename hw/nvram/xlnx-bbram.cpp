@@ -452,22 +452,21 @@ static void bbram_ctrl_realize(DeviceState *dev, Error **errp)
     bbram_bdrv_read(s, errp);
 }
 
-static void __attribute__((used)) bbram_ctrl_init(Object *obj)
+void XlnxBBRam::init()
 {
-    XlnxBBRam *s = XLNX_BBRAM(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(OBJECT(this));
     RegisterInfoArray *reg_array;
 
     reg_array =
-        register_init_block32(DEVICE(obj), bbram_ctrl_regs_info,
+        register_init_block32(DEVICE(OBJECT(this)), bbram_ctrl_regs_info,
                               ARRAY_SIZE(bbram_ctrl_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &bbram_ctrl_ops,
                               XLNX_BBRAM_ERR_DEBUG,
                               R_MAX * 4);
 
     sysbus_init_mmio(sbd, &reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq_bbram);
+    sysbus_init_irq(sbd, &irq_bbram);
 }
 
 static void bbram_prop_set_drive(Object *obj, Visitor *v, const char *name,
@@ -521,9 +520,9 @@ static const Property bbram_ctrl_props[] = {
     DEFINE_PROP_UINT32("crc-zpads", XlnxBBRam, crc_zpads, 1),
 };
 
-static void bbram_ctrl_class_init(ObjectClass *klass, const void *data)
+void XlnxBBRam::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = bbram_ctrl_reset_hold;
@@ -532,17 +531,5 @@ static void bbram_ctrl_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, bbram_ctrl_props);
 }
 
-static const TypeInfo bbram_ctrl_info = {
-    .name          = TYPE_XLNX_BBRAM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxBBRam),
-    .instance_init = bbram_ctrl_init,
-    .class_init    = bbram_ctrl_class_init,
-};
-
-static void bbram_ctrl_register_types(void)
-{
-    type_register_static(&bbram_ctrl_info);
-}
-
-type_init(bbram_ctrl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxBBRam, TYPE_XLNX_BBRAM, TYPE_SYS_BUS_DEVICE)

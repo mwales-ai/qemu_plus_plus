@@ -189,12 +189,6 @@ struct EEPROMState {
         }
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
-    {
-        EEPROMState *s = reinterpret_cast<EEPROMState *>(dev);
-        s->realize(errp);
-    }
-
     void reset()
     {
         changed = false;
@@ -202,13 +196,7 @@ struct EEPROMState {
         haveaddr = 0;
     }
 
-    static void resetWrapper(DeviceState *state)
-    {
-        EEPROMState *ee = reinterpret_cast<EEPROMState *>(state);
-        ee->reset();
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 extern "C"
@@ -243,31 +231,33 @@ static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
 };
 
-void EEPROMState::classInit(ObjectClass *klass, const void *data)
+void EEPROMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
-    dc->realize = EEPROMState::realizeWrapper;
     k->event = EEPROMState::event;
     k->recv = EEPROMState::recv;
     k->send = EEPROMState::send;
 
     device_class_set_props(dc, at24c_eeprom_props);
-    device_class_set_legacy_reset(dc, EEPROMState::resetWrapper);
 }
 
-static const TypeInfo at24c_eeprom_type = {
-    .name = TYPE_AT24C_EE,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(EEPROMState),
-    .class_size = sizeof(I2CSlaveClass),
-    .class_init = EEPROMState::classInit,
-};
+#include "qom/cpp/object.h"
 
-static void at24c_eeprom_register(void)
+static void EEPROMState_cpp_register_types(void)
 {
-    type_register_static(&at24c_eeprom_type);
+    static TypeInfo info = {
+        .name              = TYPE_AT24C_EE,
+        .parent            = TYPE_I2C_SLAVE,
+        .instance_size     = sizeof(EEPROMState),
+        .instance_init     = qemu_device_detail::get_instance_init<EEPROMState>(),
+        .instance_finalize = qemu_device_detail::get_instance_finalize<EEPROMState>(),
+        .class_size        = sizeof(I2CSlaveClass),
+        .class_init        = qemu_device_detail::trampoline_class_init<EEPROMState>,
+    };
+    info.cpp_vtable = qemu_device_detail::extract_vtable<EEPROMState>();
+    type_register_static(&info);
 }
 
-type_init(at24c_eeprom_register)
+type_init(EEPROMState_cpp_register_types)

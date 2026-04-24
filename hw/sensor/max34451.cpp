@@ -134,7 +134,7 @@
  * @vout_scale: scale ADC reading to actual device reading if different
  * @iout_cal_gain: set ratio of the voltage at the ADC input to sensed current
  */
-typedef struct MAX34451State {
+struct MAX34451State {
     PMBusDevice parent;
 
     uint16_t power_good_on[MAX34451_NUM_PWR_DEVICES];
@@ -168,7 +168,10 @@ typedef struct MAX34451State {
     uint16_t temp_sensor_config[MAX34451_NUM_TEMP_DEVICES];
     uint16_t store_single;
     uint16_t crc;
-} MAX34451State;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 
 static void max34451_check_limits(MAX34451State *s)
@@ -709,9 +712,9 @@ static const VMStateDescription vmstate_max34451 = {
     .fields = vmstate_max34451_fields,
 };
 
-static void max34451_init(Object *obj)
+void MAX34451State::init()
 {
-    PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusDevice *pmdev = PMBUS_DEVICE(this);
     uint64_t psu_flags = PB_HAS_VOUT | PB_HAS_IOUT | PB_HAS_VOUT_MODE |
                          PB_HAS_IOUT_GAIN;
 
@@ -729,7 +732,7 @@ static void max34451_init(Object *obj)
 
     /* get and set the voltage in millivolts, max is 32767 mV */
     for (int i = 0; i < MAX34451_NUM_PWR_DEVICES; i++) {
-        object_property_add(obj, "vout[*]", "uint16",
+        object_property_add(OBJECT(this), "vout[*]", "uint16",
                             max34451_get,
                             max34451_set, NULL, &pmdev->pages[i].read_vout);
     }
@@ -739,7 +742,7 @@ static void max34451_init(Object *obj)
      * centidegrees Celsius i.e.: 2500 -> 25.00 C, max is 327.67 C
      */
     for (int i = 0; i < MAX34451_NUM_TEMP_DEVICES; i++) {
-        object_property_add(obj, "temperature[*]", "uint16",
+        object_property_add(OBJECT(this), "temperature[*]", "uint16",
                             max34451_get,
                             max34451_set,
                             NULL,
@@ -748,10 +751,10 @@ static void max34451_init(Object *obj)
 
 }
 
-static void max34451_class_init(ObjectClass *klass, const void *data)
+void MAX34451State::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
     dc->desc = "Maxim MAX34451 16-Channel V/I monitor";
     dc->vmsd = &vmstate_max34451;
@@ -761,17 +764,5 @@ static void max34451_class_init(ObjectClass *klass, const void *data)
     rc->phases.exit = max34451_exit_reset;
 }
 
-static const TypeInfo max34451_info = {
-    .name = TYPE_MAX34451,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(MAX34451State),
-    .instance_init = max34451_init,
-    .class_init = max34451_class_init,
-};
-
-static void max34451_register_types(void)
-{
-    type_register_static(&max34451_info);
-}
-
-type_init(max34451_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MAX34451State, TYPE_MAX34451, TYPE_PMBUS_DEVICE)

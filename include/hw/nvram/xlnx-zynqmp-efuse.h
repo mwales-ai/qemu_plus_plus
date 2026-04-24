@@ -40,6 +40,11 @@ struct XlnxZynqMPEFuse {
     RegisterInfoArray *reg_array;
     uint32_t regs[XLNX_ZYNQMP_EFUSE_R_MAX];
     RegisterInfo regs_info[XLNX_ZYNQMP_EFUSE_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

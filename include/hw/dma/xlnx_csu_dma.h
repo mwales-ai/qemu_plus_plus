@@ -30,7 +30,7 @@
 
 #define XLNX_CSU_DMA_R_MAX (0x2c / 4)
 
-typedef struct XlnxCSUDMA {
+struct XlnxCSUDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
     MemTxAttrs attr;
@@ -49,7 +49,12 @@ typedef struct XlnxCSUDMA {
 
     uint32_t regs[XLNX_CSU_DMA_R_MAX];
     RegisterInfo regs_info[XLNX_CSU_DMA_R_MAX];
-} XlnxCSUDMA;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 OBJECT_DECLARE_TYPE(XlnxCSUDMA, XlnxCSUDMAClass, XLNX_CSU_DMA)
 

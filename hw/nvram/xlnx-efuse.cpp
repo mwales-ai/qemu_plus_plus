@@ -224,11 +224,9 @@ static void efuse_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void efuse_finalize(Object *obj)
+void XlnxEFuse::finalize()
 {
-    XlnxEFuse *s = XLNX_EFUSE(obj);
-
-    g_free(s->ro_bits);
+    g_free(ro_bits);
 }
 
 static void efuse_prop_set_drive(Object *obj, Visitor *v, const char *name,
@@ -274,26 +272,13 @@ static const Property efuse_properties[] = {
                       qdev_prop_uint32, uint32_t),
 };
 
-static void efuse_class_init(ObjectClass *klass, const void *data)
+void XlnxEFuse::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = efuse_realize;
     device_class_set_props(dc, efuse_properties);
     /* Reason: Part of Xilinx SoC */
     dc->user_creatable = false;
 }
 
-static const TypeInfo efuse_info = {
-    .name          = TYPE_XLNX_EFUSE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XlnxEFuse),
-    .instance_finalize = efuse_finalize,
-    .class_init    = efuse_class_init,
-};
-
-static void efuse_register_types(void)
-{
-    type_register_static(&efuse_info);
-}
-type_init(efuse_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxEFuse, TYPE_XLNX_EFUSE, TYPE_DEVICE)

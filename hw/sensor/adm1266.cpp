@@ -64,13 +64,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(ADM1266State, ADM1266)
  * Page 15 VP12.
  * Page 16 VP13.
  */
-typedef struct ADM1266State {
+struct ADM1266State {
     PMBusDevice parent;
 
     char mfr_id[32];
     char mfr_model[32];
     char mfr_rev[8];
-} ADM1266State;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static const uint8_t adm1266_ic_device_id[] = {0x03, 0x41, 0x12, 0x66};
 static const uint8_t adm1266_ic_device_rev[] = {0x08, 0x01, 0x08, 0x07, 0x0,
@@ -198,35 +201,37 @@ static void adm1266_set(Object *obj, Visitor *v, const char *name, void *opaque,
     pmbus_check_limits(pmdev);
 }
 
+static const VMStateField vmstate_adm1266_fields[] = {
+    VMSTATE_PMBUS_DEVICE(parent, ADM1266State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_adm1266 = {
     .name = "ADM1266",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]){
-        VMSTATE_PMBUS_DEVICE(parent, ADM1266State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_adm1266_fields,
 };
 
-static void adm1266_init(Object *obj)
+void ADM1266State::init()
 {
-    PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusDevice *pmdev = PMBUS_DEVICE(this);
     uint64_t flags = PB_HAS_VOUT_MODE | PB_HAS_VOUT | PB_HAS_VOUT_MARGIN |
                      PB_HAS_VOUT_RATING | PB_HAS_STATUS_MFR_SPECIFIC;
 
     for (int i = 0; i < ADM1266_NUM_PAGES; i++) {
         pmbus_page_config(pmdev, i, flags);
 
-        object_property_add(obj, "vout[*]", "uint16",
+        object_property_add(OBJECT(this), "vout[*]", "uint16",
                             adm1266_get,
                             adm1266_set, NULL, &pmdev->pages[i].read_vout);
     }
 }
 
-static void adm1266_class_init(ObjectClass *klass, const void *data)
+void ADM1266State::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
 
     dc->desc = "Analog Devices ADM1266 Hot Swap controller";
@@ -238,17 +243,5 @@ static void adm1266_class_init(ObjectClass *klass, const void *data)
     rc->phases.exit = adm1266_exit_reset;
 }
 
-static const TypeInfo adm1266_info = {
-    .name = TYPE_ADM1266,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(ADM1266State),
-    .instance_init = adm1266_init,
-    .class_init = adm1266_class_init,
-};
-
-static void adm1266_register_types(void)
-{
-    type_register_static(&adm1266_info);
-}
-
-type_init(adm1266_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ADM1266State, TYPE_ADM1266, TYPE_PMBUS_DEVICE)

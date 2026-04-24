@@ -780,21 +780,20 @@ static void zynqmp_efuse_realize(DeviceState *dev, Error **errp)
     s->efuse->dev = dev;
 }
 
-static void __attribute__((used)) zynqmp_efuse_init(Object *obj)
+void XlnxZynqMPEFuse::init()
 {
-    XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(OBJECT(this));
 
-    s->reg_array =
-        register_init_block32(DEVICE(obj), zynqmp_efuse_regs_info,
+    reg_array =
+        register_init_block32(DEVICE(OBJECT(this)), zynqmp_efuse_regs_info,
                               ARRAY_SIZE(zynqmp_efuse_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &zynqmp_efuse_ops,
                               ZYNQMP_EFUSE_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &s->reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_irq(sbd, &irq);
 }
 
 static const VMStateField vmstate_efuse_fields[] = {
@@ -815,9 +814,9 @@ static const Property zynqmp_efuse_props[] = {
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
 };
 
-static void zynqmp_efuse_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPEFuse::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = zynqmp_efuse_reset_hold;
@@ -826,18 +825,5 @@ static void zynqmp_efuse_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, zynqmp_efuse_props);
 }
 
-
-static const TypeInfo efuse_info = {
-    .name          = TYPE_XLNX_ZYNQMP_EFUSE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPEFuse),
-    .instance_init = zynqmp_efuse_init,
-    .class_init    = zynqmp_efuse_class_init,
-};
-
-static void efuse_register_types(void)
-{
-    type_register_static(&efuse_info);
-}
-
-type_init(efuse_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPEFuse, TYPE_XLNX_ZYNQMP_EFUSE, TYPE_SYS_BUS_DEVICE)

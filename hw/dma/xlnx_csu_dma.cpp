@@ -802,9 +802,9 @@ static const Property xlnx_csu_dma_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void xlnx_csu_dma_class_init(ObjectClass *klass, const void *data)
+void XlnxCSUDMA::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
     XlnxCSUDMAClass *xcdc = XLNX_CSU_DMA_CLASS(klass);
 
@@ -819,11 +819,9 @@ static void xlnx_csu_dma_class_init(ObjectClass *klass, const void *data)
     xcdc->read = xlnx_csu_dma_class_read;
 }
 
-static void xlnx_csu_dma_init(Object *obj)
+void XlnxCSUDMA::init()
 {
-    XlnxCSUDMA *s = XLNX_CSU_DMA(obj);
-
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_CSU_DMA,
+    memory_region_init(&iomem, OBJECT(this), TYPE_XLNX_CSU_DMA,
                        XLNX_CSU_DMA_R_MAX * 4);
 }
 
@@ -832,19 +830,22 @@ static const InterfaceInfo xlnx_csu_dma_interfaces[] = {
     { }
 };
 
-static const TypeInfo xlnx_csu_dma_info = {
-    .name          = TYPE_XLNX_CSU_DMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxCSUDMA),
-    .instance_init = xlnx_csu_dma_init,
-    .class_size    = sizeof(XlnxCSUDMAClass),
-    .class_init    = xlnx_csu_dma_class_init,
-    .interfaces    = xlnx_csu_dma_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void xlnx_csu_dma_register_types(void)
+static void XlnxCSUDMA_cpp_register_types(void)
 {
-    type_register_static(&xlnx_csu_dma_info);
+    static TypeInfo info = {
+        .name              = TYPE_XLNX_CSU_DMA,
+        .parent            = TYPE_SYS_BUS_DEVICE,
+        .instance_size     = sizeof(XlnxCSUDMA),
+        .instance_init     = qemu_device_detail::get_instance_init<XlnxCSUDMA>(),
+        .instance_finalize = qemu_device_detail::get_instance_finalize<XlnxCSUDMA>(),
+        .class_size        = sizeof(XlnxCSUDMAClass),
+        .class_init        = qemu_device_detail::trampoline_class_init<XlnxCSUDMA>,
+        .interfaces        = xlnx_csu_dma_interfaces,
+    };
+    info.cpp_vtable = qemu_device_detail::extract_vtable<XlnxCSUDMA>();
+    type_register_static(&info);
 }
 
-type_init(xlnx_csu_dma_register_types)
+type_init(XlnxCSUDMA_cpp_register_types)

@@ -709,28 +709,25 @@ static void efuse_ctrl_realize(DeviceState *dev, Error **errp)
     efuse_lk_spec_sort(s);
 }
 
-static void __attribute__((used)) efuse_ctrl_init(Object *obj)
+void XlnxVersalEFuseCtrl::init()
 {
-    XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(OBJECT(this));
 
-    s->reg_array =
-        register_init_block32(DEVICE(obj), efuse_ctrl_regs_info,
+    reg_array =
+        register_init_block32(DEVICE(OBJECT(this)), efuse_ctrl_regs_info,
                               ARRAY_SIZE(efuse_ctrl_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &efuse_ctrl_ops,
                               XLNX_VERSAL_EFUSE_CTRL_ERR_DEBUG,
                               R_MAX * 4);
 
-    sysbus_init_mmio(sbd, &s->reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq_efuse_imr);
+    sysbus_init_mmio(sbd, &reg_array->mem);
+    sysbus_init_irq(sbd, &irq_efuse_imr);
 }
 
-static void __attribute__((used)) efuse_ctrl_finalize(Object *obj)
+void XlnxVersalEFuseCtrl::finalize()
 {
-    XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
-
-    g_free(s->extra_pg0_lock_spec);
+    g_free(extra_pg0_lock_spec);
 }
 
 static const VMStateField vmstate_efuse_ctrl_fields[] = {
@@ -754,9 +751,9 @@ static const Property efuse_ctrl_props[] = {
                       extra_pg0_lock_spec, qdev_prop_uint16, uint16_t),
 };
 
-static void efuse_ctrl_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalEFuseCtrl::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = efuse_ctrl_reset_hold;
@@ -765,21 +762,8 @@ static void efuse_ctrl_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, efuse_ctrl_props);
 }
 
-static const TypeInfo efuse_ctrl_info = {
-    .name          = TYPE_XLNX_VERSAL_EFUSE_CTRL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalEFuseCtrl),
-    .instance_init = efuse_ctrl_init,
-    .instance_finalize = efuse_ctrl_finalize,
-    .class_init    = efuse_ctrl_class_init,
-};
-
-static void efuse_ctrl_register_types(void)
-{
-    type_register_static(&efuse_ctrl_info);
-}
-
-type_init(efuse_ctrl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxVersalEFuseCtrl, TYPE_XLNX_VERSAL_EFUSE_CTRL, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Retrieve a row, with unreadable bits returned as 0.

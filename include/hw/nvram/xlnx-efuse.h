@@ -52,6 +52,11 @@ struct XlnxEFuse {
 
     uint32_t *ro_bits;
     uint32_t ro_bits_cnt;
+
+#ifdef __cplusplus
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

@@ -47,6 +47,12 @@ struct XlnxVersalEFuseCtrl {
     RegisterInfoArray *reg_array;
     uint32_t regs[XLNX_VERSAL_EFUSE_CTRL_R_MAX];
     RegisterInfo regs_info[XLNX_VERSAL_EFUSE_CTRL_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct XlnxVersalEFuseCache {

@@ -69,7 +69,7 @@
 #define ADM1272_IOUT_OFFSET             0x5000
 
 
-typedef struct ADM1272State {
+struct ADM1272State {
     PMBusDevice parent;
 
     uint64_t ein_ext;
@@ -95,7 +95,9 @@ typedef struct ADM1272State {
 
     uint16_t strt_up_iout_lim;
 
-} ADM1272State;
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static const PMBusCoefficients adm1272_coefficients[] = {
     [0] = { 6770, 0, -2 },        /* voltage, vrange 60V */
@@ -487,36 +489,36 @@ static const VMStateDescription vmstate_adm1272 = {
     .fields = vmstate_adm1272_fields,
 };
 
-static void adm1272_init(Object *obj)
+void ADM1272State::init()
 {
-    PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusDevice *pmdev = PMBUS_DEVICE(this);
     uint64_t flags = PB_HAS_VOUT_MODE | PB_HAS_VOUT | PB_HAS_VIN | PB_HAS_IOUT |
                      PB_HAS_PIN | PB_HAS_TEMPERATURE | PB_HAS_MFR_INFO;
 
     pmbus_page_config(pmdev, 0, flags);
 
-    object_property_add(obj, "vin", "uint16",
+    object_property_add(OBJECT(this), "vin", "uint16",
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_vin);
 
-    object_property_add(obj, "vout", "uint16",
+    object_property_add(OBJECT(this), "vout", "uint16",
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_vout);
 
-    object_property_add(obj, "iout", "uint16",
+    object_property_add(OBJECT(this), "iout", "uint16",
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_iout);
 
-    object_property_add(obj, "pin", "uint16",
+    object_property_add(OBJECT(this), "pin", "uint16",
                         adm1272_get,
                         adm1272_set, NULL, &pmdev->pages[0].read_pin);
 
 }
 
-static void adm1272_class_init(ObjectClass *klass, const void *data)
+void ADM1272State::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
 
     dc->desc = "Analog Devices ADM1272 Hot Swap controller";
@@ -528,17 +530,5 @@ static void adm1272_class_init(ObjectClass *klass, const void *data)
     rc->phases.exit = adm1272_exit_reset;
 }
 
-static const TypeInfo adm1272_info = {
-    .name = TYPE_ADM1272,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(ADM1272State),
-    .instance_init = adm1272_init,
-    .class_init = adm1272_class_init,
-};
-
-static void adm1272_register_types(void)
-{
-    type_register_static(&adm1272_info);
-}
-
-type_init(adm1272_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ADM1272State, TYPE_ADM1272, TYPE_PMBUS_DEVICE)

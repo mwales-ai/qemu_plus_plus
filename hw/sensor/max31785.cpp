@@ -144,7 +144,7 @@
  */
 
 /* Place holder to save the max31785 mfr specific registers */
-typedef struct MAX31785State {
+struct MAX31785State {
     PMBusDevice parent;
     uint16_t mfr_mode[MAX31785_TOTAL_NUM_PAGES];
     uint16_t vout_peak[MAX31785_TOTAL_NUM_PAGES];
@@ -164,7 +164,10 @@ typedef struct MAX31785State {
     uint64_t mfr_date;
     uint64_t mfr_serial;
     uint16_t mfr_revision;
-} MAX31785State;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static uint8_t max31785_read_byte(PMBusDevice *pmdev)
 {
@@ -526,9 +529,9 @@ static const VMStateDescription vmstate_max31785 = {
     .fields = vmstate_max31785_fields,
 };
 
-static void max31785_init(Object *obj)
+void MAX31785State::init()
 {
-    PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusDevice *pmdev = PMBUS_DEVICE(this);
 
     for (int i = MAX31785_MIN_FAN_PAGE; i <= MAX31785_MAX_FAN_PAGE; i++) {
         pmbus_page_config(pmdev, i, PB_HAS_VOUT_MODE);
@@ -546,10 +549,10 @@ static void max31785_init(Object *obj)
     }
 }
 
-static void max31785_class_init(ObjectClass *klass, const void *data)
+void MAX31785State::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
     dc->desc = "Maxim MAX31785 6-Channel Fan Controller";
     dc->vmsd = &vmstate_max31785;
@@ -559,17 +562,5 @@ static void max31785_class_init(ObjectClass *klass, const void *data)
     rc->phases.exit = max31785_exit_reset;
 }
 
-static const TypeInfo max31785_info = {
-    .name = TYPE_MAX31785,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(MAX31785State),
-    .instance_init = max31785_init,
-    .class_init = max31785_class_init,
-};
-
-static void max31785_register_types(void)
-{
-    type_register_static(&max31785_info);
-}
-
-type_init(max31785_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MAX31785State, TYPE_MAX31785, TYPE_PMBUS_DEVICE)
