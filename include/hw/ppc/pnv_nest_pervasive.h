@@ -23,10 +23,15 @@ typedef struct PnvPervasiveCtrlRegs {
     uint64_t ctrl_atomic_lock;
 } PnvPervasiveCtrlRegs;
 
-typedef struct PnvNestChipletPervasive {
+typedef struct PnvNestChipletPervasive PnvNestChipletPervasive;
+
+struct PnvNestChipletPervasive {
     DeviceState             parent;
     MemoryRegion            xscom_ctrl_regs_mr;
     PnvPervasiveCtrlRegs    control_regs;
-} PnvNestChipletPervasive;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #endif /*PPC_PNV_NEST_CHIPLET_PERVASIVE_H */

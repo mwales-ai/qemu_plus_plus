@@ -27,6 +27,9 @@ struct PnvADU {
     uint64_t     lpc_data_reg;
 
     MemoryRegion xscom_regs;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* PPC_PNV_ADU_H */

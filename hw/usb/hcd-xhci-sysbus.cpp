@@ -54,19 +54,19 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->xhci.mem);
 }
 
-static void xhci_sysbus_instance_init(Object *obj)
+void XHCISysbusState::init()
 {
-    XHCISysbusState *s = XHCI_SYSBUS(obj);
+    object_initialize_child(reinterpret_cast<Object *>(this), "xhci-core",
+                            &xhci, TYPE_XHCI);
+    qdev_alias_all_properties(DEVICE(&xhci), reinterpret_cast<Object *>(this));
 
-    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
-    qdev_alias_all_properties(DEVICE(&s->xhci), obj);
-
-    object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,
-                             (Object **)&s->xhci.dma_mr,
+    object_property_add_link(reinterpret_cast<Object *>(this), "dma",
+                             TYPE_MEMORY_REGION,
+                             (Object **)&xhci.dma_mr,
                              qdev_prop_allow_set_link_before_realize,
                              OBJ_PROP_LINK_STRONG);
-    s->xhci.intr_update = NULL;
-    s->xhci.intr_raise = xhci_sysbus_intr_raise;
+    xhci.intr_update = NULL;
+    xhci.intr_raise = xhci_sysbus_intr_raise;
 }
 
 extern "C"
@@ -98,27 +98,13 @@ static const VMStateDescription vmstate_xhci_sysbus = {
     }
 };
 
-static void xhci_sysbus_class_init(ObjectClass *klass, const void *data)
+void XHCISysbusState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, xhci_sysbus_reset);
     dc->realize = xhci_sysbus_realize;
     dc->vmsd = &vmstate_xhci_sysbus;
     device_class_set_props(dc, xhci_sysbus_props);
 }
 
-static const TypeInfo xhci_sysbus_info = {
-    .name          = TYPE_XHCI_SYSBUS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XHCISysbusState),
-    .instance_init = xhci_sysbus_instance_init,
-    .class_init    = xhci_sysbus_class_init,
-};
-
-static void xhci_sysbus_register_types(void)
-{
-    type_register_static(&xhci_sysbus_info);
-}
-
-type_init(xhci_sysbus_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XHCISysbusState, TYPE_XHCI_SYSBUS, TYPE_SYS_BUS_DEVICE)

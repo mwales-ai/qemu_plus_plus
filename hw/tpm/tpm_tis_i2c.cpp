@@ -34,7 +34,7 @@
 /* Is locality valid */
 #define TPM_TIS_I2C_IS_VALID_LOCTY(x)   TPM_TIS_IS_VALID_LOCTY(x)
 
-typedef struct TPMStateI2C {
+struct TPMStateI2C {
     /*< private >*/
     I2CSlave    parent_obj;
 
@@ -53,7 +53,10 @@ typedef struct TPMStateI2C {
     /*< public >*/
     TPMState    state; /* not a QOM object */
 
-} TPMStateI2C;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 DECLARE_INSTANCE_CHECKER(TPMStateI2C, TPM_TIS_I2C,
                          TYPE_TPM_TIS_I2C)
@@ -528,9 +531,9 @@ static void tpm_tis_i2c_reset(DeviceState *dev)
     return tpm_tis_reset(s);
 }
 
-static void tpm_tis_i2c_class_init(ObjectClass *klass, const void *data)
+void TPMStateI2C::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
@@ -554,17 +557,6 @@ static const InterfaceInfo tpm_tis_i2c_interfaces[] = {
     { }
 };
 
-static const TypeInfo tpm_tis_i2c_info = {
-    .name          = TYPE_TPM_TIS_I2C,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(TPMStateI2C),
-    .class_init    = tpm_tis_i2c_class_init,
-    .interfaces    = tpm_tis_i2c_interfaces,
-};
-
-static void tpm_tis_i2c_register_types(void)
-{
-    type_register_static(&tpm_tis_i2c_info);
-}
-
-type_init(tpm_tis_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(TPMStateI2C, TYPE_TPM_TIS_I2C, TYPE_I2C_SLAVE,
+                             tpm_tis_i2c_interfaces)

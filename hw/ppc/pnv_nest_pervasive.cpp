@@ -179,28 +179,18 @@ static void pnv_nest_pervasive_realize(DeviceState *dev, Error **errp)
                           PNV10_XSCOM_CHIPLET_CTRL_REGS_SIZE);
 }
 
-static void pnv_nest_pervasive_class_init(ObjectClass *klass, const void *data)
+void PnvNestChipletPervasive::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "PowerNV nest pervasive chiplet";
     dc->realize = pnv_nest_pervasive_realize;
 }
 
-static const TypeInfo pnv_nest_pervasive_info = {
-    .name          = TYPE_PNV_NEST_CHIPLET_PERVASIVE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvNestChipletPervasive),
-    .class_init    = pnv_nest_pervasive_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+static const InterfaceInfo pnv_nest_pervasive_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
 };
 
-static void pnv_nest_pervasive_register_types(void)
-{
-    type_register_static(&pnv_nest_pervasive_info);
-}
-
-type_init(pnv_nest_pervasive_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvNestChipletPervasive,
+                             TYPE_PNV_NEST_CHIPLET_PERVASIVE, TYPE_DEVICE,
+                             pnv_nest_pervasive_interfaces)

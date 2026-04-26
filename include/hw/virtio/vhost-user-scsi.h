@@ -35,6 +35,10 @@ struct VHostUserSCSI {
 
     VhostUserState vhost_user;
     struct vhost_virtqueue *vhost_vqs;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* VHOST_USER_SCSI_H */

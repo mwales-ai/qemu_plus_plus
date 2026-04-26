@@ -223,6 +223,9 @@ struct IPMIBmcSim {
     uint8_t evtbuf[16];
 
     QTAILQ_HEAD(, IPMIRcvBufEntry) rcvbufs;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK        (1 << 3)
@@ -2282,9 +2285,9 @@ static const Property ipmi_sim_properties[] = {
     DEFINE_PROP_UUID_NODEFAULT("guid", IPMIBmcSim, uuid),
 };
 
-static void ipmi_sim_class_init(ObjectClass *oc, const void *data)
+void IPMIBmcSim::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     IPMIBmcClass *bk = IPMI_BMC_CLASS(oc);
 
     dc->hotpluggable = false;
@@ -2294,16 +2297,5 @@ static void ipmi_sim_class_init(ObjectClass *oc, const void *data)
     bk->handle_command = ipmi_sim_handle_command;
 }
 
-static const TypeInfo ipmi_sim_type = {
-    .name          = TYPE_IPMI_BMC_SIMULATOR,
-    .parent        = TYPE_IPMI_BMC,
-    .instance_size = sizeof(IPMIBmcSim),
-    .class_init    = ipmi_sim_class_init,
-};
-
-static void ipmi_sim_register_types(void)
-{
-    type_register_static(&ipmi_sim_type);
-}
-
-type_init(ipmi_sim_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IPMIBmcSim, TYPE_IPMI_BMC_SIMULATOR, TYPE_IPMI_BMC)

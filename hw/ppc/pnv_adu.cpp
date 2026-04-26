@@ -187,29 +187,19 @@ static const Property pnv_adu_properties[] = {
     DEFINE_PROP_LINK("lpc", PnvADU, lpc, TYPE_PNV_LPC, PnvLpcController *),
 };
 
-static void pnv_adu_class_init(ObjectClass *klass, const void *data)
+void PnvADU::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = pnv_adu_realize;
     dc->desc = "PowerNV ADU";
     device_class_set_props(dc, pnv_adu_properties);
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_adu_type_info = {
-    .name          = TYPE_PNV_ADU,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvADU),
-    .class_init    = pnv_adu_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { } },
+static const InterfaceInfo pnv_adu_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
 };
 
-static void pnv_adu_register_types(void)
-{
-    type_register_static(&pnv_adu_type_info);
-}
-
-type_init(pnv_adu_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvADU, TYPE_PNV_ADU, TYPE_DEVICE,
+                             pnv_adu_interfaces)

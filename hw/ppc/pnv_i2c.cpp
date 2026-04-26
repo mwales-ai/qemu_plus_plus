@@ -547,9 +547,9 @@ static const Property pnv_i2c_properties[] = {
     DEFINE_PROP_UINT32("num-busses", PnvI2C, num_busses, 1),
 };
 
-static void pnv_i2c_class_init(ObjectClass *klass, const void *data)
+void PnvI2C::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PnvXScomInterfaceClass *xscomc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
     xscomc->dt_xscom = pnv_i2c_dt_xscom;
@@ -562,20 +562,11 @@ static void pnv_i2c_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pnv_i2c_properties);
 }
 
-static const TypeInfo pnv_i2c_info = {
-    .name          = TYPE_PNV_I2C,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvI2C),
-    .class_init    = pnv_i2c_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+static const InterfaceInfo pnv_i2c_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
 };
 
-static void pnv_i2c_register_types(void)
-{
-    type_register_static(&pnv_i2c_info);
-}
-
-type_init(pnv_i2c_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvI2C, TYPE_PNV_I2C, TYPE_DEVICE,
+                             pnv_i2c_interfaces)

@@ -536,9 +536,9 @@ static void allwinner_a10_spi_realize(DeviceState *dev, Error **errp)
     fifo8_create(&s->rx_fifo, AW_A10_SPI_FIFO_SIZE);
 }
 
-static void allwinner_a10_spi_class_init(ObjectClass *klass, const void *data)
+void AWA10SPIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = allwinner_a10_spi_reset_hold;
@@ -547,16 +547,5 @@ static void allwinner_a10_spi_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Allwinner A10 SPI Controller";
 }
 
-static const TypeInfo allwinner_a10_spi_type_info = {
-    .name = TYPE_AW_A10_SPI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AWA10SPIState),
-    .class_init = allwinner_a10_spi_class_init,
-};
-
-static void allwinner_a10_spi_register_types(void)
-{
-    type_register_static(&allwinner_a10_spi_type_info);
-}
-
-type_init(allwinner_a10_spi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AWA10SPIState, TYPE_AW_A10_SPI, TYPE_SYS_BUS_DEVICE)

@@ -154,19 +154,18 @@ static const MemoryRegionOps macio_gpio_ops = {
     },
 };
 
-static void macio_gpio_init(Object *obj)
+void MacIOGPIOState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MacIOGPIOState *s = MACIO_GPIO(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(reinterpret_cast<Object *>(this));
     int i;
 
     for (i = 0; i < 10; i++) {
-        sysbus_init_irq(sbd, &s->gpio_extirqs[i]);
+        sysbus_init_irq(sbd, &gpio_extirqs[i]);
     }
 
-    memory_region_init_io(&s->gpiomem, OBJECT(s), &macio_gpio_ops, obj,
-                          "gpio", 0x30);
-    sysbus_init_mmio(sbd, &s->gpiomem);
+    memory_region_init_io(&gpiomem, OBJECT(this), &macio_gpio_ops,
+                          this, "gpio", 0x30);
+    sysbus_init_mmio(sbd, &gpiomem);
 }
 
 static const VMStateField vmstate_macio_gpio_fields[] = {
@@ -196,10 +195,10 @@ static void macio_gpio_nmi(NMIState *n, int cpu_index, Error **errp)
     macio_set_gpio(MACIO_GPIO(n), 9, false);
 }
 
-static void macio_gpio_class_init(ObjectClass *oc, const void *data)
+void MacIOGPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    NMIClass *nc = NMI_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    NMIClass *nc = NMI_CLASS(klass);
 
     device_class_set_legacy_reset(dc, macio_gpio_reset);
     dc->vmsd = &vmstate_macio_gpio;
@@ -211,18 +210,6 @@ static const InterfaceInfo macio_gpio_interfaces[] = {
     { }
 };
 
-static const TypeInfo macio_gpio_init_info = {
-    .name          = TYPE_MACIO_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MacIOGPIOState),
-    .instance_init = macio_gpio_init,
-    .class_init    = macio_gpio_class_init,
-    .interfaces = macio_gpio_interfaces,
-};
-
-static void macio_gpio_register_types(void)
-{
-    type_register_static(&macio_gpio_init_info);
-}
-
-type_init(macio_gpio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(MacIOGPIOState, TYPE_MACIO_GPIO,
+                             TYPE_SYS_BUS_DEVICE, macio_gpio_interfaces)

@@ -34,6 +34,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostSCSI, VHOST_SCSI)
 
 struct VHostSCSI {
     VHostSCSICommon parent_obj;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

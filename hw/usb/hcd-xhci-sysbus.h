@@ -19,13 +19,19 @@
     OBJECT_CHECK(XHCISysbusState, (obj), TYPE_XHCI_SYSBUS)
 
 
-typedef struct XHCISysbusState {
+typedef struct XHCISysbusState XHCISysbusState;
+
+struct XHCISysbusState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
     XHCIState xhci;
     qemu_irq *irq;
-} XHCISysbusState;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #ifdef __cplusplus
 extern "C" {

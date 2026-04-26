@@ -18,7 +18,9 @@
 
 #define PNV_I2C_REGS 0x20
 
-typedef struct PnvI2C {
+typedef struct PnvI2C PnvI2C;
+
+struct PnvI2C {
     DeviceState parent;
 
     struct PnvChip *chip;
@@ -33,6 +35,9 @@ typedef struct PnvI2C {
     MemoryRegion xscom_regs;
 
     Fifo8 fifo;
-} PnvI2C;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #endif /* PPC_PNV_I2C_H */

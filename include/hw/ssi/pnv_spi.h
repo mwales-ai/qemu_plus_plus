@@ -32,7 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvSpi, PNV_SPI)
 #define PNV_SPI_REGS 7
 
 #define TYPE_PNV_SPI_BUS "spi"
-typedef struct PnvSpi {
+struct PnvSpi {
     SysBusDevice parent_obj;
 
     SSIBus *ssi_bus;
@@ -68,5 +68,8 @@ typedef struct PnvSpi {
     uint64_t        regs[PNV_SPI_REGS];
     uint8_t         seq_op[PNV_SPI_REG_SIZE];
     uint64_t        status;
-} PnvSpi;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 #endif /* PPC_PNV_SPI_H */

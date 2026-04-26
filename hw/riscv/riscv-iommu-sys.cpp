@@ -51,6 +51,10 @@ struct RISCVIOMMUStateSys {
     MemoryRegion msix_pba_mmio;
     uint8_t *msix_table;
     uint8_t *msix_pba;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
@@ -191,13 +195,13 @@ static void riscv_iommu_sys_realize(DeviceState *dev, Error **errp)
     riscv_iommu_sysdev_init_msi(s, RISCV_IOMMU_PCI_MSIX_VECTORS);
 }
 
-static void riscv_iommu_sys_init(Object *obj)
+void RISCVIOMMUStateSys::init()
 {
-    RISCVIOMMUStateSys *s = RISCV_IOMMU_SYS(obj);
-    RISCVIOMMUState *iommu = &s->iommu;
+    RISCVIOMMUState *iommu = &this->iommu;
 
-    object_initialize_child(obj, "iommu", iommu, TYPE_RISCV_IOMMU);
-    qdev_alias_all_properties(DEVICE(iommu), obj);
+    object_initialize_child(reinterpret_cast<Object *>(this), "iommu",
+                            iommu, TYPE_RISCV_IOMMU);
+    qdev_alias_all_properties(DEVICE(iommu), reinterpret_cast<Object *>(this));
 
     iommu->icvec_avail_vectors = RISCV_IOMMU_SYSDEV_ICVEC_VECTORS;
     riscv_iommu_set_cap_igs(iommu, RISCV_IOMMU_CAP_IGS_BOTH);
@@ -220,9 +224,9 @@ static void riscv_iommu_sys_reset_hold(Object *obj, ResetType type)
     trace_riscv_iommu_sys_reset_hold(type);
 }
 
-static void riscv_iommu_sys_class_init(ObjectClass *klass, const void *data)
+void RISCVIOMMUStateSys::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = riscv_iommu_sys_reset_hold;
@@ -232,17 +236,6 @@ static void riscv_iommu_sys_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, riscv_iommu_sys_properties);
 }
 
-static const TypeInfo riscv_iommu_sys = {
-    .name          = TYPE_RISCV_IOMMU_SYS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVIOMMUStateSys),
-    .instance_init = riscv_iommu_sys_init,
-    .class_init    = riscv_iommu_sys_class_init,
-};
-
-static void riscv_iommu_register_sys(void)
-{
-    type_register_static(&riscv_iommu_sys);
-}
-
-type_init(riscv_iommu_register_sys)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVIOMMUStateSys, TYPE_RISCV_IOMMU_SYS,
+                     TYPE_SYS_BUS_DEVICE)

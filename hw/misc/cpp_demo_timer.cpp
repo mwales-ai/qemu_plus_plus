@@ -51,8 +51,8 @@ struct CppDemoTimer
     static const char *staticTypeName() { return "cpp-demo-timer"; }
 
     /* C++ lifecycle methods — called by generated QOM callbacks */
-    void cppInit();
-    void cppFinalize();
+    void init();
+    void finalize();
     void realize(Error **errp);
     void reset();
 
@@ -143,7 +143,7 @@ static const Property cpp_demo_timer_properties[] = {
  * Implementation — straightforward C++ methods
  * ======================================================================== */
 
-void CppDemoTimer::cppInit()
+void CppDemoTimer::init()
 {
     theTimer = nullptr;
     theCount = 0;
@@ -153,7 +153,7 @@ void CppDemoTimer::cppInit()
     /* theFrequency set by property system */
 }
 
-void CppDemoTimer::cppFinalize()
+void CppDemoTimer::finalize()
 {
     if (theTimer) {
         timer_free(theTimer);
@@ -279,56 +279,6 @@ void CppDemoTimer::classInit(DeviceClass *dc)
  * Registration — one macro replaces 30+ lines of QOM boilerplate
  * ======================================================================== */
 
-/* ========================================================================
- * QOM registration — hand-written for now since the struct-based approach
- * doesn't use C++ virtual methods (no vtable pointer at offset 0).
- * This will be simplified once the base class design is finalized.
- * ======================================================================== */
-
-static void cpp_demo_timer_realize(DeviceState *dev, Error **errp)
-{
-    CppDemoTimer *self = reinterpret_cast<CppDemoTimer *>(dev);
-    self->realize(errp);
-}
-
-static void cpp_demo_timer_reset(DeviceState *dev)
-{
-    CppDemoTimer *self = reinterpret_cast<CppDemoTimer *>(dev);
-    self->reset();
-}
-
-static void cpp_demo_timer_class_init(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-    dc->realize = cpp_demo_timer_realize;
-    device_class_set_legacy_reset(dc, cpp_demo_timer_reset);
-    CppDemoTimer::classInit(dc);
-}
-
-static void cpp_demo_timer_instance_init(Object *obj)
-{
-    CppDemoTimer *self = reinterpret_cast<CppDemoTimer *>(obj);
-    self->cppInit();
-}
-
-static void cpp_demo_timer_instance_finalize(Object *obj)
-{
-    CppDemoTimer *self = reinterpret_cast<CppDemoTimer *>(obj);
-    self->cppFinalize();
-}
-
-static const TypeInfo cpp_demo_timer_type_info = {
-    .name          = CppDemoTimer::staticTypeName(),
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CppDemoTimer),
-    .instance_init = cpp_demo_timer_instance_init,
-    .instance_finalize = cpp_demo_timer_instance_finalize,
-    .class_init    = cpp_demo_timer_class_init,
-};
-
-static void cpp_demo_timer_register_types(void)
-{
-    type_register_static(&cpp_demo_timer_type_info);
-}
-
-type_init(cpp_demo_timer_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CppDemoTimer, CppDemoTimer::staticTypeName(),
+                     TYPE_SYS_BUS_DEVICE)

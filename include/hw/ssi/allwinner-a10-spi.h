@@ -52,6 +52,9 @@ struct AWA10SPIState {
 
     Fifo8 rx_fifo;
     Fifo8 tx_fifo;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* ALLWINNER_A10_SPI_H */

@@ -1207,9 +1207,9 @@ static int pnv_spi_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return 0;
 }
 
-static void pnv_spi_class_init(ObjectClass *klass, const void *data)
+void PnvSpi::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PnvXScomInterfaceClass *xscomc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
     xscomc->dt_xscom = pnv_spi_dt_xscom;
@@ -1225,17 +1225,6 @@ static const InterfaceInfo pnv_spi_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_spi_info = {
-    .name          = TYPE_PNV_SPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PnvSpi),
-    .class_init    = pnv_spi_class_init,
-    .interfaces    = pnv_spi_interfaces,
-};
-
-static void pnv_spi_register_types(void)
-{
-    type_register_static(&pnv_spi_info);
-}
-
-type_init(pnv_spi_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvSpi, TYPE_PNV_SPI, TYPE_SYS_BUS_DEVICE,
+                             pnv_spi_interfaces)

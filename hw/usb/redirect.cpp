@@ -143,6 +143,10 @@ struct USBRedirDevice {
     int filter_rules_count;
     int compatible_speedmask;
     VMChangeStateEntry *vmstate;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_USB_REDIR "usb-redir"
@@ -2584,10 +2588,10 @@ static const Property usbredir_properties[] = {
                      suppress_remote_wake, true),
 };
 
-static void usbredir_class_initfn(ObjectClass *klass, const void *data)
+void USBRedirDevice::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->realize        = usbredir_realize;
     uc->product_desc   = "USB Redirection Device";
@@ -2605,29 +2609,17 @@ static void usbredir_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static void usbredir_instance_init(Object *obj)
+void USBRedirDevice::init()
 {
-    USBDevice *udev = USB_DEVICE(obj);
-    USBRedirDevice *dev = USB_REDIRECT(udev);
+    USBDevice *udev = USB_DEVICE(reinterpret_cast<Object *>(this));
 
-    device_add_bootindex_property(obj, &dev->bootindex,
-                                  "bootindex", NULL,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this),
+                                  &bootindex, "bootindex", NULL,
                                   &udev->qdev);
 }
 
-static const TypeInfo usbredir_dev_info = {
-    .name          = TYPE_USB_REDIR,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBRedirDevice),
-    .instance_init = usbredir_instance_init,
-    .class_init    = usbredir_class_initfn,
-};
 module_obj(TYPE_USB_REDIR);
 module_kconfig(USB);
 
-static void usbredir_register_types(void)
-{
-    type_register_static(&usbredir_dev_info);
-}
-
-type_init(usbredir_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBRedirDevice, TYPE_USB_REDIR, TYPE_USB_DEVICE)

@@ -137,6 +137,9 @@ struct DinoState {
     MemoryRegion bm_cpu_alias;
 
     qemu_irq irqs[DINO_IRQS];
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

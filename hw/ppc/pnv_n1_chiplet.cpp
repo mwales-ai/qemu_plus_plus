@@ -110,6 +110,13 @@ static const MemoryRegionOps pnv_n1_chiplet_pb_scom_es_ops = {
     .impl = { .min_access_size = 8, .max_access_size = 8, },
 };
 
+void PnvN1Chiplet::init()
+{
+    object_initialize_child(OBJECT(this), "nest-pervasive-common",
+                            &nest_pervasive,
+                            TYPE_PNV_NEST_CHIPLET_PERVASIVE);
+}
+
 static void pnv_n1_chiplet_realize(DeviceState *dev, Error **errp)
 {
     PnvN1Chiplet *n1_chiplet = PNV_N1_CHIPLET(dev);
@@ -132,21 +139,12 @@ static void pnv_n1_chiplet_realize(DeviceState *dev, Error **errp)
                           PNV10_XSCOM_N1_PB_SCOM_ES_SIZE);
 }
 
-static void pnv_n1_chiplet_class_init(ObjectClass *klass, const void *data)
+void PnvN1Chiplet::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
     dc->desc = "PowerNV n1 chiplet";
     dc->realize = pnv_n1_chiplet_realize;
-}
-
-static void pnv_n1_chiplet_instance_init(Object *obj)
-{
-    PnvN1Chiplet *n1_chiplet = PNV_N1_CHIPLET(obj);
-
-    object_initialize_child(OBJECT(n1_chiplet), "nest-pervasive-common",
-                            &n1_chiplet->nest_pervasive,
-                            TYPE_PNV_NEST_CHIPLET_PERVASIVE);
 }
 
 static const InterfaceInfo pnv_n1_chiplet_interfaces[] = {
@@ -154,18 +152,6 @@ static const InterfaceInfo pnv_n1_chiplet_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_n1_chiplet_info = {
-    .name          = TYPE_PNV_N1_CHIPLET,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvN1Chiplet),
-    .instance_init = pnv_n1_chiplet_instance_init,
-    .class_init    = pnv_n1_chiplet_class_init,
-    .interfaces    = pnv_n1_chiplet_interfaces,
-};
-
-static void pnv_n1_chiplet_register_types(void)
-{
-    type_register_static(&pnv_n1_chiplet_info);
-}
-
-type_init(pnv_n1_chiplet_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvN1Chiplet, TYPE_PNV_N1_CHIPLET, TYPE_DEVICE,
+                             pnv_n1_chiplet_interfaces)

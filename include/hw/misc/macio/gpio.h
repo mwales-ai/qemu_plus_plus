@@ -42,6 +42,10 @@ struct MacIOGPIOState {
     qemu_irq gpio_extirqs[10];
     uint8_t gpio_levels[8];
     uint8_t gpio_regs[36]; /* XXX Check count */
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void macio_set_gpio(MacIOGPIOState *s, uint32_t gpio, bool state);

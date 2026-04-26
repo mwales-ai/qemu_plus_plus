@@ -368,9 +368,9 @@ static const Property vhost_scsi_properties[] = {
                      conf.worker_per_virtqueue, false),
 };
 
-static void vhost_scsi_class_init(ObjectClass *klass, const void *data)
+void VHostSCSI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
 
@@ -386,13 +386,14 @@ static void vhost_scsi_class_init(ObjectClass *klass, const void *data)
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;
 }
 
-static void vhost_scsi_instance_init(Object *obj)
+void VHostSCSI::init()
 {
-    VHostSCSICommon *vsc = VHOST_SCSI_COMMON(obj);
+    VHostSCSICommon *vsc = reinterpret_cast<VHostSCSICommon *>(this);
 
     vsc->feature_bits = kernel_feature_bits;
 
-    device_add_bootindex_property(obj, &vsc->bootindex, "bootindex", NULL,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this),
+                                  &vsc->bootindex, "bootindex", NULL,
                                   DEVICE(vsc));
 }
 
@@ -401,18 +402,6 @@ static const InterfaceInfo vhost_scsi_interfaces[] = {
     { }
 };
 
-static const TypeInfo vhost_scsi_info = {
-    .name = TYPE_VHOST_SCSI,
-    .parent = TYPE_VHOST_SCSI_COMMON,
-    .instance_size = sizeof(VHostSCSI),
-    .instance_init = vhost_scsi_instance_init,
-    .class_init = vhost_scsi_class_init,
-    .interfaces = vhost_scsi_interfaces,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_scsi_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(VHostSCSI, TYPE_VHOST_SCSI, TYPE_VHOST_SCSI_COMMON,
+                             vhost_scsi_interfaces)

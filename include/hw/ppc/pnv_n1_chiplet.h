@@ -19,7 +19,9 @@ typedef struct PnvPbScom {
     uint64_t hp_mode2_curr;
 } PnvPbScom;
 
-typedef struct PnvN1Chiplet {
+typedef struct PnvN1Chiplet PnvN1Chiplet;
+
+struct PnvN1Chiplet {
     DeviceState  parent;
     MemoryRegion xscom_pb_eq_mr;
     MemoryRegion xscom_pb_es_mr;
@@ -28,5 +30,9 @@ typedef struct PnvN1Chiplet {
     PnvPbScom eq[PNV_PB_SCOM_EQ_SIZE];
 #define PNV_PB_SCOM_ES_SIZE 4
     PnvPbScom es[PNV_PB_SCOM_ES_SIZE];
-} PnvN1Chiplet;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 #endif /*PPC_PNV_N1_CHIPLET_H */

@@ -489,10 +489,8 @@ static const Property dino_pcihost_properties[] = {
                      MemoryRegion *),
 };
 
-static void dino_pcihost_class_init(ObjectClass *klass, const void *data)
+void DinoState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, dino_pcihost_reset);
     dc->realize = dino_pcihost_realize;
     dc->unrealize = dino_pcihost_unrealize;
@@ -500,16 +498,6 @@ static void dino_pcihost_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_dino;
 }
 
-static const TypeInfo dino_pcihost_info = {
-    .name          = TYPE_DINO_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(DinoState),
-    .class_init    = dino_pcihost_class_init,
-};
-
-static void dino_register_types(void)
-{
-    type_register_static(&dino_pcihost_info);
-}
-
-type_init(dino_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(DinoState, TYPE_DINO_PCI_HOST_BRIDGE,
+                     TYPE_PCI_HOST_BRIDGE)
