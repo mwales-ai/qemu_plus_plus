@@ -27,7 +27,7 @@
 #include "hw/arm/omap.h"
 #include "hw/sd/sd.h"
 
-typedef struct OMAPMMCState {
+struct OMAPMMCState {
     SysBusDevice parent_obj;
 
     SDBus sdbus;
@@ -70,7 +70,10 @@ typedef struct OMAPMMCState {
     int cdet_wakeup;
     int cdet_enable;
     qemu_irq cdet;
-} OMAPMMCState;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static void omap_mmc_interrupts_update(OMAPMMCState *s)
 {
@@ -595,42 +598,30 @@ static void omap_mmc_reset_hold(Object *obj, ResetType type)
     omap_mmc_reset(s);
 }
 
-static void omap_mmc_initfn(Object *obj)
+void OMAPMMCState::init()
 {
-    OMAPMMCState *s = OMAP_MMC(obj);
-
     /* In theory these could be settable per-board */
-    s->lines = 1;
-    s->rev = 1;
+    lines = 1;
+    rev = 1;
 
-    memory_region_init_io(&s->iomem, obj, &omap_mmc_ops, s, "omap.mmc", 0x800);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &omap_mmc_ops, this,
+                          "omap.mmc", 0x800);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_tx_gpio, "dma-tx", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->dma_rx_gpio, "dma-rx", 1);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    qdev_init_gpio_out_named(DEVICE(this), &dma_tx_gpio, "dma-tx", 1);
+    qdev_init_gpio_out_named(DEVICE(this), &dma_rx_gpio, "dma-rx", 1);
 
-    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(obj), "sd-bus");
+    qbus_init(&sdbus, sizeof(sdbus), TYPE_SD_BUS, DEVICE(this), "sd-bus");
 }
 
-static void omap_mmc_class_init(ObjectClass *oc, const void *data)
+void OMAPMMCState::classInit(DeviceClass *dc)
 {
-    ResettableClass *rc = RESETTABLE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = omap_mmc_reset_hold;
 }
 
-static const TypeInfo omap_mmc_info = {
-    .name = TYPE_OMAP_MMC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(OMAPMMCState),
-    .instance_init = omap_mmc_initfn,
-    .class_init = omap_mmc_class_init,
-};
-
-static void omap_mmc_register_types(void)
-{
-    type_register_static(&omap_mmc_info);
-}
-
-type_init(omap_mmc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(OMAPMMCState, TYPE_OMAP_MMC, TYPE_SYS_BUS_DEVICE)
