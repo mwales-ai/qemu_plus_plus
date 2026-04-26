@@ -36,9 +36,9 @@ static const VMStateDescription vu_i2c_vmstate = {
     .unmigratable = 1,
 };
 
-static void vu_i2c_class_init(ObjectClass *klass, const void *data)
+void VHostUserI2C::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);
 
     dc->vmsd = &vu_i2c_vmstate;
@@ -48,16 +48,5 @@ static void vu_i2c_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vu_i2c_info = {
-    .name = TYPE_VHOST_USER_I2C,
-    .parent = TYPE_VHOST_USER_BASE,
-    .instance_size = sizeof(VHostUserI2C),
-    .class_init = vu_i2c_class_init,
-};
-
-static void vu_i2c_register_types(void)
-{
-    type_register_static(&vu_i2c_info);
-}
-
-type_init(vu_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserI2C, TYPE_VHOST_USER_I2C, TYPE_VHOST_USER_BASE)

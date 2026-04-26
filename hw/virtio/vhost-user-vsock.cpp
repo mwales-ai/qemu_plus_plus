@@ -156,9 +156,9 @@ static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
 };
 
-static void vuv_class_init(ObjectClass *klass, const void *data)
+void VHostUserVSock::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vuv_properties);
@@ -170,16 +170,5 @@ static void vuv_class_init(ObjectClass *klass, const void *data)
     vdc->set_status = vuv_set_status;
 }
 
-static const TypeInfo vuv_info = {
-    .name = TYPE_VHOST_USER_VSOCK,
-    .parent = TYPE_VHOST_VSOCK_COMMON,
-    .instance_size = sizeof(VHostUserVSock),
-    .class_init = vuv_class_init,
-};
-
-static void vuv_register_types(void)
-{
-    type_register_static(&vuv_info);
-}
-
-type_init(vuv_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserVSock, TYPE_VHOST_USER_VSOCK, TYPE_VHOST_VSOCK_COMMON)

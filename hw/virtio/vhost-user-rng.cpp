@@ -37,9 +37,9 @@ static void vu_rng_base_realize(DeviceState *dev, Error **errp)
     vubs->parent_realize(dev, errp);
 }
 
-static void vu_rng_class_init(ObjectClass *klass, const void *data)
+void VHostUserRNG::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);
 
     dc->vmsd = &vu_rng_vmstate;
@@ -50,16 +50,5 @@ static void vu_rng_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vu_rng_info = {
-    .name = TYPE_VHOST_USER_RNG,
-    .parent = TYPE_VHOST_USER_BASE,
-    .instance_size = sizeof(VHostUserRNG),
-    .class_init = vu_rng_class_init,
-};
-
-static void vu_rng_register_types(void)
-{
-    type_register_static(&vu_rng_info);
-}
-
-type_init(vu_rng_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserRNG, TYPE_VHOST_USER_RNG, TYPE_VHOST_USER_BASE)

@@ -30,6 +30,10 @@ struct VHostUserSCMI {
     VirtQueue *event_vq;
     bool connected;
     bool started_vu;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

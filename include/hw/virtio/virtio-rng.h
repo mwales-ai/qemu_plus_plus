@@ -50,6 +50,10 @@ struct VirtIORNG {
     bool activate_timer;
 
     VMChangeStateEntry *vmstate;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

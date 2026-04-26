@@ -30,10 +30,10 @@ static const VMStateDescription vmstate_vhost_input = {
     .unmigratable = 1,
 };
 
-static void vhost_input_class_init(ObjectClass *klass, const void *data)
+void VHostUserInput::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_vhost_input;
     device_class_set_props(dc, vinput_properties);
@@ -42,16 +42,5 @@ static void vhost_input_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vhost_input_info = {
-    .name          = TYPE_VHOST_USER_INPUT,
-    .parent        = TYPE_VHOST_USER_BASE,
-    .instance_size = sizeof(VHostUserInput),
-    .class_init    = vhost_input_class_init,
-};
-
-static void vhost_input_register_types(void)
-{
-    type_register_static(&vhost_input_info);
-}
-
-type_init(vhost_input_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserInput, TYPE_VHOST_USER_INPUT, TYPE_VHOST_USER_BASE)

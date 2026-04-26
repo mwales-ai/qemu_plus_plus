@@ -46,6 +46,11 @@ struct VHostUserFS {
     int32_t bootindex;
 
     /*< public >*/
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

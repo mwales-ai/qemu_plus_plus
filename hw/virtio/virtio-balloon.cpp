@@ -1013,14 +1013,14 @@ static void virtio_balloon_reset_enter(Object *obj, ResetType type)
     s->stats_last_update = 0;
 }
 
-static void virtio_balloon_instance_init(Object *obj)
+void VirtIOBalloon::init()
 {
-    VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+    Object *obj = OBJECT(this);
 
-    qemu_mutex_init(&s->free_page_lock);
-    qemu_cond_init(&s->free_page_cond);
-    s->free_page_hint_cmd_id = VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
-    s->free_page_hint_notify.notify = virtio_balloon_free_page_hint_notify;
+    qemu_mutex_init(&free_page_lock);
+    qemu_cond_init(&free_page_cond);
+    free_page_hint_cmd_id = VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
+    free_page_hint_notify.notify = virtio_balloon_free_page_hint_notify;
 
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_stats_get_all, NULL, NULL, NULL);
@@ -1062,9 +1062,9 @@ static const Property virtio_balloon_properties[] = {
                      IOThread *),
 };
 
-static void virtio_balloon_class_init(ObjectClass *klass, const void *data)
+void VirtIOBalloon::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -1084,17 +1084,5 @@ static void virtio_balloon_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = virtio_balloon_reset_enter;
 }
 
-static const TypeInfo virtio_balloon_info = {
-    .name = TYPE_VIRTIO_BALLOON,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOBalloon),
-    .instance_init = virtio_balloon_instance_init,
-    .class_init = virtio_balloon_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_balloon_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOBalloon, TYPE_VIRTIO_BALLOON, TYPE_VIRTIO_DEVICE)

@@ -263,9 +263,9 @@ static const Property virtio_rng_properties[] = {
     DEFINE_PROP_LINK("rng", VirtIORNG, conf.rng, TYPE_RNG_BACKEND, RngBackend *),
 };
 
-static void virtio_rng_class_init(ObjectClass *klass, const void *data)
+void VirtIORNG::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, virtio_rng_properties);
@@ -277,16 +277,5 @@ static void virtio_rng_class_init(ObjectClass *klass, const void *data)
     vdc->set_status = virtio_rng_set_status;
 }
 
-static const TypeInfo virtio_rng_info = {
-    .name = TYPE_VIRTIO_RNG,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIORNG),
-    .class_init = virtio_rng_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_rng_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIORNG, TYPE_VIRTIO_RNG, TYPE_VIRTIO_DEVICE)

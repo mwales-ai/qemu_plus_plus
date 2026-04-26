@@ -36,9 +36,9 @@ static const VMStateDescription vu_gpio_vmstate = {
     .unmigratable = 1,
 };
 
-static void vu_gpio_class_init(ObjectClass *klass, const void *data)
+void VHostUserGPIO::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);
 
     dc->vmsd = &vu_gpio_vmstate;
@@ -48,16 +48,5 @@ static void vu_gpio_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vu_gpio_info = {
-    .name = TYPE_VHOST_USER_GPIO,
-    .parent = TYPE_VHOST_USER_BASE,
-    .instance_size = sizeof(VHostUserGPIO),
-    .class_init = vu_gpio_class_init,
-};
-
-static void vu_gpio_register_types(void)
-{
-    type_register_static(&vu_gpio_info);
-}
-
-type_init(vu_gpio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserGPIO, TYPE_VHOST_USER_GPIO, TYPE_VHOST_USER_BASE)

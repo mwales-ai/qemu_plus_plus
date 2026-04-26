@@ -42,6 +42,11 @@ struct VhostVdpaDevice {
     uint16_t queue_size;
     bool started;
     int (*post_init)(VhostVdpaDevice *v, Error **errp);
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

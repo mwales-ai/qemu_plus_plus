@@ -286,9 +286,9 @@ static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
 };
 
-static void vu_scmi_class_init(ObjectClass *klass, const void *data)
+void VHostUserSCMI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vu_scmi_properties);
@@ -302,16 +302,5 @@ static void vu_scmi_class_init(ObjectClass *klass, const void *data)
     vdc->guest_notifier_pending = vu_scmi_guest_notifier_pending;
 }
 
-static const TypeInfo vu_scmi_info = {
-    .name = TYPE_VHOST_USER_SCMI,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VHostUserSCMI),
-    .class_init = vu_scmi_class_init,
-};
-
-static void vu_scmi_register_types(void)
-{
-    type_register_static(&vu_scmi_info);
-}
-
-type_init(vu_scmi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserSCMI, TYPE_VHOST_USER_SCMI, TYPE_VIRTIO_DEVICE)

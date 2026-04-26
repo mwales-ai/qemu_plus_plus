@@ -35,6 +35,10 @@ struct VHostVSock {
     VHostVSockConf conf;
 
     /*< public >*/
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

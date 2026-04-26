@@ -423,17 +423,17 @@ static const Property vuf_properties[] = {
     DEFINE_PROP_UINT16("queue-size", VHostUserFS, conf.queue_size, 128),
 };
 
-static void vuf_instance_init(Object *obj)
+void VHostUserFS::init()
 {
-    VHostUserFS *fs = VHOST_USER_FS(obj);
+    Object *obj = OBJECT(this);
 
-    device_add_bootindex_property(obj, &fs->bootindex, "bootindex",
-                                  "/filesystem@0", DEVICE(obj));
+    device_add_bootindex_property(obj, &bootindex, "bootindex",
+                                  "/filesystem@0", DEVICE(this));
 }
 
-static void vuf_class_init(ObjectClass *klass, const void *data)
+void VHostUserFS::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vuf_properties);
@@ -449,17 +449,5 @@ static void vuf_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = vuf_get_vhost;
 }
 
-static const TypeInfo vuf_info = {
-    .name = TYPE_VHOST_USER_FS,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VHostUserFS),
-    .instance_init = vuf_instance_init,
-    .class_init = vuf_class_init,
-};
-
-static void vuf_register_types(void)
-{
-    type_register_static(&vuf_info);
-}
-
-type_init(vuf_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserFS, TYPE_VHOST_USER_FS, TYPE_VIRTIO_DEVICE)

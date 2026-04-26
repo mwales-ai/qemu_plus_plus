@@ -35,6 +35,10 @@ struct VHostUserVSock {
     struct virtio_vsock_config vsockcfg;
 
     /*< public >*/
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

@@ -48,6 +48,10 @@ struct VirtIONSM {
 
     bool (*extend_pcr)(VirtIONSM *vnsm, int ind, uint8_t *data, uint16_t len);
     void (*lock_pcr)(VirtIONSM *vnsm, int ind);
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

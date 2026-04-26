@@ -54,9 +54,9 @@ static void vu_snd_base_realize(DeviceState *dev, Error **errp)
     vubs->parent_realize(dev, errp);
 }
 
-static void vu_snd_class_init(ObjectClass *klass, const void *data)
+void VHostUserSound::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VHostUserBaseClass *vubc = VHOST_USER_BASE_CLASS(klass);
 
     dc->vmsd = &vu_snd_vmstate;
@@ -67,16 +67,5 @@ static void vu_snd_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
 }
 
-static const TypeInfo vu_snd_info = {
-    .name = TYPE_VHOST_USER_SND,
-    .parent = TYPE_VHOST_USER_BASE,
-    .instance_size = sizeof(VHostUserSound),
-    .class_init = vu_snd_class_init,
-};
-
-static void vu_snd_register_types(void)
-{
-    type_register_static(&vu_snd_info);
-}
-
-type_init(vu_snd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserSound, TYPE_VHOST_USER_SND, TYPE_VHOST_USER_BASE)

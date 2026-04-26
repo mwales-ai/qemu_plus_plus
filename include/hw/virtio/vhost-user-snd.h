@@ -23,6 +23,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSound, VHOST_USER_SND)
 
 struct VHostUserSound {
     VHostUserBase parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

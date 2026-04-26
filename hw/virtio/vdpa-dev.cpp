@@ -362,9 +362,9 @@ static const VMStateDescription vmstate_vhost_vdpa_device = {
     .fields = vmstate_vhost_vdpa_device_fields,
 };
 
-static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
+void VhostVdpaDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vhost_vdpa_device_properties);
@@ -380,25 +380,13 @@ static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = vhost_vdpa_device_get_vhost;
 }
 
-static void __attribute__((used)) vhost_vdpa_device_instance_init(Object *obj)
+void VhostVdpaDevice::init()
 {
-    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(obj);
+    Object *obj = OBJECT(this);
 
-    device_add_bootindex_property(obj, &s->bootindex, "bootindex",
-                                  NULL, DEVICE(obj));
+    device_add_bootindex_property(obj, &bootindex, "bootindex",
+                                  NULL, DEVICE(this));
 }
 
-static const TypeInfo vhost_vdpa_device_info = {
-    .name = TYPE_VHOST_VDPA_DEVICE,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VhostVdpaDevice),
-    .instance_init = vhost_vdpa_device_instance_init,
-    .class_init = vhost_vdpa_device_class_init,
-};
-
-static void register_vhost_vdpa_device_type(void)
-{
-    type_register_static(&vhost_vdpa_device_info);
-}
-
-type_init(register_vhost_vdpa_device_type);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VhostVdpaDevice, TYPE_VHOST_VDPA_DEVICE, TYPE_VIRTIO_DEVICE)

@@ -79,6 +79,11 @@ struct VirtIOBalloon {
 
     /* State of the resettable container */
     ResettableState reset_state;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

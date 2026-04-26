@@ -1714,9 +1714,9 @@ static const Property virtio_nsm_properties[] = {
     DEFINE_PROP_STRING("module-id", VirtIONSM, module_id),
 };
 
-static void virtio_nsm_class_init(ObjectClass *klass, const void *data)
+void VirtIONSM::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, virtio_nsm_properties);
@@ -1728,16 +1728,5 @@ static void virtio_nsm_class_init(ObjectClass *klass, const void *data)
     vdc->vmsd = &vmstate_virtio_nsm_device;
 }
 
-static const TypeInfo virtio_nsm_info = {
-    .name = TYPE_VIRTIO_NSM,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIONSM),
-    .class_init = virtio_nsm_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_nsm_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIONSM, TYPE_VIRTIO_NSM, TYPE_VIRTIO_DEVICE)

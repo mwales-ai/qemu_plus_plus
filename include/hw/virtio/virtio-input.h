@@ -109,6 +109,10 @@ struct VirtIOInputHost {
 
 struct VHostUserInput {
     VHostUserBase parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event);

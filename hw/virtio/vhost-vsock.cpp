@@ -208,9 +208,9 @@ static const Property vhost_vsock_properties[] = {
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
 };
 
-static void vhost_vsock_class_init(ObjectClass *klass, const void *data)
+void VHostVSock::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vhost_vsock_properties);
@@ -222,16 +222,5 @@ static void vhost_vsock_class_init(ObjectClass *klass, const void *data)
     vdc->set_status = vhost_vsock_set_status;
 }
 
-static const TypeInfo vhost_vsock_info = {
-    .name = TYPE_VHOST_VSOCK,
-    .parent = TYPE_VHOST_VSOCK_COMMON,
-    .instance_size = sizeof(VHostVSock),
-    .class_init = vhost_vsock_class_init,
-};
-
-static void vhost_vsock_register_types(void)
-{
-    type_register_static(&vhost_vsock_info);
-}
-
-type_init(vhost_vsock_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostVSock, TYPE_VHOST_VSOCK, TYPE_VHOST_VSOCK_COMMON)
