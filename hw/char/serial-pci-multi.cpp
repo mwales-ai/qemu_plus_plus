@@ -42,7 +42,7 @@ extern "C" {
 
 #define PCI_SERIAL_MAX_PORTS 4
 
-typedef struct PCIMultiSerialState {
+struct PCIMultiSerialState {
     PCIDevice    dev;
     MemoryRegion iobar;
     uint32_t     ports;
@@ -50,7 +50,10 @@ typedef struct PCIMultiSerialState {
     SerialState  state[PCI_SERIAL_MAX_PORTS];
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     IRQState     irqs[PCI_SERIAL_MAX_PORTS];
-} PCIMultiSerialState;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 static void multi_serial_pci_exit(PCIDevice *dev)
 {
@@ -147,10 +150,9 @@ static const Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev4",  PCIMultiSerialState, state[3].chr),
 };
 
-static void multi_2x_serial_pci_class_initfn(ObjectClass *klass,
-                                             const void *data)
+void PCIMultiSerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
     pc->realize = multi_serial_pci_realize;
     pc->exit = multi_serial_pci_exit;
@@ -179,16 +181,16 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass,
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static void multi_serial_init(Object *o)
+void PCIMultiSerialState::init()
 {
-    PCIDevice *dev = PCI_DEVICE(o);
-    PCIMultiSerialState *pms = DO_UPCAST(PCIMultiSerialState, dev, dev);
-    size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(dev));
+    PCIDevice *pcidev = PCI_DEVICE(this);
+    Object *o = OBJECT(this);
+    size_t i, nports = multi_serial_get_port_count(PCI_DEVICE_GET_CLASS(pcidev));
 
     for (i = 0; i < nports; i++) {
-        qemu_init_irq_child(o, "irq[*]", &pms->irqs[i],
-                            multi_serial_irq_mux, pms, i);
-        object_initialize_child(o, "serial[*]", &pms->state[i], TYPE_SERIAL);
+        qemu_init_irq_child(o, "irq[*]", &irqs[i],
+                            multi_serial_irq_mux, this, i);
+        object_initialize_child(o, "serial[*]", &state[i], TYPE_SERIAL);
     }
 }
 
@@ -197,28 +199,25 @@ static const InterfaceInfo multi_serial_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo multi_2x_serial_pci_info = {
-    .name          = "pci-serial-2x",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIMultiSerialState),
-    .instance_init = multi_serial_init,
-    .class_init    = multi_2x_serial_pci_class_initfn,
-    .interfaces = multi_serial_pci_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIMultiSerialState, "pci-serial-2x",
+                             TYPE_PCI_DEVICE, multi_serial_pci_interfaces)
 
-static const TypeInfo multi_4x_serial_pci_info = {
-    .name          = "pci-serial-4x",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIMultiSerialState),
-    .instance_init = multi_serial_init,
-    .class_init    = multi_4x_serial_pci_class_initfn,
-    .interfaces = multi_serial_pci_interfaces,
-};
-
-static void multi_serial_pci_register_types(void)
+static void multi_4x_instance_init(Object *o)
 {
-    type_register_static(&multi_2x_serial_pci_info);
-    type_register_static(&multi_4x_serial_pci_info);
+    PCIMultiSerialState *s = DO_UPCAST(PCIMultiSerialState, dev, PCI_DEVICE(o));
+    s->init();
 }
 
-type_init(multi_serial_pci_register_types)
+static void __attribute__((constructor)) register_multi_4x_serial_pci(void)
+{
+    static const TypeInfo multi_4x_serial_pci_info = {
+        .name          = "pci-serial-4x",
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIMultiSerialState),
+        .instance_init = multi_4x_instance_init,
+        .class_init    = multi_4x_serial_pci_class_initfn,
+        .interfaces = multi_serial_pci_interfaces,
+    };
+    type_register_static(&multi_4x_serial_pci_info);
+}

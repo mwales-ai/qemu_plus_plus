@@ -68,6 +68,11 @@ struct PL080State {
 
     MemoryRegion *downstream;
     AddressSpace downstream_as;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

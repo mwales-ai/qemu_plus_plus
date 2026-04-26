@@ -380,17 +380,16 @@ static void pl080_reset(DeviceState *dev)
     }
 }
 
-static void pl080_init(Object *obj)
+void PL080State::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PL080State *s = PL080(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl080_ops, s, "pl080", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->interr);
-    sysbus_init_irq(sbd, &s->inttc);
-    s->nchannels = 8;
+    memory_region_init_io(&iomem, OBJECT(this), &pl080_ops, this, "pl080", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
+    sysbus_init_irq(sbd, &interr);
+    sysbus_init_irq(sbd, &inttc);
+    nchannels = 8;
 }
 
 static void pl080_realize(DeviceState *dev, Error **errp)
@@ -417,36 +416,25 @@ static const Property pl080_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl080_class_init(ObjectClass *oc, const void *data)
+void PL080State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->vmsd = &vmstate_pl080;
     dc->realize = pl080_realize;
     device_class_set_props(dc, pl080_properties);
     device_class_set_legacy_reset(dc, pl080_reset);
 }
 
-static const TypeInfo pl080_info = {
-    .name          = TYPE_PL080,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL080State),
-    .instance_init = pl080_init,
-    .class_init    = pl080_class_init,
-};
-
-static const TypeInfo pl081_info = {
-    .name          = TYPE_PL081,
-    .parent        = TYPE_PL080,
-    .instance_init = pl081_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL080State, TYPE_PL080, TYPE_SYS_BUS_DEVICE)
 
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
-static void pl080_register_types(void)
+static void __attribute__((constructor)) register_pl081(void)
 {
-    type_register_static(&pl080_info);
+    static const TypeInfo pl081_info = {
+        .name          = TYPE_PL081,
+        .parent        = TYPE_PL080,
+        .instance_init = pl081_init,
+    };
     type_register_static(&pl081_info);
 }
-
-type_init(pl080_register_types)

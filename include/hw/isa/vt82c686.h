@@ -36,6 +36,10 @@ struct ViaAC97State {
     ViaAC97SGDChannel aur;
     uint16_t codec_regs[128];
     uint32_t ac97_cmd;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void via_isa_set_irq(PCIDevice *d, int n, int level);

@@ -47,7 +47,7 @@ enum LSM303DLHCMagReg {
     LSM303DLHC_MAG_REG_TEMP_OUT_L   = 0x32
 };
 
-typedef struct LSM303DLHCMagState {
+struct LSM303DLHCMagState {
     I2CSlave parent_obj;
     uint8_t cra;
     uint8_t crb;
@@ -67,7 +67,10 @@ typedef struct LSM303DLHCMagState {
     uint8_t len;
     uint8_t buf;
     uint8_t pointer;
-} LSM303DLHCMagState;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 #define TYPE_LSM303DLHC_MAG "lsm303dlhc_mag"
 OBJECT_DECLARE_SIMPLE_TYPE(LSM303DLHCMagState, LSM303DLHC_MAG)
@@ -507,21 +510,21 @@ static void lsm303dlhc_mag_reset(DeviceState *dev)
 /*
  * Initialisation of any public properties.
  */
-static void lsm303dlhc_mag_initfn(Object *obj)
+void LSM303DLHCMagState::init()
 {
-    object_property_add(obj, "mag-x", "int",
+    object_property_add(OBJECT(this), "mag-x", "int",
                 lsm303dlhc_mag_get_x,
                 lsm303dlhc_mag_set_x, NULL, NULL);
 
-    object_property_add(obj, "mag-y", "int",
+    object_property_add(OBJECT(this), "mag-y", "int",
                 lsm303dlhc_mag_get_y,
                 lsm303dlhc_mag_set_y, NULL, NULL);
 
-    object_property_add(obj, "mag-z", "int",
+    object_property_add(OBJECT(this), "mag-z", "int",
                 lsm303dlhc_mag_get_z,
                 lsm303dlhc_mag_set_z, NULL, NULL);
 
-    object_property_add(obj, "temperature", "int",
+    object_property_add(OBJECT(this), "temperature", "int",
                 lsm303dlhc_mag_get_temperature,
                 lsm303dlhc_mag_set_temperature, NULL, NULL);
 }
@@ -529,9 +532,9 @@ static void lsm303dlhc_mag_initfn(Object *obj)
 /*
  * Set the virtual method pointers (bus state change, tx/rx, etc.).
  */
-static void lsm303dlhc_mag_class_init(ObjectClass *klass, const void *data)
+void LSM303DLHCMagState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, lsm303dlhc_mag_reset);
@@ -541,17 +544,5 @@ static void lsm303dlhc_mag_class_init(ObjectClass *klass, const void *data)
     k->send = lsm303dlhc_mag_send;
 }
 
-static const TypeInfo lsm303dlhc_mag_info = {
-    .name = TYPE_LSM303DLHC_MAG,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(LSM303DLHCMagState),
-    .instance_init = lsm303dlhc_mag_initfn,
-    .class_init = lsm303dlhc_mag_class_init,
-};
-
-static void lsm303dlhc_mag_register_types(void)
-{
-    type_register_static(&lsm303dlhc_mag_info);
-}
-
-type_init(lsm303dlhc_mag_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LSM303DLHCMagState, TYPE_LSM303DLHC_MAG, TYPE_I2C_SLAVE)

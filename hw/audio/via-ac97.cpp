@@ -462,9 +462,9 @@ static const Property via_ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ViaAC97State, audio_be),
 };
 
-static void via_ac97_class_init(ObjectClass *klass, const void *data)
+void ViaAC97State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = via_ac97_realize;
@@ -486,13 +486,9 @@ static const InterfaceInfo via_ac97_interfaces[] = {
     { },
 };
 
-static const TypeInfo via_ac97_info = {
-    .name          = TYPE_VIA_AC97,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ViaAC97State),
-    .class_init    = via_ac97_class_init,
-    .interfaces = via_ac97_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ViaAC97State, TYPE_VIA_AC97,
+                             TYPE_PCI_DEVICE, via_ac97_interfaces)
 
 static void via_mc97_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -531,10 +527,7 @@ static const TypeInfo via_mc97_info = {
     .interfaces = via_mc97_interfaces,
 };
 
-static void via_ac97_register_types(void)
+static void __attribute__((constructor)) register_via_mc97(void)
 {
-    type_register_static(&via_ac97_info);
     type_register_static(&via_mc97_info);
 }
-
-type_init(via_ac97_register_types)
