@@ -603,34 +603,33 @@ static void npcm7xx_timer_hold_reset(Object *obj, ResetType type)
     qemu_irq_lower(s->watchdog_timer.irq);
 }
 
-static void npcm7xx_timer_init(Object *obj)
+void NPCM7xxTimerCtrlState::init()
 {
-    NPCM7xxTimerCtrlState *s = NPCM7XX_TIMER(obj);
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
     NPCM7xxWatchdogTimer *w;
 
     for (i = 0; i < NPCM7XX_TIMERS_PER_CTRL; i++) {
-        NPCM7xxTimer *t = &s->timer[i];
-        t->ctrl = s;
+        NPCM7xxTimer *t = &timer[i];
+        t->ctrl = this;
         timer_init_ns(&t->base_timer.qtimer, QEMU_CLOCK_VIRTUAL,
                 npcm7xx_timer_expired, t);
         sysbus_init_irq(sbd, &t->irq);
     }
 
-    w = &s->watchdog_timer;
-    w->ctrl = s;
+    w = &watchdog_timer;
+    w->ctrl = this;
     timer_init_ns(&w->base_timer.qtimer, QEMU_CLOCK_VIRTUAL,
             npcm7xx_watchdog_timer_expired, w);
     sysbus_init_irq(sbd, &w->irq);
 
-    memory_region_init_io(&s->iomem, obj, &npcm7xx_timer_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &npcm7xx_timer_ops, this,
                           TYPE_NPCM7XX_TIMER, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
     qdev_init_gpio_out_named(dev, &w->reset_signal,
             NPCM7XX_WATCHDOG_RESET_GPIO_OUT, 1);
-    s->clock = qdev_init_clock_in(dev, "clock", NULL, NULL, 0);
+    clock = qdev_init_clock_in(dev, "clock", NULL, NULL, 0);
 }
 
 static const VMStateField vmstate_npcm7xx_base_timer_fields[] = {
@@ -697,10 +696,10 @@ static const VMStateDescription vmstate_npcm7xx_timer_ctrl = {
     .fields = vmstate_npcm7xx_timer_ctrl_fields,
 };
 
-static void npcm7xx_timer_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxTimerCtrlState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     QEMU_BUILD_BUG_ON(NPCM7XX_TIMER_REGS_END > NPCM7XX_TIMER_NR_REGS);
 
@@ -710,16 +709,5 @@ static void npcm7xx_timer_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = npcm7xx_timer_hold_reset;
 }
 
-static const TypeInfo npcm7xx_timer_info = {
-    .name               = TYPE_NPCM7XX_TIMER,
-    .parent             = TYPE_SYS_BUS_DEVICE,
-    .instance_size      = sizeof(NPCM7xxTimerCtrlState),
-    .instance_init      = npcm7xx_timer_init,
-    .class_init         = npcm7xx_timer_class_init,
-};
-
-static void npcm7xx_timer_register_type(void)
-{
-    type_register_static(&npcm7xx_timer_info);
-}
-type_init(npcm7xx_timer_register_type);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NPCM7xxTimerCtrlState, TYPE_NPCM7XX_TIMER, TYPE_SYS_BUS_DEVICE)

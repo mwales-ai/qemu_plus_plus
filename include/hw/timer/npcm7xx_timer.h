@@ -104,6 +104,11 @@ struct NPCM7xxTimerCtrlState {
     Clock       *clock;
     NPCM7xxTimer timer[NPCM7XX_TIMERS_PER_CTRL];
     NPCM7xxWatchdogTimer watchdog_timer;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NPCM7XX_TIMER "npcm7xx-timer"
