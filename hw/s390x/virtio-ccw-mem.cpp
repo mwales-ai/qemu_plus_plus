@@ -107,7 +107,7 @@ static void virtio_ccw_mem_size_change_notify(Notifier *notifier, void *data)
                                          size_change_notifier);
     DeviceState *vdev = DEVICE(dev);
     char *qom_path = object_get_canonical_path(OBJECT(dev));
-    const uint64_t * const size_p = data;
+    const uint64_t * const size_p = static_cast<const uint64_t *>(data);
 
     qapi_event_send_memory_device_size_change(vdev->id, *size_p, qom_path);
     g_free(qom_path);
@@ -160,9 +160,9 @@ static const Property virtio_ccw_mem_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_mem_class_init(ObjectClass *klass, const void *data)
+void VirtIOMEMCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(klass);
     VirtIOMDCcwClass *vmdc = VIRTIO_MD_CCW_CLASS(klass);
@@ -183,43 +183,31 @@ static void virtio_ccw_mem_class_init(ObjectClass *klass, const void *data)
     vmdc->unplug_request_check = virtio_ccw_mem_unplug_request_check;
 }
 
-static void virtio_ccw_mem_instance_init(Object *obj)
+void VirtIOMEMCcw::init()
 {
-    VirtIOMEMCcw *dev = VIRTIO_MEM_CCW(obj);
     VirtIOMEMClass *vmc;
     VirtIOMEM *vmem;
 
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_MEM);
 
-    dev->size_change_notifier.notify = virtio_ccw_mem_size_change_notify;
-    vmem = &dev->vdev;
+    size_change_notifier.notify = virtio_ccw_mem_size_change_notify;
+    vmem = &vdev;
     vmc = VIRTIO_MEM_GET_CLASS(vmem);
     /*
      * We never remove the notifier again, as we expect both devices to
      * disappear at the same time.
      */
-    vmc->add_size_change_notifier(vmem, &dev->size_change_notifier);
+    vmc->add_size_change_notifier(vmem, &size_change_notifier);
 
-    object_property_add_alias(obj, VIRTIO_MEM_BLOCK_SIZE_PROP,
-                              OBJECT(&dev->vdev), VIRTIO_MEM_BLOCK_SIZE_PROP);
-    object_property_add_alias(obj, VIRTIO_MEM_SIZE_PROP, OBJECT(&dev->vdev),
-                              VIRTIO_MEM_SIZE_PROP);
-    object_property_add(obj, VIRTIO_MEM_REQUESTED_SIZE_PROP, "size",
+    object_property_add_alias(OBJECT(this), VIRTIO_MEM_BLOCK_SIZE_PROP,
+                              OBJECT(&vdev), VIRTIO_MEM_BLOCK_SIZE_PROP);
+    object_property_add_alias(OBJECT(this), VIRTIO_MEM_SIZE_PROP,
+                              OBJECT(&vdev), VIRTIO_MEM_SIZE_PROP);
+    object_property_add(OBJECT(this), VIRTIO_MEM_REQUESTED_SIZE_PROP, "size",
                         virtio_ccw_mem_get_requested_size,
                         virtio_ccw_mem_set_requested_size, NULL, NULL);
 }
 
-static const TypeInfo virtio_ccw_mem = {
-    .name = TYPE_VIRTIO_MEM_CCW,
-    .parent = TYPE_VIRTIO_MD_CCW,
-    .instance_size = sizeof(VirtIOMEMCcw),
-    .instance_init = virtio_ccw_mem_instance_init,
-    .class_init = virtio_ccw_mem_class_init,
-};
-
-static void virtio_ccw_mem_register_types(void)
-{
-    type_register_static(&virtio_ccw_mem);
-}
-type_init(virtio_ccw_mem_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOMEMCcw, TYPE_VIRTIO_MEM_CCW, TYPE_VIRTIO_MD_CCW)

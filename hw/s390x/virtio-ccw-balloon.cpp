@@ -23,6 +23,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBalloonCcw, VIRTIO_BALLOON_CCW)
 struct VirtIOBalloonCcw {
     VirtioCcwDevice parent_obj;
     VirtIOBalloon vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_balloon_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -33,16 +38,14 @@ static void virtio_ccw_balloon_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
 }
 
-static void virtio_ccw_balloon_instance_init(Object *obj)
+void VirtIOBalloonCcw::init()
 {
-    VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_BALLOON);
-    object_property_add_alias(obj, "guest-stats", OBJECT(&dev->vdev),
+    object_property_add_alias(OBJECT(this), "guest-stats", OBJECT(&vdev),
                               "guest-stats");
-    object_property_add_alias(obj, "guest-stats-polling-interval",
-                              OBJECT(&dev->vdev),
+    object_property_add_alias(OBJECT(this), "guest-stats-polling-interval",
+                              OBJECT(&vdev),
                               "guest-stats-polling-interval");
 }
 
@@ -53,9 +56,9 @@ static const Property virtio_ccw_balloon_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_balloon_class_init(ObjectClass *klass, const void *data)
+void VirtIOBalloonCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_balloon_realize;
@@ -63,17 +66,5 @@ static void virtio_ccw_balloon_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_balloon = {
-    .name          = TYPE_VIRTIO_BALLOON_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOBalloonCcw),
-    .instance_init = virtio_ccw_balloon_instance_init,
-    .class_init    = virtio_ccw_balloon_class_init,
-};
-
-static void virtio_ccw_balloon_register(void)
-{
-    type_register_static(&virtio_ccw_balloon);
-}
-
-type_init(virtio_ccw_balloon_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOBalloonCcw, TYPE_VIRTIO_BALLOON_CCW, TYPE_VIRTIO_CCW_DEVICE)

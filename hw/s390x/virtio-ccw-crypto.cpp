@@ -22,6 +22,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOCryptoCcw, VIRTIO_CRYPTO_CCW)
 struct VirtIOCryptoCcw {
     VirtioCcwDevice parent_obj;
     VirtIOCrypto vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -34,13 +39,12 @@ static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     }
 }
 
-static void virtio_ccw_crypto_instance_init(Object *obj)
+void VirtIOCryptoCcw::init()
 {
-    VirtIOCryptoCcw *dev = VIRTIO_CRYPTO_CCW(obj);
-    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(this);
 
     ccw_dev->force_revision_1 = true;
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_CRYPTO);
 }
 
@@ -51,9 +55,9 @@ static const Property virtio_ccw_crypto_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_crypto_class_init(ObjectClass *klass, const void *data)
+void VirtIOCryptoCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_crypto_realize;
@@ -61,17 +65,5 @@ static void virtio_ccw_crypto_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_crypto = {
-    .name          = TYPE_VIRTIO_CRYPTO_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOCryptoCcw),
-    .instance_init = virtio_ccw_crypto_instance_init,
-    .class_init    = virtio_ccw_crypto_class_init,
-};
-
-static void virtio_ccw_crypto_register(void)
-{
-    type_register_static(&virtio_ccw_crypto);
-}
-
-type_init(virtio_ccw_crypto_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOCryptoCcw, TYPE_VIRTIO_CRYPTO_CCW, TYPE_VIRTIO_CCW_DEVICE)

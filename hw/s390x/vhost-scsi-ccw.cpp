@@ -23,6 +23,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostSCSICcw, VHOST_SCSI_CCW)
 struct VHostSCSICcw {
     VirtioCcwDevice parent_obj;
     VHostSCSI vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void vhost_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -33,11 +38,9 @@ static void vhost_ccw_scsi_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
 }
 
-static void vhost_ccw_scsi_instance_init(Object *obj)
+void VHostSCSICcw::init()
 {
-    VHostSCSICcw *dev = VHOST_SCSI_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VHOST_SCSI);
 }
 
@@ -46,9 +49,9 @@ static const Property vhost_ccw_scsi_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void vhost_ccw_scsi_class_init(ObjectClass *klass, const void *data)
+void VHostSCSICcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = vhost_ccw_scsi_realize;
@@ -56,17 +59,5 @@ static void vhost_ccw_scsi_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo vhost_ccw_scsi = {
-    .name          = TYPE_VHOST_SCSI_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VHostSCSICcw),
-    .instance_init = vhost_ccw_scsi_instance_init,
-    .class_init    = vhost_ccw_scsi_class_init,
-};
-
-static void virtio_ccw_scsi_register(void)
-{
-    type_register_static(&vhost_ccw_scsi);
-}
-
-type_init(virtio_ccw_scsi_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostSCSICcw, TYPE_VHOST_SCSI_CCW, TYPE_VIRTIO_CCW_DEVICE)

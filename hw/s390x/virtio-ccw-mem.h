@@ -29,6 +29,11 @@ struct VirtIOMEMCcw {
     VirtIOMDCcw parent_obj;
     VirtIOMEM vdev;
     Notifier size_change_notifier;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_S390X_VIRTIO_CCW_MEM_H */

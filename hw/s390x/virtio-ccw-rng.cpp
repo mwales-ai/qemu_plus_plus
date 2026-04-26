@@ -23,6 +23,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIORNGCcw, VIRTIO_RNG_CCW)
 struct VirtIORNGCcw {
     VirtioCcwDevice parent_obj;
     VirtIORNG vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -35,11 +40,9 @@ static void virtio_ccw_rng_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     }
 }
 
-static void virtio_ccw_rng_instance_init(Object *obj)
+void VirtIORNGCcw::init()
 {
-    VirtIORNGCcw *dev = VIRTIO_RNG_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_RNG);
 }
 
@@ -50,9 +53,9 @@ static const Property virtio_ccw_rng_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_rng_class_init(ObjectClass *klass, const void *data)
+void VirtIORNGCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_rng_realize;
@@ -60,17 +63,5 @@ static void virtio_ccw_rng_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_rng = {
-    .name          = TYPE_VIRTIO_RNG_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIORNGCcw),
-    .instance_init = virtio_ccw_rng_instance_init,
-    .class_init    = virtio_ccw_rng_class_init,
-};
-
-static void virtio_ccw_rng_register(void)
-{
-    type_register_static(&virtio_ccw_rng);
-}
-
-type_init(virtio_ccw_rng_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIORNGCcw, TYPE_VIRTIO_RNG_CCW, TYPE_VIRTIO_CCW_DEVICE)

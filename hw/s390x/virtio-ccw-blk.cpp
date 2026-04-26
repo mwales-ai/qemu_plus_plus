@@ -23,6 +23,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBlkCcw, VIRTIO_BLK_CCW)
 struct VirtIOBlkCcw {
     VirtioCcwDevice parent_obj;
     VirtIOBlock vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_blk_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -33,13 +38,11 @@ static void virtio_ccw_blk_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
 }
 
-static void virtio_ccw_blk_instance_init(Object *obj)
+void VirtIOBlkCcw::init()
 {
-    VirtIOBlkCcw *dev = VIRTIO_BLK_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_BLK);
-    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+    object_property_add_alias(OBJECT(this), "bootindex", OBJECT(&vdev),
                               "bootindex");
 }
 
@@ -51,9 +54,9 @@ static const Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_CCW_LOADPARM("loadparm", CcwDevice, loadparm),
 };
 
-static void virtio_ccw_blk_class_init(ObjectClass *klass, const void *data)
+void VirtIOBlkCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_blk_realize;
@@ -61,17 +64,5 @@ static void virtio_ccw_blk_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_blk = {
-    .name          = TYPE_VIRTIO_BLK_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOBlkCcw),
-    .instance_init = virtio_ccw_blk_instance_init,
-    .class_init    = virtio_ccw_blk_class_init,
-};
-
-static void virtio_ccw_blk_register(void)
-{
-    type_register_static(&virtio_ccw_blk);
-}
-
-type_init(virtio_ccw_blk_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOBlkCcw, TYPE_VIRTIO_BLK_CCW, TYPE_VIRTIO_CCW_DEVICE)

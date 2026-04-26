@@ -13,10 +13,15 @@
 #include "hw/virtio/vhost-user-fs.h"
 #include "virtio-ccw.h"
 
-typedef struct VHostUserFSCcw {
+struct VHostUserFSCcw {
     VirtioCcwDevice parent_obj;
     VHostUserFS vdev;
-} VHostUserFSCcw;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #define TYPE_VHOST_USER_FS_CCW "vhost-user-fs-ccw"
 #define VHOST_USER_FS_CCW(obj) \
@@ -38,19 +43,18 @@ static void vhost_user_fs_ccw_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
 }
 
-static void vhost_user_fs_ccw_instance_init(Object *obj)
+void VHostUserFSCcw::init()
 {
-    VHostUserFSCcw *dev = VHOST_USER_FS_CCW(obj);
-    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(this);
 
     ccw_dev->force_revision_1 = true;
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VHOST_USER_FS);
 }
 
-static void vhost_user_fs_ccw_class_init(ObjectClass *klass, const void *data)
+void VHostUserFSCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = vhost_user_fs_ccw_realize;
@@ -58,17 +62,5 @@ static void vhost_user_fs_ccw_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo vhost_user_fs_ccw = {
-    .name          = TYPE_VHOST_USER_FS_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VHostUserFSCcw),
-    .instance_init = vhost_user_fs_ccw_instance_init,
-    .class_init    = vhost_user_fs_ccw_class_init,
-};
-
-static void vhost_user_fs_ccw_register(void)
-{
-    type_register_static(&vhost_user_fs_ccw);
-}
-
-type_init(vhost_user_fs_ccw_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostUserFSCcw, TYPE_VHOST_USER_FS_CCW, TYPE_VIRTIO_CCW_DEVICE)

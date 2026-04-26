@@ -22,6 +22,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtioSerialCcw, VIRTIO_SERIAL_CCW)
 struct VirtioSerialCcw {
     VirtioCcwDevice parent_obj;
     VirtIOSerial vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_serial_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -45,11 +50,9 @@ static void virtio_ccw_serial_realize(VirtioCcwDevice *ccw_dev, Error **errp)
 }
 
 
-static void virtio_ccw_serial_instance_init(Object *obj)
+void VirtioSerialCcw::init()
 {
-    VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &vdev, sizeof(vdev),
                                 TYPE_VIRTIO_SERIAL);
 }
 
@@ -60,9 +63,9 @@ static const Property virtio_ccw_serial_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_serial_class_init(ObjectClass *klass, const void *data)
+void VirtioSerialCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_serial_realize;
@@ -70,17 +73,5 @@ static void virtio_ccw_serial_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_serial = {
-    .name          = TYPE_VIRTIO_SERIAL_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtioSerialCcw),
-    .instance_init = virtio_ccw_serial_instance_init,
-    .class_init    = virtio_ccw_serial_class_init,
-};
-
-static void virtio_ccw_serial_register(void)
-{
-    type_register_static(&virtio_ccw_serial);
-}
-
-type_init(virtio_ccw_serial_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtioSerialCcw, TYPE_VIRTIO_SERIAL_CCW, TYPE_VIRTIO_CCW_DEVICE)
