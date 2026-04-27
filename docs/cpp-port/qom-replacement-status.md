@@ -33,7 +33,7 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE Macro Family — 718+ devices
+### REGISTER_QEMU_DEVICE Macro Family — 729+ devices
 
 The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
 and type registration via SFINAE detection of `init()`, `finalize()`,
@@ -51,6 +51,7 @@ and type registration via SFINAE detection of `init()`, `finalize()`,
 | `REGISTER_QEMU_DEVICE_ABSTRACT_IFACES` | Abstract base with class struct + interfaces |
 | `REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS` | Abstract base, parent's class struct (no extension) |
 | `REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES` | Abstract NO_CS + interfaces |
+| `REGISTER_QEMU_DEVICE_CUSTOM_CI` | Pass user's class_init function (e.g., for parent_realize chains) |
 
 Each conversion:
 - Replaces ~15-20 lines of TypeInfo / register_types / type_init boilerplate
