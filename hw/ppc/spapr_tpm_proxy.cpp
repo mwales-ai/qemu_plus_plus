@@ -149,27 +149,14 @@ static const Property spapr_tpm_proxy_properties[] = {
     DEFINE_PROP_STRING("host-path", SpaprTpmProxy, host_path),
 };
 
-static void spapr_tpm_proxy_class_init(ObjectClass *k, const void *data)
+void SpaprTpmProxy::classInit(DeviceClass *dc)
 {
-    DeviceClass *dk = DEVICE_CLASS(k);
-
-    dk->realize = spapr_tpm_proxy_realize;
-    dk->unrealize = spapr_tpm_proxy_unrealize;
-    dk->user_creatable = true;
-    device_class_set_props(dk, spapr_tpm_proxy_properties);
-}
-
-static const TypeInfo spapr_tpm_proxy_info = {
-    .name          = TYPE_SPAPR_TPM_PROXY,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprTpmProxy),
-    .class_init    = spapr_tpm_proxy_class_init,
-};
-
-static void spapr_tpm_proxy_register_types(void)
-{
-    type_register_static(&spapr_tpm_proxy_info);
+    dc->realize = spapr_tpm_proxy_realize;
+    dc->unrealize = spapr_tpm_proxy_unrealize;
+    dc->user_creatable = true;
+    device_class_set_props(dc, spapr_tpm_proxy_properties);
     spapr_register_hypercall(SVM_H_TPM_COMM, h_tpm_comm);
 }
 
-type_init(spapr_tpm_proxy_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprTpmProxy, TYPE_SPAPR_TPM_PROXY, TYPE_DEVICE)

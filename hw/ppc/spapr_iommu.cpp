@@ -672,9 +672,8 @@ int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                         tcet->liobn, 0, tcet->nb_table << tcet->page_shift);
 }
 
-static void spapr_tce_table_class_init(ObjectClass *klass, const void *data)
+void SpaprTceTable::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = spapr_tce_table_realize;
     device_class_set_legacy_reset(dc, spapr_tce_reset);
     dc->unrealize = spapr_tce_table_unrealize;
@@ -690,13 +689,6 @@ static void spapr_tce_table_class_init(ObjectClass *klass, const void *data)
     spapr_register_hypercall(H_STUFF_TCE, h_stuff_tce);
 }
 
-static const TypeInfo spapr_tce_table_info = {
-    .name = TYPE_SPAPR_TCE_TABLE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprTceTable),
-    .class_init = spapr_tce_table_class_init,
-};
-
 static void spapr_iommu_memory_region_class_init(ObjectClass *klass,
                                                  const void *data)
 {
@@ -709,16 +701,15 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->get_attr = spapr_tce_get_attr;
 }
 
-static const TypeInfo spapr_iommu_memory_region_info = {
-    .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = spapr_iommu_memory_region_class_init,
-};
-
-static void register_types(void)
+static void __attribute__((constructor)) register_spapr_iommu_memory_region(void)
 {
-    type_register_static(&spapr_tce_table_info);
+    static const TypeInfo spapr_iommu_memory_region_info = {
+        .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .class_init = spapr_iommu_memory_region_class_init,
+    };
     type_register_static(&spapr_iommu_memory_region_info);
 }
 
-type_init(register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprTceTable, TYPE_SPAPR_TCE_TABLE, TYPE_DEVICE)

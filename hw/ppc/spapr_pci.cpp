@@ -1712,12 +1712,10 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     }
 }
 
-static void spapr_phb_finalizefn(Object *obj)
+void SpaprPhbState::finalize()
 {
-    SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(obj);
-
-    g_free(sphb->dtbusname);
-    sphb->dtbusname = NULL;
+    g_free(dtbusname);
+    dtbusname = NULL;
 }
 
 static void spapr_phb_unrealize(DeviceState *dev)
@@ -2150,10 +2148,10 @@ static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
     return sphb->dtbusname;
 }
 
-static void spapr_phb_class_init(ObjectClass *klass, const void *data)
+void SpaprPhbState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     HotplugHandlerClass *hp = HOTPLUG_HANDLER_CLASS(klass);
 
     hc->root_bus_path = spapr_phb_root_bus_path;
@@ -2171,16 +2169,9 @@ static void spapr_phb_class_init(ObjectClass *klass, const void *data)
     hp->unplug_request = spapr_pci_unplug_request;
 }
 
-static const TypeInfo spapr_phb_info = {
-    .name          = TYPE_SPAPR_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(SpaprPhbState),
-    .instance_finalize = spapr_phb_finalizefn,
-    .class_init    = spapr_phb_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+static const InterfaceInfo spapr_phb_ifaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
 static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
@@ -2385,12 +2376,9 @@ void spapr_pci_rtas_init(void)
                         rtas_ibm_slot_error_detail);
 }
 
-static void spapr_pci_register_types(void)
-{
-    type_register_static(&spapr_phb_info);
-}
-
-type_init(spapr_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SpaprPhbState, TYPE_SPAPR_PCI_HOST_BRIDGE,
+                             TYPE_PCI_HOST_BRIDGE, spapr_phb_ifaces)
 
 static int spapr_switch_one_vga(DeviceState *dev, void *opaque)
 {

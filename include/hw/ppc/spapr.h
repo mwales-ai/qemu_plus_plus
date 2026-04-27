@@ -896,6 +896,10 @@ struct SpaprTceTable {
     IOMMUMemoryRegion iommu;
     struct SpaprVioDevice *vdev; /* for @bypass migration compatibility only */
     QLIST_ENTRY(SpaprTceTable) list;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 SpaprTceTable *spapr_tce_find_by_liobn(target_ulong liobn);

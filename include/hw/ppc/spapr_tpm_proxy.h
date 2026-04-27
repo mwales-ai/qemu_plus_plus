@@ -25,6 +25,10 @@ struct SpaprTpmProxy {
 
     char *host_path;
     int host_fd;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_SPAPR_TPM_PROXY_H */

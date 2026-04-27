@@ -84,6 +84,11 @@ struct SpaprPhbState {
 
     /* Fields for migration compatibility hacks */
     bool pre_5_1_assoc;
+
+#ifdef __cplusplus
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL
