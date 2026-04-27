@@ -33,7 +33,7 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE Macro Family — 734+ devices
+### REGISTER_QEMU_DEVICE Macro Family — 743+ devices
 
 The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
 and type registration via SFINAE detection of `init()`, `finalize()`,
