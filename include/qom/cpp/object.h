@@ -401,6 +401,29 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_IFACES: like _ABSTRACT but with InterfaceInfo.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(ClassName, ClassStruct,         \
+                                              type_name_str,                 \
+                                              parent_type_str,               \
+                                              ifaces_array)                  \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name           = type_name_str,                                     \
+        .parent         = parent_type_str,                                   \
+        .instance_size  = sizeof(ClassName),                                 \
+        .class_size     = sizeof(ClassStruct),                               \
+        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .interfaces     = ifaces_array,                                      \
+        .is_abstract    = true,                                              \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT: register an abstract device base class
  * with a custom class struct. No instance_init/instance_finalize/realize/
  * reset wiring is generated (abstract types cannot be instantiated), but
