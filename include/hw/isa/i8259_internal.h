@@ -72,6 +72,10 @@ struct PICCommonState {
     uint32_t elcr_addr;
     MemoryRegion base_io;
     MemoryRegion elcr_io;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void pic_reset_common(PICCommonState *s);

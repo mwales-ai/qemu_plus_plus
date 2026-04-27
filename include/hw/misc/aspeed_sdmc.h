@@ -43,6 +43,11 @@ struct AspeedSDMCState {
     uint64_t ram_size;
     uint64_t max_ram_size;
     bool unlocked;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

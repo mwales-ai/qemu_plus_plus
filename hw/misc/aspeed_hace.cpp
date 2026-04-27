@@ -634,24 +634,14 @@ static void aspeed_hace_unrealize(DeviceState *dev)
     s->regs = NULL;
 }
 
-static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
+void AspeedHACEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = aspeed_hace_realize;
     dc->unrealize = aspeed_hace_unrealize;
     device_class_set_legacy_reset(dc, aspeed_hace_reset);
     device_class_set_props(dc, aspeed_hace_properties);
     dc->vmsd = &vmstate_aspeed_hace;
 }
-
-static const TypeInfo aspeed_hace_info = {
-    .name = TYPE_ASPEED_HACE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedHACEState),
-    .class_size = sizeof(AspeedHACEClass),
-    .class_init = aspeed_hace_class_init,
-};
 
 static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -778,14 +768,15 @@ static const TypeInfo aspeed_ast2700_hace_info = {
     .class_init = aspeed_ast2700_hace_class_init,
 };
 
-static void aspeed_hace_register_types(void)
+static void __attribute__((constructor)) aspeed_hace_subtypes_register(void)
 {
     type_register_static(&aspeed_ast2400_hace_info);
     type_register_static(&aspeed_ast2500_hace_info);
     type_register_static(&aspeed_ast2600_hace_info);
     type_register_static(&aspeed_ast1030_hace_info);
     type_register_static(&aspeed_ast2700_hace_info);
-    type_register_static(&aspeed_hace_info);
 }
 
-type_init(aspeed_hace_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(AspeedHACEState, AspeedHACEClass,
+                                 TYPE_ASPEED_HACE, TYPE_SYS_BUS_DEVICE)

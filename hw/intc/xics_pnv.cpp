@@ -167,9 +167,9 @@ static void pnv_icp_realize(DeviceState *dev, Error **errp)
                           icp, "icp-thread", 0x1000);
 }
 
-static void pnv_icp_class_init(ObjectClass *klass, const void *data)
+void PnvICPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ICPStateClass *icpc = ICP_CLASS(klass);
 
     device_class_set_parent_realize(dc, pnv_icp_realize,
@@ -177,20 +177,9 @@ static void pnv_icp_class_init(ObjectClass *klass, const void *data)
     dc->desc = "PowerNV ICP";
 }
 
-static const TypeInfo pnv_icp_info = {
-    .name          = TYPE_PNV_ICP,
-    .parent        = TYPE_ICP,
-    .instance_size = sizeof(PnvICPState),
-    .class_size    = sizeof(ICPStateClass),
-    .class_init    = pnv_icp_class_init,
-};
-
-static void pnv_icp_register_types(void)
-{
-    type_register_static(&pnv_icp_info);
-}
-
-type_init(pnv_icp_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(PnvICPState, ICPStateClass,
+                                 TYPE_PNV_ICP, TYPE_ICP)
 
 static void __attribute__((constructor)) init_pnv_icp_ops(void)
 {

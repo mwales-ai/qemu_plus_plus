@@ -621,24 +621,14 @@ static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("hw-prot-key", AspeedSCUState, hw_prot_key, 0),
 };
 
-static void aspeed_scu_class_init(ObjectClass *klass, const void *data)
+void AspeedSCUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = aspeed_scu_realize;
     device_class_set_legacy_reset(dc, aspeed_scu_reset);
     dc->desc = "ASPEED System Control Unit";
     dc->vmsd = &vmstate_aspeed_scu;
     device_class_set_props(dc, aspeed_scu_properties);
 }
-
-static const TypeInfo aspeed_scu_info = {
-    .name = TYPE_ASPEED_SCU,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSCUState),
-    .is_abstract      = true,
-    .class_size    = sizeof(AspeedSCUClass),
-    .class_init = aspeed_scu_class_init,
-};
 
 static void aspeed_2400_scu_class_init(ObjectClass *klass, const void *data)
 {
@@ -1171,9 +1161,8 @@ static const TypeInfo aspeed_1030_scu_info = {
     .class_init = aspeed_1030_scu_class_init,
 };
 
-static void aspeed_scu_register_types(void)
+static void __attribute__((constructor)) aspeed_scu_subtypes_register(void)
 {
-    type_register_static(&aspeed_scu_info);
     type_register_static(&aspeed_2400_scu_info);
     type_register_static(&aspeed_2500_scu_info);
     type_register_static(&aspeed_2600_scu_info);
@@ -1182,4 +1171,6 @@ static void aspeed_scu_register_types(void)
     type_register_static(&aspeed_2700_scuio_info);
 }
 
-type_init(aspeed_scu_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedSCUState, AspeedSCUClass,
+                               TYPE_ASPEED_SCU, TYPE_SYS_BUS_DEVICE)

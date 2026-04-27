@@ -307,10 +307,8 @@ static const Property aspeed_wdt_properties[] = {
                      AspeedSCUState *),
 };
 
-static void aspeed_wdt_class_init(ObjectClass *klass, const void *data)
+void AspeedWDTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "ASPEED Watchdog Controller";
     dc->realize = aspeed_wdt_realize;
     device_class_set_legacy_reset(dc, aspeed_wdt_reset);
@@ -319,15 +317,6 @@ static void aspeed_wdt_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, aspeed_wdt_properties);
     dc->desc = "Aspeed watchdog device";
 }
-
-static const TypeInfo aspeed_wdt_info = {
-    .name  = TYPE_ASPEED_WDT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedWDTState),
-    .is_abstract   = true,
-    .class_size    = sizeof(AspeedWDTClass),
-    .class_init = aspeed_wdt_class_init,
-};
 
 static void aspeed_2400_wdt_class_init(ObjectClass *klass, const void *data)
 {
@@ -458,9 +447,8 @@ static const TypeInfo aspeed_2700_wdt_info = {
     .class_init = aspeed_2700_wdt_class_init,
 };
 
-static void wdt_aspeed_register_types(void)
+static void __attribute__((constructor)) wdt_aspeed_subtypes_register(void)
 {
-    type_register_static(&aspeed_wdt_info);
     type_register_static(&aspeed_2400_wdt_info);
     type_register_static(&aspeed_2500_wdt_info);
     type_register_static(&aspeed_2600_wdt_info);
@@ -468,4 +456,6 @@ static void wdt_aspeed_register_types(void)
     type_register_static(&aspeed_1030_wdt_info);
 }
 
-type_init(wdt_aspeed_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedWDTState, AspeedWDTClass,
+                               TYPE_ASPEED_WDT, TYPE_SYS_BUS_DEVICE)

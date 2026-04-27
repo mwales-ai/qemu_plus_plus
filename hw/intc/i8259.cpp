@@ -433,26 +433,15 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
     return irq_set;
 }
 
-static void i8259_class_init(ObjectClass *klass, const void *data)
+void PICCommonState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PICClass *k = PIC_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_parent_realize(dc, pic_realize, &k->parent_realize);
     device_class_set_legacy_reset(dc, pic_reset);
 }
 
-static const TypeInfo i8259_info = {
-    .name       = TYPE_I8259,
-    .parent     = TYPE_PIC_COMMON,
-    .instance_size = sizeof(PICCommonState),
-    .class_size = sizeof(PICClass),
-    .class_init = i8259_class_init,
-};
-
-static void pic_register_types(void)
-{
-    type_register_static(&i8259_info);
-}
-
-type_init(pic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(PICCommonState, PICClass,
+                                 TYPE_I8259, TYPE_PIC_COMMON)

@@ -809,17 +809,15 @@ static const Property allwinner_sdhost_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void allwinner_sdhost_init(Object *obj)
+void AwSdHostState::init()
 {
-    AwSdHostState *s = AW_SDHOST(obj);
+    qbus_init(&sdbus, sizeof(sdbus),
+              TYPE_AW_SDHOST_BUS, DEVICE(this), "sd-bus");
 
-    qbus_init(&s->sdbus, sizeof(s->sdbus),
-              TYPE_AW_SDHOST_BUS, DEVICE(s), "sd-bus");
-
-    memory_region_init_io(&s->iomem, obj, &allwinner_sdhost_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_sdhost_ops, this,
                            TYPE_AW_SDHOST, 4 * KiB);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
 static void allwinner_sdhost_realize(DeviceState *dev, Error **errp)
@@ -892,10 +890,8 @@ static void allwinner_sdhost_bus_class_init(ObjectClass *klass,
     sbc->set_inserted = allwinner_sdhost_set_inserted;
 }
 
-static void allwinner_sdhost_class_init(ObjectClass *klass, const void *data)
+void AwSdHostState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, allwinner_sdhost_reset);
     dc->vmsd = &vmstate_allwinner_sdhost;
     dc->realize = allwinner_sdhost_realize;
@@ -938,16 +934,6 @@ static void allwinner_sdhost_sun50i_a64_emmc_class_init(ObjectClass *klass,
     sc->can_calibrate = true;
 }
 
-static const TypeInfo allwinner_sdhost_info = {
-    .name          = TYPE_AW_SDHOST,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwSdHostState),
-    .instance_init = allwinner_sdhost_init,
-    .is_abstract      = true,
-    .class_size    = sizeof(AwSdHostClass),
-    .class_init    = allwinner_sdhost_class_init,
-};
-
 static const TypeInfo allwinner_sdhost_sun4i_info = {
     .name          = TYPE_AW_SDHOST_SUN4I,
     .parent        = TYPE_AW_SDHOST,
@@ -979,9 +965,8 @@ static const TypeInfo allwinner_sdhost_bus_info = {
     .class_init = allwinner_sdhost_bus_class_init,
 };
 
-static void allwinner_sdhost_register_types(void)
+static void __attribute__((constructor)) allwinner_sdhost_subtypes_register(void)
 {
-    type_register_static(&allwinner_sdhost_info);
     type_register_static(&allwinner_sdhost_sun4i_info);
     type_register_static(&allwinner_sdhost_sun5i_info);
     type_register_static(&allwinner_sdhost_sun50i_a64_info);
@@ -989,4 +974,24 @@ static void allwinner_sdhost_register_types(void)
     type_register_static(&allwinner_sdhost_bus_info);
 }
 
-type_init(allwinner_sdhost_register_types)
+#include "qom/cpp/object.h"
+/*
+ * allwinner_sdhost_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
+ * the base type manually with the C++ trampolines.
+ */
+static void AwSdHostState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_AW_SDHOST,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AwSdHostState),
+        .instance_init = qemu_device_detail::trampoline_init<AwSdHostState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(AwSdHostClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AwSdHostState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AwSdHostState_cpp_register_types)

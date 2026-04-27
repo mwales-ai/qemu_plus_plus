@@ -899,25 +899,14 @@ static const Property aspeed_timer_properties[] = {
                      AspeedSCUState *),
 };
 
-static void timer_class_init(ObjectClass *klass, const void *data)
+void AspeedTimerCtrlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = aspeed_timer_realize;
     device_class_set_legacy_reset(dc, aspeed_timer_reset);
     dc->desc = "ASPEED Timer";
     dc->vmsd = &vmstate_aspeed_timer_state;
     device_class_set_props(dc, aspeed_timer_properties);
 }
-
-static const TypeInfo aspeed_timer_info = {
-    .name = TYPE_ASPEED_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedTimerCtrlState),
-    .is_abstract   = true,
-    .class_size = sizeof(AspeedTimerClass),
-    .class_init = timer_class_init,
-};
 
 static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -999,9 +988,8 @@ static const TypeInfo aspeed_2700_timer_info = {
     .class_init = aspeed_2700_timer_class_init,
 };
 
-static void aspeed_timer_register_types(void)
+static void __attribute__((constructor)) aspeed_timer_subtypes_register(void)
 {
-    type_register_static(&aspeed_timer_info);
     type_register_static(&aspeed_2400_timer_info);
     type_register_static(&aspeed_2500_timer_info);
     type_register_static(&aspeed_2600_timer_info);
@@ -1009,4 +997,6 @@ static void aspeed_timer_register_types(void)
     type_register_static(&aspeed_2700_timer_info);
 }
 
-type_init(aspeed_timer_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedTimerCtrlState, AspeedTimerClass,
+                               TYPE_ASPEED_TIMER, TYPE_SYS_BUS_DEVICE)

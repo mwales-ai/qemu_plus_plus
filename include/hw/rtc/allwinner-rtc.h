@@ -91,6 +91,10 @@ struct AwRtcState {
     /** Array of hardware registers */
     uint32_t regs[AW_RTC_REGS_NUM];
 
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

@@ -121,6 +121,10 @@ struct AwSdHostState {
 
     /** @} */
 
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

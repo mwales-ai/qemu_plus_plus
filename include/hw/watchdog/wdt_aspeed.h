@@ -35,6 +35,10 @@ struct AspeedWDTState {
 
     AspeedSCUState *scu;
     uint32_t pclk_freq;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

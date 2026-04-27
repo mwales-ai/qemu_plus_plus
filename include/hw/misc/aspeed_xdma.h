@@ -29,6 +29,10 @@ struct AspeedXDMAState {
 
     char bmc_cmdq_readp_set;
     uint32_t regs[ASPEED_XDMA_NUM_REGS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct AspeedXDMAClass {

@@ -135,33 +135,21 @@ static void allwinner_sramc_reset(DeviceState *dev)
     }
 }
 
-static void allwinner_sramc_class_init(ObjectClass *klass, const void *data)
+void AwSRAMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, allwinner_sramc_reset);
     dc->vmsd = &allwinner_sramc_vmstate;
 }
 
-static void allwinner_sramc_init(Object *obj)
+void AwSRAMCState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwSRAMCState *s = AW_SRAMC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_sramc_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_sramc_ops, this,
                            TYPE_AW_SRAMC, 1 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
-
-static const TypeInfo allwinner_sramc_info = {
-    .name          = TYPE_AW_SRAMC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwSRAMCState),
-    .instance_init = allwinner_sramc_init,
-    .class_size    = sizeof(AwSRAMCClass),
-    .class_init    = allwinner_sramc_class_init,
-};
 
 static void allwinner_r40_sramc_class_init(ObjectClass *klass, const void *data)
 {
@@ -176,10 +164,11 @@ static const TypeInfo allwinner_r40_sramc_info = {
     .class_init    = allwinner_r40_sramc_class_init,
 };
 
-static void allwinner_sramc_register(void)
+static void __attribute__((constructor)) allwinner_sramc_subtypes_register(void)
 {
-    type_register_static(&allwinner_sramc_info);
     type_register_static(&allwinner_r40_sramc_info);
 }
 
-type_init(allwinner_sramc_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(AwSRAMCState, AwSRAMCClass,
+                                 TYPE_AW_SRAMC, TYPE_SYS_BUS_DEVICE)

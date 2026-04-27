@@ -303,15 +303,14 @@ static void allwinner_rtc_reset(DeviceState *dev)
     }
 }
 
-static void allwinner_rtc_init(Object *obj)
+void AwRtcState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwRtcState *s = AW_RTC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_rtc_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_rtc_ops, this,
                           TYPE_AW_RTC, 1 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static const VMStateField allwinner_rtc_vmstate_fields[] = {
@@ -330,10 +329,8 @@ static const Property allwinner_rtc_properties[] = {
     DEFINE_PROP_INT32("base-year", AwRtcState, base_year, 0),
 };
 
-static void allwinner_rtc_class_init(ObjectClass *klass, const void *data)
+void AwRtcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, allwinner_rtc_reset);
     dc->vmsd = &allwinner_rtc_vmstate;
     device_class_set_props(dc, allwinner_rtc_properties);
@@ -383,16 +380,6 @@ static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, const void *data)
     allwinner_rtc_sun4i_class_init(klass, arc);
 }
 
-static const TypeInfo allwinner_rtc_info = {
-    .name          = TYPE_AW_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwRtcState),
-    .instance_init = allwinner_rtc_init,
-    .is_abstract      = true,
-    .class_size    = sizeof(AwRtcClass),
-    .class_init    = allwinner_rtc_class_init,
-};
-
 static const TypeInfo allwinner_rtc_sun4i_info = {
     .name          = TYPE_AW_RTC_SUN4I,
     .parent        = TYPE_AW_RTC,
@@ -414,12 +401,31 @@ static const TypeInfo allwinner_rtc_sun7i_info = {
     .class_init    = allwinner_rtc_sun7i_class_init,
 };
 
-static void allwinner_rtc_register(void)
+static void __attribute__((constructor)) allwinner_rtc_subtypes_register(void)
 {
-    type_register_static(&allwinner_rtc_info);
     type_register_static(&allwinner_rtc_sun4i_info);
     type_register_static(&allwinner_rtc_sun6i_info);
     type_register_static(&allwinner_rtc_sun7i_info);
 }
 
-type_init(allwinner_rtc_register)
+#include "qom/cpp/object.h"
+/*
+ * allwinner_rtc_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
+ * the base type manually with the C++ trampolines.
+ */
+static void AwRtcState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_AW_RTC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AwRtcState),
+        .instance_init = qemu_device_detail::trampoline_init<AwRtcState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(AwRtcClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AwRtcState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AwRtcState_cpp_register_types)

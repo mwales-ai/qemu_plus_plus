@@ -256,9 +256,9 @@ static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,
     g_free(sz);
 }
 
-static void aspeed_sdmc_initfn(Object *obj)
+void AspeedSDMCState::init()
 {
-    object_property_add(obj, "ram-size", "int",
+    object_property_add(OBJECT(this), "ram-size", "int",
                         aspeed_sdmc_get_ram_size, aspeed_sdmc_set_ram_size,
                         NULL, NULL);
 }
@@ -300,25 +300,14 @@ static const Property aspeed_sdmc_properties[] = {
     DEFINE_PROP_BOOL("unlocked", AspeedSDMCState, unlocked, false),
 };
 
-static void aspeed_sdmc_class_init(ObjectClass *klass, const void *data)
+void AspeedSDMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = aspeed_sdmc_realize;
     device_class_set_legacy_reset(dc, aspeed_sdmc_reset);
     dc->desc = "ASPEED SDRAM Memory Controller";
     dc->vmsd = &vmstate_aspeed_sdmc;
     device_class_set_props(dc, aspeed_sdmc_properties);
 }
-
-static const TypeInfo aspeed_sdmc_info = {
-    .name = TYPE_ASPEED_SDMC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSDMCState),
-    .instance_init = aspeed_sdmc_initfn,
-    .is_abstract   = true,
-    .class_size = sizeof(AspeedSDMCClass),
-    .class_init = aspeed_sdmc_class_init,
-};
 
 static int aspeed_sdmc_get_ram_bits(AspeedSDMCState *s)
 {
@@ -695,13 +684,32 @@ static const TypeInfo aspeed_2700_sdmc_info = {
     .class_init = aspeed_2700_sdmc_class_init,
 };
 
-static void aspeed_sdmc_register_types(void)
+static void __attribute__((constructor)) aspeed_sdmc_subtypes_register(void)
 {
-    type_register_static(&aspeed_sdmc_info);
     type_register_static(&aspeed_2400_sdmc_info);
     type_register_static(&aspeed_2500_sdmc_info);
     type_register_static(&aspeed_2600_sdmc_info);
     type_register_static(&aspeed_2700_sdmc_info);
 }
 
-type_init(aspeed_sdmc_register_types);
+#include "qom/cpp/object.h"
+/*
+ * aspeed_sdmc_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
+ * the base type manually with the C++ classInit trampoline.
+ */
+static void AspeedSDMCState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_ASPEED_SDMC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedSDMCState),
+        .instance_init = qemu_device_detail::trampoline_init<AspeedSDMCState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(AspeedSDMCClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AspeedSDMCState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AspeedSDMCState_cpp_register_types)

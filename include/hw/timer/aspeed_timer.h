@@ -65,6 +65,10 @@ struct AspeedTimerCtrlState {
     AspeedTimer timers[ASPEED_TIMER_NR_TIMERS];
 
     AspeedSCUState *scu;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

@@ -273,13 +273,12 @@ static void aspeed_sbc_reset(DeviceState *dev)
     s->regs[R_QSR] = s->signing_settings;
 }
 
-static void aspeed_sbc_instance_init(Object *obj)
+void AspeedSBCState::init()
 {
-    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(obj);
-    AspeedSBCState *s = ASPEED_SBC(obj);
+    AspeedSBCClass *sc = ASPEED_SBC_GET_CLASS(this);
 
     if (sc->has_otp) {
-        object_initialize_child(OBJECT(s), "otp", &s->otp,
+        object_initialize_child(OBJECT(this), "otp", &otp,
                                 TYPE_ASPEED_OTP);
     }
 }
@@ -321,24 +320,13 @@ static const Property aspeed_sbc_properties[] = {
     DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
 };
 
-static void aspeed_sbc_class_init(ObjectClass *klass, const void *data)
+void AspeedSBCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = aspeed_sbc_realize;
     device_class_set_legacy_reset(dc, aspeed_sbc_reset);
     dc->vmsd = &vmstate_aspeed_sbc;
     device_class_set_props(dc, aspeed_sbc_properties);
 }
-
-static const TypeInfo aspeed_sbc_info = {
-    .name = TYPE_ASPEED_SBC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSBCState),
-    .instance_init = aspeed_sbc_instance_init,
-    .class_size = sizeof(AspeedSBCClass),
-    .class_init = aspeed_sbc_class_init,
-};
 
 static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)
 {
@@ -370,11 +358,12 @@ static const TypeInfo aspeed_ast10x0_sbc_info = {
     .class_init = aspeed_ast10x0_sbc_class_init,
 };
 
-static void aspeed_sbc_register_types(void)
+static void __attribute__((constructor)) aspeed_sbc_subtypes_register(void)
 {
     type_register_static(&aspeed_ast2600_sbc_info);
     type_register_static(&aspeed_ast10x0_sbc_info);
-    type_register_static(&aspeed_sbc_info);
 }
 
-type_init(aspeed_sbc_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(AspeedSBCState, AspeedSBCClass,
+                                 TYPE_ASPEED_SBC, TYPE_SYS_BUS_DEVICE)

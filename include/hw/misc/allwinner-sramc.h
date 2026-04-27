@@ -49,6 +49,11 @@ struct AwSRAMCState {
     uint32_t sram_ctl1;
     uint32_t sram_ver;
     uint32_t sram_soft_entry_reg0;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

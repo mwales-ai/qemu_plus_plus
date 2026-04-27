@@ -88,6 +88,10 @@ struct PnvICPState {
 
     MemoryRegion mmio;
     uint32_t links[3];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_ICS "ics"

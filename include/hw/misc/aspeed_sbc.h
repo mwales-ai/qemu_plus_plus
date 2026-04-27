@@ -40,6 +40,11 @@ struct AspeedSBCState {
     uint32_t regs[ASPEED_SBC_NR_REGS];
 
     AspeedOTPState otp;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct AspeedSBCClass {

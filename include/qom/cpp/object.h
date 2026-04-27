@@ -392,9 +392,9 @@ static void ClassName##_cpp_register_types(void)                             \
         .name           = type_name_str,                                     \
         .parent         = parent_type_str,                                   \
         .instance_size  = sizeof(ClassName),                                 \
+        .is_abstract    = true,                                              \
         .class_size     = sizeof(ClassStruct),                               \
         .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
-        .is_abstract    = true,                                              \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \

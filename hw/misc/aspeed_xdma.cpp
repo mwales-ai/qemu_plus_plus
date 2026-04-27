@@ -218,29 +218,20 @@ static const TypeInfo aspeed_2400_xdma_info = {
     .class_init = aspeed_2400_xdma_class_init,
 };
 
-static void aspeed_xdma_class_init(ObjectClass *classp, const void *data)
+void AspeedXDMAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(classp);
-
     dc->realize = aspeed_xdma_realize;
     device_class_set_legacy_reset(dc, aspeed_xdma_reset);
     dc->vmsd = &aspeed_xdma_vmstate;
 }
 
-static const TypeInfo aspeed_xdma_info = {
-    .name          = TYPE_ASPEED_XDMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedXDMAState),
-    .is_abstract      = true,
-    .class_size    = sizeof(AspeedXDMAClass),
-    .class_init    = aspeed_xdma_class_init,
-};
-
-static void aspeed_xdma_register_type(void)
+static void __attribute__((constructor)) aspeed_xdma_subtypes_register(void)
 {
-    type_register_static(&aspeed_xdma_info);
     type_register_static(&aspeed_2400_xdma_info);
     type_register_static(&aspeed_2500_xdma_info);
     type_register_static(&aspeed_2600_xdma_info);
 }
-type_init(aspeed_xdma_register_type);
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedXDMAState, AspeedXDMAClass,
+                               TYPE_ASPEED_XDMA, TYPE_SYS_BUS_DEVICE)

@@ -37,6 +37,10 @@ struct AspeedHACEState {
     AddressSpace dram_as;
 
     QCryptoHash *hash_ctx;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 
