@@ -71,7 +71,7 @@ struct PCIVGAState {
     void secondaryExit();
     void secondaryInit();
     void secondaryReset();
-    static void vgaPciClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void vgaClassInit(ObjectClass *klass, const void *data);
     static void secondaryClassInit(ObjectClass *klass, const void *data);
 };
@@ -400,9 +400,9 @@ static const Property secondary_pci_properties[] = {
     DEFINE_EDID_PROPERTIES(PCIVGAState, edid_info),
 };
 
-void PCIVGAState::vgaPciClassInit(ObjectClass *klass, const void *data)
+void PCIVGAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
@@ -413,18 +413,15 @@ void PCIVGAState::vgaPciClassInit(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = build_vga_aml;
 }
 
-static const TypeInfo vga_pci_type_info = {
-    .name = TYPE_PCI_VGA,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIVGAState),
-    .is_abstract = true,
-    .class_init = PCIVGAState::vgaPciClassInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+static const InterfaceInfo vga_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
 };
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(PCIVGAState, TYPE_PCI_VGA,
+                                            TYPE_PCI_DEVICE, vga_pci_interfaces)
 
 void PCIVGAState::vgaClassInit(ObjectClass *klass, const void *data)
 {
@@ -468,11 +465,8 @@ static const TypeInfo secondary_info = {
     .class_init    = PCIVGAState::secondaryClassInit,
 };
 
-static void vga_register_types(void)
+static void __attribute__((constructor)) register_vga_concretes(void)
 {
-    type_register_static(&vga_pci_type_info);
     type_register_static(&vga_info);
     type_register_static(&secondary_info);
 }
-
-type_init(vga_register_types)
