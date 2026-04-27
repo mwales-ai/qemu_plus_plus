@@ -247,7 +247,7 @@ static void pca9554_reset(DeviceState *dev)
     s->len = 0;
 }
 
-static void pca9554_initfn(Object *obj)
+void PCA9554State::init()
 {
     int pin;
 
@@ -255,7 +255,8 @@ static void pca9554_initfn(Object *obj)
         char *name;
 
         name = g_strdup_printf("pin%d", pin);
-        object_property_add(obj, name, "bool", pca9554_get_pin, pca9554_set_pin,
+        object_property_add(OBJECT(this), name, "bool",
+                            pca9554_get_pin, pca9554_set_pin,
                             NULL, NULL);
         g_free(name);
     }
@@ -294,9 +295,9 @@ static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
 };
 
-static void pca9554_class_init(ObjectClass *klass, const void *data)
+void PCA9554State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->event = pca9554_event;
@@ -308,19 +309,6 @@ static void pca9554_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pca9554_properties);
 }
 
-static const TypeInfo pca9554_info = {
-    .name          = TYPE_PCA9554,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(PCA9554State),
-    .instance_init = pca9554_initfn,
-    .is_abstract      = false,
-    .class_size    = sizeof(PCA9554Class),
-    .class_init    = pca9554_class_init,
-};
-
-static void pca9554_register_types(void)
-{
-    type_register_static(&pca9554_info);
-}
-
-type_init(pca9554_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(PCA9554State, PCA9554Class,
+                                 TYPE_PCA9554, TYPE_I2C_SLAVE)

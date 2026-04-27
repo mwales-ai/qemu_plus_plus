@@ -344,4 +344,61 @@ static void ClassName##_cpp_register_types(void)                             \
                                                                              \
 type_init(ClassName##_cpp_register_types)
 
+/*
+ * REGISTER_QEMU_DEVICE_CLASS_SIZE: like REGISTER_QEMU_DEVICE but for
+ * device hierarchies with a custom class struct (subclass of DeviceClass).
+ * Sets TypeInfo::class_size so QOM allocates the correct class layout.
+ *
+ * Usage:
+ *   REGISTER_QEMU_DEVICE_CLASS_SIZE(FooState, FooClass, TYPE_FOO, TYPE_PARENT)
+ *
+ * The classInit member receives a DeviceClass* but can downcast to FooClass*
+ * via XYZ_CLASS(klass) macros once obtaining ObjectClass via reinterpret_cast.
+ */
+#define REGISTER_QEMU_DEVICE_CLASS_SIZE(ClassName, ClassStruct,              \
+                                         type_name_str, parent_type_str)     \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static TypeInfo info = {                                                 \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+    };                                                                       \
+    info.cpp_vtable = qemu_device_detail::extract_vtable<ClassName>();       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_DEVICE_ABSTRACT: register an abstract device base class
+ * with a custom class struct. No instance_init/instance_finalize/realize/
+ * reset wiring is generated (abstract types cannot be instantiated), but
+ * classInit is wired so subclass-class-struct fields can be initialized.
+ *
+ * Usage:
+ *   REGISTER_QEMU_DEVICE_ABSTRACT(FooBase, FooBaseClass, TYPE_FOO_BASE,
+ *                                  TYPE_DEVICE)
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT(ClassName, ClassStruct,                \
+                                       type_name_str, parent_type_str)       \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name           = type_name_str,                                     \
+        .parent         = parent_type_str,                                   \
+        .instance_size  = sizeof(ClassName),                                 \
+        .class_size     = sizeof(ClassStruct),                               \
+        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .is_abstract    = true,                                              \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
 #endif /* QOM_CPP_OBJECT_H */
