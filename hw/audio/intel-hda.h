@@ -43,6 +43,10 @@ struct HDACodecDeviceClass {
 struct HDACodecDevice {
     DeviceState         qdev;
     uint32_t            cad;    /* codec address */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,

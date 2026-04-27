@@ -1845,13 +1845,12 @@ void VirtIOBlock::unrealize()
     virtio_cleanup(vdev);
 }
 
-static void virtio_blk_instance_init(Object *obj)
+void VirtIOBlock::init()
 {
-    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(obj);
-
-    device_add_bootindex_property(obj, &s->conf.conf.bootindex,
+    Object *obj = OBJECT(this);
+    device_add_bootindex_property(obj, &conf.conf.bootindex,
                                   "bootindex", "/disk@0,0",
-                                  reinterpret_cast<DeviceState *>(obj));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const VMStateDescription vmstate_virtio_blk = {
@@ -1901,9 +1900,9 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
     s->unrealize();
 }
 
-void VirtIOBlock::classInit(ObjectClass *klass, const void *data)
+void VirtIOBlock::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
 
     device_class_set_props(dc, virtio_blk_properties);
@@ -1922,18 +1921,6 @@ void VirtIOBlock::classInit(ObjectClass *klass, const void *data)
     vdc->stop_ioeventfd = virtio_blk_stop_ioeventfd;
 }
 
-static const TypeInfo virtio_blk_info = {
-    .name = TYPE_VIRTIO_BLK,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOBlock),
-    .instance_init = virtio_blk_instance_init,
-    .class_size = sizeof(VirtIOBlkClass),
-    .class_init = VirtIOBlock::classInit,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_blk_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(VirtIOBlock, VirtIOBlkClass,
+                                TYPE_VIRTIO_BLK, TYPE_VIRTIO_DEVICE)

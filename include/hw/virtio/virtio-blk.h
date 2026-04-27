@@ -80,6 +80,7 @@ struct VirtIOBlock {
     BlockRAMRegistrar blk_ram_registrar;
 
 #ifdef __cplusplus
+    void init();
     void realize(Error **errp);
     void unrealize();
     void reset();
@@ -97,7 +98,7 @@ struct VirtIOBlock {
     bool vqAioContextInit(Error **errp);
     void vqAioContextCleanup();
 
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

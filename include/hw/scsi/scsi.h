@@ -113,6 +113,7 @@ struct SCSIDevice
     inline SCSIRequest *allocReq(uint32_t tag, uint32_t lun,
                                  uint8_t *buf, void *hba_private);
     inline void unitAttentionReported();
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

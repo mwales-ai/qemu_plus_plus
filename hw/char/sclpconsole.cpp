@@ -44,6 +44,10 @@ struct SCLPConsole {
     uint32_t iov_data_len;  /* length of byte stream in buffer             */
     uint32_t iov_sclp_rest; /* length of byte stream not read via SCLP     */
     bool notify;            /* qemu_notify_event() req'd if true           */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct SCLPConsole SCLPConsole;
 
@@ -259,9 +263,9 @@ static const Property console_properties[] = {
     DEFINE_PROP_CHR("chardev", SCLPConsole, chr),
 };
 
-static void console_class_init(ObjectClass *klass, const void *data)
+void SCLPConsole::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     device_class_set_props(dc, console_properties);
@@ -276,17 +280,6 @@ static void console_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo sclp_console_info = {
-    .name          = TYPE_SCLP_CONSOLE,
-    .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPConsole),
-    .class_init    = console_class_init,
-    .class_size    = sizeof(SCLPEventClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&sclp_console_info);
-}
-
-type_init(register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(SCLPConsole, SCLPEventClass,
+                                TYPE_SCLP_CONSOLE, TYPE_SCLP_EVENT)

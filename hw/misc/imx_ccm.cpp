@@ -70,17 +70,6 @@ uint32_t imx_ccm_calc_pll(uint32_t pllreg, uint32_t base_freq)
     return freq;
 }
 
-static const TypeInfo imx_ccm_info = {
-    .name          = TYPE_IMX_CCM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXCCMState),
-    .is_abstract      = true,
-    .class_size    = sizeof(IMXCCMClass),
-};
-
-static void imx_ccm_register_types(void)
-{
-    type_register_static(&imx_ccm_info);
-}
-
-type_init(imx_ccm_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(IMXCCMState, IMXCCMClass, TYPE_IMX_CCM,
+                               TYPE_SYS_BUS_DEVICE)

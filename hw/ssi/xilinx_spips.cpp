@@ -1448,9 +1448,9 @@ static void xilinx_qspips_class_init(ObjectClass *klass, const void *data)
     xsc->tx_fifo_size = TXFF_A_Q;
 }
 
-static void xilinx_spips_class_init(ObjectClass *klass, const void *data)
+void XilinxSPIPS::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
 
     dc->realize = xilinx_spips_realize;
@@ -1479,14 +1479,6 @@ static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, const void *data)
     xsc->tx_fifo_size = TXFF_A_Q;
 }
 
-static const TypeInfo xilinx_spips_info = {
-    .name  = TYPE_XILINX_SPIPS,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(XilinxSPIPS),
-    .class_size = sizeof(XilinxSPIPSClass),
-    .class_init = xilinx_spips_class_init,
-};
-
 static const TypeInfo xilinx_qspips_info = {
     .name  = TYPE_XILINX_QSPIPS,
     .parent = TYPE_XILINX_SPIPS,
@@ -1502,11 +1494,12 @@ static const TypeInfo xlnx_zynqmp_qspips_info = {
     .class_init = xlnx_zynqmp_qspips_class_init,
 };
 
-static void xilinx_spips_register_types(void)
+static void __attribute__((constructor)) xilinx_spips_subtypes_register(void)
 {
-    type_register_static(&xilinx_spips_info);
     type_register_static(&xilinx_qspips_info);
     type_register_static(&xlnx_zynqmp_qspips_info);
 }
 
-type_init(xilinx_spips_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(XilinxSPIPS, XilinxSPIPSClass,
+                                TYPE_XILINX_SPIPS, TYPE_SYS_BUS_DEVICE)

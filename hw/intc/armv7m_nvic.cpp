@@ -2726,41 +2726,26 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->sysregmem);
 }
 
-static void armv7m_nvic_instance_init(Object *obj)
+void NVICState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    NVICState *nvic = NVIC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    sysbus_init_irq(sbd, &nvic->excpout);
-    qdev_init_gpio_out_named(dev, &nvic->sysresetreq, "SYSRESETREQ", 1);
+    sysbus_init_irq(sbd, &excpout);
+    qdev_init_gpio_out_named(dev, &sysresetreq, "SYSRESETREQ", 1);
     qdev_init_gpio_in_named(dev, nvic_systick_trigger, "systick-trigger",
                             M_REG_NUM_BANKS);
     qdev_init_gpio_in_named(dev, nvic_nmi_trigger, "NMI", 1);
 }
 
-static void armv7m_nvic_class_init(ObjectClass *klass, const void *data)
+void NVICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd  = &vmstate_nvic;
     device_class_set_props(dc, props_nvic);
     device_class_set_legacy_reset(dc, armv7m_nvic_reset);
     dc->realize = armv7m_nvic_realize;
 }
 
-static const TypeInfo armv7m_nvic_info = {
-    .name          = TYPE_NVIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NVICState),
-    .instance_init = armv7m_nvic_instance_init,
-    .class_size    = sizeof(SysBusDeviceClass),
-    .class_init    = armv7m_nvic_class_init,
-};
-
-static void armv7m_nvic_register_types(void)
-{
-    type_register_static(&armv7m_nvic_info);
-}
-
-type_init(armv7m_nvic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(NVICState, SysBusDeviceClass,
+                                TYPE_NVIC, TYPE_SYS_BUS_DEVICE)

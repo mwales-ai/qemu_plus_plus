@@ -161,6 +161,7 @@ struct MOS6522State {
     inline uint64_t getTimer2CounterValue(MOS6522Timer *ti);
     inline uint64_t getTimer1LoadTime(MOS6522Timer *ti);
     inline uint64_t getTimer2LoadTime(MOS6522Timer *ti);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

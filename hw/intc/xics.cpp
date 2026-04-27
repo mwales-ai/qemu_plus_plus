@@ -355,10 +355,8 @@ static const Property icp_properties[] = {
     DEFINE_PROP_LINK(ICP_PROP_CPU, ICPState, cs, TYPE_CPU, CPUState *),
 };
 
-static void icp_class_init(ObjectClass *klass, const void *data)
+void ICPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
     device_class_set_props(dc, icp_properties);
@@ -368,14 +366,6 @@ static void icp_class_init(ObjectClass *klass, const void *data)
      */
     dc->user_creatable = false;
 }
-
-static const TypeInfo icp_info = {
-    .name = TYPE_ICP,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(ICPState),
-    .class_size = sizeof(ICPStateClass),
-    .class_init = icp_class_init,
-};
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
 {
@@ -613,11 +603,9 @@ static void ics_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(ics_reset_handler, ics);
 }
 
-static void ics_instance_init(Object *obj)
+void ICSState::init()
 {
-    ICSState *ics = ICS(obj);
-
-    ics->offset = XICS_IRQ_BASE;
+    offset = XICS_IRQ_BASE;
 }
 
 static int ics_pre_save(void *opaque)
@@ -691,9 +679,9 @@ static const Property ics_properties[] = {
                      XICSFabric *),
 };
 
-static void ics_class_init(ObjectClass *klass, const void *data)
+void ICSState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->realize = ics_realize;
@@ -706,15 +694,6 @@ static void ics_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
     rc->phases.hold = ics_reset_hold;
 }
-
-static const TypeInfo ics_info = {
-    .name = TYPE_ICS,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(ICSState),
-    .instance_init = ics_instance_init,
-    .class_size = sizeof(ICSStateClass),
-    .class_init = ics_class_init,
-};
 
 static const TypeInfo xics_fabric_info = {
     .name = TYPE_XICS_FABRIC,
@@ -750,11 +729,29 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
     }
 }
 
-static void xics_register_types(void)
+#include "qom/cpp/object.h"
+
+/*
+ * ICPState: non-abstract, class_size only (no instance_init).
+ */
+REGISTER_QEMU_DEVICE_CLASS_SIZE(ICPState, ICPStateClass, TYPE_ICP, TYPE_DEVICE)
+
+/*
+ * ICSState: non-abstract, has instance_init + class_init.
+ * Use manual registration with trampolines to wire init().
+ */
+static void ICSState_cpp_register_types(void)
 {
+    static TypeInfo ics_info = {
+        .name          = TYPE_ICS,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(ICSState),
+        .instance_init = qemu_device_detail::trampoline_init<ICSState>,
+        .class_size    = sizeof(ICSStateClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<ICSState>,
+    };
     type_register_static(&ics_info);
-    type_register_static(&icp_info);
     type_register_static(&xics_fabric_info);
 }
 
-type_init(xics_register_types)
+type_init(ICSState_cpp_register_types)

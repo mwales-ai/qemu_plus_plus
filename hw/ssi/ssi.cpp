@@ -116,10 +116,10 @@ static const Property ssi_peripheral_properties[] = {
     DEFINE_PROP_UINT8("cs", SSIPeripheral, cs_index, 0),
 };
 
-static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
+void SSIPeripheral::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SSIPeripheralClass *ssc = SSI_PERIPHERAL_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = ssi_peripheral_realize;
     dc->bus_type = TYPE_SSI_BUS;
@@ -128,14 +128,6 @@ static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
     }
     device_class_set_props(dc, ssi_peripheral_properties);
 }
-
-static const TypeInfo ssi_peripheral_info = {
-    .name = TYPE_SSI_PERIPHERAL,
-    .parent = TYPE_DEVICE,
-    .is_abstract = true,
-    .class_size = sizeof(SSIPeripheralClass),
-    .class_init = ssi_peripheral_class_init,
-};
 
 extern "C"
 bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp)
@@ -188,10 +180,11 @@ const VMStateDescription vmstate_ssi_peripheral = {
     .fields = vmstate_ssi_peripheral_fields,
 };
 
-static void ssi_peripheral_register_types(void)
+static void __attribute__((constructor)) register_ssi_bus_type(void)
 {
     type_register_static(&ssi_bus_info);
-    type_register_static(&ssi_peripheral_info);
 }
 
-type_init(ssi_peripheral_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(SSIPeripheral, SSIPeripheralClass,
+                               TYPE_SSI_PERIPHERAL, TYPE_DEVICE)

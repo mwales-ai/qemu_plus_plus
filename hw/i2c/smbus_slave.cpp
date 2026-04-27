@@ -204,8 +204,9 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
-static void smbus_device_class_init(ObjectClass *klass, const void *data)
+void SMBusDevice::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
     sc->event = smbus_i2c_event;
@@ -234,18 +235,6 @@ const VMStateDescription vmstate_smbus_device = {
     .fields = vmstate_smbus_device_fields,
 };
 
-static const TypeInfo smbus_device_type_info = {
-    .name = TYPE_SMBUS_DEVICE,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(SMBusDevice),
-    .is_abstract = true,
-    .class_size = sizeof(SMBusDeviceClass),
-    .class_init = smbus_device_class_init,
-};
-
-static void smbus_device_register_types(void)
-{
-    type_register_static(&smbus_device_type_info);
-}
-
-type_init(smbus_device_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(SMBusDevice, SMBusDeviceClass,
+                               TYPE_SMBUS_DEVICE, TYPE_I2C_SLAVE)

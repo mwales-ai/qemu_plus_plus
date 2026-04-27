@@ -72,6 +72,10 @@ struct SSIPeripheral {
 
     /* Chip select index */
     uint8_t cs_index;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 extern const VMStateDescription vmstate_ssi_peripheral;

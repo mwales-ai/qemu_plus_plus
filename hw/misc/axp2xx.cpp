@@ -50,6 +50,8 @@ typedef struct AXP2xxI2CState {
     uint8_t regs[NR_REGS];  /* peripheral registers */
     uint8_t ptr;            /* current register index */
     uint8_t count;          /* counter used for tx/rx */
+
+    static void classInit(DeviceClass *dc);
 } AXP2xxI2CState;
 
 typedef struct AXP2xxClass {
@@ -227,9 +229,9 @@ static const VMStateDescription vmstate_axp2xx = {
     .fields = vmstate_axp2xx_fields,
 };
 
-static void axp2xx_class_init(ObjectClass *oc, const void *data)
+void AXP2xxI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
@@ -239,15 +241,6 @@ static void axp2xx_class_init(ObjectClass *oc, const void *data)
     isc->recv = axp2xx_rx;
     isc->send = axp2xx_tx;
 }
-
-static const TypeInfo axp2xx_info = {
-    .name = TYPE_AXP2XX,
-    .parent = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(AXP2xxI2CState),
-    .is_abstract = true,
-    .class_size = sizeof(AXP2xxClass),
-    .class_init = axp2xx_class_init,
-};
 
 static void axp209_class_init(ObjectClass *oc, const void *data)
 {
@@ -275,11 +268,12 @@ static const TypeInfo axp221_info = {
     .class_init = axp221_class_init,
 };
 
-static void axp2xx_register_devices(void)
+static void __attribute__((constructor)) register_axp2xx_concretes(void)
 {
-    type_register_static(&axp2xx_info);
     type_register_static(&axp209_info);
     type_register_static(&axp221_info);
 }
 
-type_init(axp2xx_register_devices);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AXP2xxI2CState, AXP2xxClass, TYPE_AXP2XX,
+                               TYPE_I2C_SLAVE)

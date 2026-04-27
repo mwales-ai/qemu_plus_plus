@@ -203,9 +203,9 @@ static const VMStateDescription vmstate_ioapic_common = {
     .fields = vmstate_ioapic_common_fields,
 };
 
-static void ioapic_common_class_init(ObjectClass *klass, const void *data)
+void IOAPICCommonState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->realize = ioapic_common_realize;
@@ -219,19 +219,8 @@ static const InterfaceInfo ioapic_common_interfaces[] = {
     { }
 };
 
-static const TypeInfo ioapic_common_type = {
-    .name = TYPE_IOAPIC_COMMON,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IOAPICCommonState),
-    .is_abstract = true,
-    .class_size = sizeof(IOAPICCommonClass),
-    .class_init = ioapic_common_class_init,
-    .interfaces = ioapic_common_interfaces,
-};
-
-static void ioapic_common_register_types(void)
-{
-    type_register_static(&ioapic_common_type);
-}
-
-type_init(ioapic_common_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(IOAPICCommonState, IOAPICCommonClass,
+                                      TYPE_IOAPIC_COMMON,
+                                      TYPE_SYS_BUS_DEVICE,
+                                      ioapic_common_interfaces)

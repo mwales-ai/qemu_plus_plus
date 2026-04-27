@@ -337,9 +337,9 @@ const VMStateDescription vmstate_u2f_key = {
     .fields = vmstate_u2f_key_fields,
 };
 
-static void u2f_key_class_init(ObjectClass *klass, const void *data)
+void U2FKeyState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->product_desc   = "QEMU U2F USB key";
@@ -354,18 +354,6 @@ static void u2f_key_class_init(ObjectClass *klass, const void *data)
     dc->vmsd           = &vmstate_u2f_key;
 }
 
-static const TypeInfo u2f_key_info = {
-    .name          = TYPE_U2F_KEY,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(U2FKeyState),
-    .is_abstract      = true,
-    .class_size    = sizeof(U2FKeyClass),
-    .class_init    = u2f_key_class_init,
-};
-
-static void u2f_key_register_types(void)
-{
-    type_register_static(&u2f_key_info);
-}
-
-type_init(u2f_key_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(U2FKeyState, U2FKeyClass,
+                              TYPE_U2F_KEY, TYPE_USB_DEVICE)

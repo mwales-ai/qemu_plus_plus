@@ -2008,12 +2008,14 @@ static const Property gicv3_its_props[] = {
                      GICv3State *),
 };
 
-void GICv3ITSState::classInit(DeviceClass *dc)
+#include "qom/cpp/object.h"
+
+static void arm_gicv3_its_class_init(ObjectClass *oc, const void *data)
 {
-    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
-    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
-    GICv3ITSClass *ic = reinterpret_cast<GICv3ITSClass *>(klass);
-    GICv3ITSCommonClass *icc = reinterpret_cast<GICv3ITSCommonClass *>(klass);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(oc);
+    GICv3ITSClass *ic = reinterpret_cast<GICv3ITSClass *>(oc);
+    GICv3ITSCommonClass *icc = reinterpret_cast<GICv3ITSCommonClass *>(oc);
 
     dc->realize = GICv3ITSClass::realizeWrapper;
     device_class_set_props(dc, gicv3_its_props);
@@ -2023,6 +2025,16 @@ void GICv3ITSState::classInit(DeviceClass *dc)
     icc->post_load = GICv3ITSClass::postLoad;
 }
 
-#include "qom/cpp/object.h"
-REGISTER_QEMU_DEVICE_CLASS_SIZE(GICv3ITSState, GICv3ITSClass,
-                                TYPE_ARM_GICV3_ITS, TYPE_ARM_GICV3_ITS_COMMON)
+static void arm_gicv3_its_register_types(void)
+{
+    static TypeInfo arm_gicv3_its_info = {
+        .name          = TYPE_ARM_GICV3_ITS,
+        .parent        = TYPE_ARM_GICV3_ITS_COMMON,
+        .instance_size = sizeof(GICv3ITSState),
+        .class_size    = sizeof(GICv3ITSClass),
+        .class_init    = arm_gicv3_its_class_init,
+    };
+    type_register_static(&arm_gicv3_its_info);
+}
+
+type_init(arm_gicv3_its_register_types)

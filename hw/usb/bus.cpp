@@ -695,48 +695,46 @@ static void usb_set_attached(Object *obj, bool value, Error **errp)
     }
 }
 
-static void usb_device_instance_init(Object *obj)
+void USBDevice::init()
 {
-    USBDevice *dev = USB_DEVICE(obj);
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
 
     if (klass->attached_settable) {
-        object_property_add_bool(obj, "attached",
+        object_property_add_bool(OBJECT(this), "attached",
                                  usb_get_attached, usb_set_attached);
     } else {
-        object_property_add_bool(obj, "attached",
+        object_property_add_bool(OBJECT(this), "attached",
                                  usb_get_attached, NULL);
     }
 }
 
-static void usb_device_class_init_impl(DeviceClass *k)
+void USBDevice::classInit(DeviceClass *dc)
 {
-    k->bus_type = TYPE_USB_BUS;
-    k->realize  = usb_qdev_realize;
-    k->unrealize = usb_qdev_unrealize;
-    device_class_set_props(k, usb_props);
+    dc->bus_type = TYPE_USB_BUS;
+    dc->realize  = usb_qdev_realize;
+    dc->unrealize = usb_qdev_unrealize;
+    device_class_set_props(dc, usb_props);
 }
 
-static void usb_device_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *k = DEVICE_CLASS(klass);
-    usb_device_class_init_impl(k);
-}
-
-static const TypeInfo usb_device_type_info = {
-    .name = TYPE_USB_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(USBDevice),
-    .instance_init = usb_device_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(USBDeviceClass),
-    .class_init = usb_device_class_init,
-};
-
+#include "qom/cpp/object.h"
+/*
+ * usb_device_type_info: abstract base with instance_init + class_init.
+ * Use manual registration with trampolines to wire init().
+ * usb_bus_info stays as a static TypeInfo.
+ */
 static void usb_register_types(void)
 {
+    static TypeInfo usb_device_info = {
+        .name          = TYPE_USB_DEVICE,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(USBDevice),
+        .instance_init = qemu_device_detail::trampoline_init<USBDevice>,
+        .is_abstract   = true,
+        .class_size    = sizeof(USBDeviceClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<USBDevice>,
+    };
     type_register_static(&usb_bus_info);
-    type_register_static(&usb_device_type_info);
+    type_register_static(&usb_device_info);
 }
 
 type_init(usb_register_types)

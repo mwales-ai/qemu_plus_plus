@@ -83,6 +83,11 @@ struct AspeedSMCState {
     uint8_t snoop_index;
     uint8_t snoop_dummies;
     bool unselect;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct AspeedSegments {

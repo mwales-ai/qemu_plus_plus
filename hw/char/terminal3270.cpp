@@ -36,6 +36,10 @@ struct Terminal3270 {
     int in_len;
     bool handshake_done;
     guint timer_tag;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct Terminal3270 Terminal3270;
 
@@ -292,9 +296,9 @@ static const VMStateDescription terminal3270_vmstate = {
     .unmigratable = 1,
 };
 
-static void terminal_class_init(ObjectClass *klass, const void *data)
+void Terminal3270::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_CLASS(klass);
 
     device_class_set_props(dc, terminal_properties);
@@ -304,17 +308,6 @@ static void terminal_class_init(ObjectClass *klass, const void *data)
     ck->write_payload_3270 = write_payload_3270;
 }
 
-static const TypeInfo ccw_terminal_info = {
-    .name = TYPE_TERMINAL_3270,
-    .parent = TYPE_EMULATED_CCW_3270,
-    .instance_size = sizeof(Terminal3270),
-    .class_init = terminal_class_init,
-    .class_size = sizeof(EmulatedCcw3270Class),
-};
-
-static void register_types(void)
-{
-    type_register_static(&ccw_terminal_info);
-}
-
-type_init(register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(Terminal3270, EmulatedCcw3270Class,
+                                TYPE_TERMINAL_3270, TYPE_EMULATED_CCW_3270)

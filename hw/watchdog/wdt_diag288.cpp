@@ -110,9 +110,9 @@ static void wdt_diag288_unrealize(DeviceState *dev)
     timer_free(diag288->timer);
 }
 
-static void wdt_diag288_class_init(ObjectClass *klass, const void *data)
+void DIAG288State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     DIAG288Class *diag288 = DIAG288_CLASS(klass);
 
     dc->realize = wdt_diag288_realize;
@@ -125,17 +125,6 @@ static void wdt_diag288_class_init(ObjectClass *klass, const void *data)
     dc->desc = "diag288 device for s390x platform";
 }
 
-static const TypeInfo wdt_diag288_info = {
-    .class_init = wdt_diag288_class_init,
-    .parent = TYPE_DEVICE,
-    .name  = TYPE_WDT_DIAG288,
-    .instance_size  = sizeof(DIAG288State),
-    .class_size = sizeof(DIAG288Class),
-};
-
-static void wdt_diag288_register_types(void)
-{
-    type_register_static(&wdt_diag288_info);
-}
-
-type_init(wdt_diag288_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(DIAG288State, DIAG288Class,
+                                TYPE_WDT_DIAG288, TYPE_DEVICE)

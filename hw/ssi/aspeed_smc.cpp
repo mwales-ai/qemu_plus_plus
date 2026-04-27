@@ -1180,17 +1180,18 @@ static const MemoryRegionOps aspeed_smc_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void aspeed_smc_instance_init(Object *obj)
+void AspeedSMCState::init()
 {
-    AspeedSMCState *s = ASPEED_SMC(obj);
-    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
+    Object *obj = OBJECT(this);
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(this);
     int i;
 
     for (i = 0; i < asc->cs_num_max; i++) {
-        object_initialize_child(obj, "flash[*]", &s->flashes[i],
+        object_initialize_child(obj, "flash[*]", &flashes[i],
                                 TYPE_ASPEED_SMC_FLASH);
     }
 }
+
 
 /*
  * Initialize the custom address spaces for DMAs
@@ -1307,25 +1308,14 @@ static const Property aspeed_smc_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void aspeed_smc_class_init(ObjectClass *klass, const void *data)
+void AspeedSMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = aspeed_smc_realize;
     device_class_set_legacy_reset(dc, aspeed_smc_reset);
     device_class_set_props(dc, aspeed_smc_properties);
     dc->vmsd = &vmstate_aspeed_smc;
 }
 
-static const TypeInfo aspeed_smc_info = {
-    .name           = TYPE_ASPEED_SMC,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedSMCState),
-    .instance_init  = aspeed_smc_instance_init,
-    .is_abstract    = true,
-    .class_size     = sizeof(AspeedSMCClass),
-    .class_init     = aspeed_smc_class_init,
-};
 
 static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)
 {
@@ -2198,10 +2188,9 @@ static const TypeInfo aspeed_2700_spi2_info = {
         .class_init = aspeed_2700_spi2_class_init,
 };
 
-static void aspeed_smc_register_types(void)
+static void __attribute__((constructor)) aspeed_smc_subtypes_register(void)
 {
     type_register_static(&aspeed_smc_flash_info);
-    type_register_static(&aspeed_smc_info);
     type_register_static(&aspeed_2400_smc_info);
     type_register_static(&aspeed_2400_fmc_info);
     type_register_static(&aspeed_2400_spi1_info);
@@ -2220,4 +2209,23 @@ static void aspeed_smc_register_types(void)
     type_register_static(&aspeed_2700_spi2_info);
 }
 
-type_init(aspeed_smc_register_types)
+#include "qom/cpp/object.h"
+/*
+ * aspeed_smc abstract base has instance_init + class_init; use manual
+ * registration with trampolines to wire the init() member.
+ */
+static void AspeedSMCState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_ASPEED_SMC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedSMCState),
+        .instance_init = qemu_device_detail::trampoline_init<AspeedSMCState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(AspeedSMCClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AspeedSMCState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AspeedSMCState_cpp_register_types)

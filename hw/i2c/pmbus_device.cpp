@@ -1902,8 +1902,9 @@ static void pmbus_device_finalize(Object *obj)
     g_free(pmdev->pages);
 }
 
-static void pmbus_device_class_init(ObjectClass *klass, const void *data)
+void PMBusDevice::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);
 
     k->quick_cmd = pmbus_quick_cmd;
@@ -1911,19 +1912,24 @@ static void pmbus_device_class_init(ObjectClass *klass, const void *data)
     k->receive_byte = pmbus_receive_byte;
 }
 
-static const TypeInfo pmbus_device_type_info = {
-    .name = TYPE_PMBUS_DEVICE,
-    .parent = TYPE_SMBUS_DEVICE,
-    .instance_size = sizeof(PMBusDevice),
-    .instance_finalize = pmbus_device_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(PMBusDeviceClass),
-    .class_init = pmbus_device_class_init,
-};
-
-static void pmbus_device_register_types(void)
+#include "qom/cpp/object.h"
+/*
+ * pmbus_device_type_info: abstract base with instance_finalize + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_finalize, so we
+ * register the base type manually with the C++ trampolines.
+ */
+static void PMBusDevice_cpp_register_types(void)
 {
-    type_register_static(&pmbus_device_type_info);
+    static TypeInfo info = {
+        .name              = TYPE_PMBUS_DEVICE,
+        .parent            = TYPE_SMBUS_DEVICE,
+        .instance_size     = sizeof(PMBusDevice),
+        .instance_finalize = pmbus_device_finalize,
+        .is_abstract       = true,
+        .class_size        = sizeof(PMBusDeviceClass),
+        .class_init        = qemu_device_detail::trampoline_class_init<PMBusDevice>,
+    };
+    type_register_static(&info);
 }
 
-type_init(pmbus_device_register_types)
+type_init(PMBusDevice_cpp_register_types)

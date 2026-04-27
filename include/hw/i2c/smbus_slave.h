@@ -78,6 +78,10 @@ struct SMBusDevice {
     int32_t mode;
     int32_t data_len;
     uint8_t data_buf[SMBUS_DATA_MAX_LEN];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 extern const VMStateDescription vmstate_smbus_device;

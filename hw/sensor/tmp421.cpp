@@ -378,28 +378,40 @@ void TMP421State::classInit(ObjectClass *klass, const void *data)
                               TMP421State::setTemperature, NULL, NULL);
 }
 
-static const TypeInfo tmp421_info = {
-    .name          = TYPE_TMP421,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(TMP421State),
-    .is_abstract   = true,
-    .class_size    = sizeof(TMP421Class),
+/* Concrete TMP421 device types: use class_data for variant config */
+static const TypeInfo tmp421_device_info = {
+    .name       = "tmp421",
+    .parent     = TYPE_TMP421,
+    .class_init = TMP421State::classInit,
+    .class_data = &devices[0],
 };
 
-static void tmp421_register_types(void)
-{
-    int i;
+static const TypeInfo tmp422_device_info = {
+    .name       = "tmp422",
+    .parent     = TYPE_TMP421,
+    .class_init = TMP421State::classInit,
+    .class_data = &devices[1],
+};
 
-    type_register_static(&tmp421_info);
-    for (i = 0; i < ARRAY_SIZE(devices); ++i) {
-        TypeInfo ti = {
-            .name       = devices[i].name,
-            .parent     = TYPE_TMP421,
-            .class_init = TMP421State::classInit,
-            .class_data = &devices[i],
-        };
-        type_register_static(&ti);
-    }
+static const TypeInfo tmp423_device_info = {
+    .name       = "tmp423",
+    .parent     = TYPE_TMP421,
+    .class_init = TMP421State::classInit,
+    .class_data = &devices[2],
+};
+
+static void __attribute__((constructor)) tmp421_concrete_register(void)
+{
+    type_register_static(&tmp421_device_info);
+    type_register_static(&tmp422_device_info);
+    type_register_static(&tmp423_device_info);
 }
 
-type_init(tmp421_register_types)
+#include "qom/cpp/object.h"
+/*
+ * tmp421 abstract base: no instance_init, no class_init on base TypeInfo.
+ * Concrete children use class_data for variant config and stay as
+ * __attribute__((constructor))-registered TypeInfos above.
+ */
+REGISTER_QEMU_DEVICE_ABSTRACT(TMP421State, TMP421Class,
+                              TYPE_TMP421, TYPE_I2C_SLAVE)

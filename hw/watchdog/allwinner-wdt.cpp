@@ -332,16 +332,15 @@ static const VMStateDescription allwinner_wdt_vmstate = {
     .fields = allwinner_wdt_vmstate_fields,
 };
 
-static void allwinner_wdt_init(Object *obj)
+void AwWdtState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwWdtState *s = AW_WDT(obj);
-    const AwWdtClass *c = AW_WDT_GET_CLASS(s);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    const AwWdtClass *c = AW_WDT_GET_CLASS(this);
 
     /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_wdt_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_wdt_ops, this,
                           TYPE_AW_WDT, c->regmap_size * 4);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static void allwinner_wdt_realize(DeviceState *dev, Error **errp)
@@ -360,9 +359,9 @@ static void allwinner_wdt_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->timer);
 }
 
-static void allwinner_wdt_class_init(ObjectClass *klass, const void *data)
+void AwWdtState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.enter = allwinner_wdt_reset_enter;
@@ -396,16 +395,6 @@ static void allwinner_wdt_sun6i_class_init(ObjectClass *klass, const void *data)
     awc->get_intv_value = allwinner_wdt_sun6i_get_intv_value;
 }
 
-static const TypeInfo allwinner_wdt_info = {
-    .name = TYPE_AW_WDT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwWdtState),
-    .instance_init = allwinner_wdt_init,
-    .is_abstract = true,
-    .class_size = sizeof(AwWdtClass),
-    .class_init = allwinner_wdt_class_init,
-};
-
 static const TypeInfo allwinner_wdt_sun4i_info = {
     .name          = TYPE_AW_WDT_SUN4I,
     .parent        = TYPE_AW_WDT,
@@ -418,11 +407,29 @@ static const TypeInfo allwinner_wdt_sun6i_info = {
     .class_init    = allwinner_wdt_sun6i_class_init,
 };
 
-static void allwinner_wdt_register(void)
+static void __attribute__((constructor)) allwinner_wdt_subtypes_register(void)
 {
-    type_register_static(&allwinner_wdt_info);
     type_register_static(&allwinner_wdt_sun4i_info);
     type_register_static(&allwinner_wdt_sun6i_info);
 }
 
-type_init(allwinner_wdt_register)
+#include "qom/cpp/object.h"
+/*
+ * allwinner_wdt abstract base has instance_init + class_init; use manual
+ * registration with trampolines to wire the init() member.
+ */
+static void AwWdtState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_AW_WDT,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AwWdtState),
+        .instance_init = qemu_device_detail::trampoline_init<AwWdtState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(AwWdtClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AwWdtState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AwWdtState_cpp_register_types)

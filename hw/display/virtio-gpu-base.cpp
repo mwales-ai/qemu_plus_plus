@@ -288,10 +288,9 @@ virtio_gpu_base_device_unrealize(DeviceState *qdev)
     migrate_del_blocker(&g->migration_blocker);
 }
 
-static void
-virtio_gpu_base_class_init(ObjectClass *klass, const void *data)
+void VirtIOGPUBase::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     vdc->unrealize = virtio_gpu_base_device_unrealize;
@@ -302,24 +301,12 @@ virtio_gpu_base_class_init(ObjectClass *klass, const void *data)
     dc->hotpluggable = false;
 }
 
-static const TypeInfo virtio_gpu_base_info = {
-    .name = TYPE_VIRTIO_GPU_BASE,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOGPUBase),
-    .is_abstract = true,
-    .class_size = sizeof(VirtIOGPUBaseClass),
-    .class_init = virtio_gpu_base_class_init,
-};
 module_obj(TYPE_VIRTIO_GPU_BASE);
 module_kconfig(VIRTIO_GPU);
 
-static void
-virtio_register_types(void)
-{
-    type_register_static(&virtio_gpu_base_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(VirtIOGPUBase, VirtIOGPUBaseClass,
+                               TYPE_VIRTIO_GPU_BASE, TYPE_VIRTIO_DEVICE)
 
 QEMU_BUILD_BUG_ON(sizeof(struct virtio_gpu_ctrl_hdr)                != 24);
 QEMU_BUILD_BUG_ON(sizeof(struct virtio_gpu_update_cursor)           != 56);

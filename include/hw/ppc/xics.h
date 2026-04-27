@@ -78,6 +78,10 @@ struct ICPState {
     qemu_irq output;
 
     XICSFabric *xics;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define ICP_PROP_XICS "xics"
@@ -117,6 +121,11 @@ struct ICSState {
     uint32_t offset;
     ICSIRQState *irqs;
     XICSFabric *xics;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define ICS_PROP_XICS "xics"

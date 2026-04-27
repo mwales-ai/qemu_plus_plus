@@ -716,9 +716,9 @@ static const Property mos6522_properties[] = {
     DEFINE_PROP_UINT64("frequency", MOS6522State, frequency, 0),
 };
 
-static void mos6522_class_init(ObjectClass *oc, const void *data)
+void MOS6522State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     qom_fixup_vtable<MOS6522DeviceClass>(oc);
@@ -728,20 +728,25 @@ static void mos6522_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, mos6522_properties);
 }
 
-static const TypeInfo mos6522_type_info = {
-    .name = TYPE_MOS6522,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MOS6522State),
-    .instance_init = mos6522_init,
-    .instance_finalize = mos6522_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(MOS6522DeviceClass),
-    .class_init = mos6522_class_init,
-};
-
-static void mos6522_register_types(void)
+#include "qom/cpp/object.h"
+/*
+ * mos6522_type_info: abstract base with instance_init + instance_finalize.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init/finalize, so we
+ * register manually with C++ trampolines.
+ */
+static void MOS6522State_cpp_register_types(void)
 {
-    type_register_static(&mos6522_type_info);
+    static TypeInfo info = {
+        .name              = TYPE_MOS6522,
+        .parent            = TYPE_SYS_BUS_DEVICE,
+        .instance_size     = sizeof(MOS6522State),
+        .instance_init     = mos6522_init,
+        .instance_finalize = mos6522_finalize,
+        .is_abstract       = true,
+        .class_size        = sizeof(MOS6522DeviceClass),
+        .class_init        = qemu_device_detail::trampoline_class_init<MOS6522State>,
+    };
+    type_register_static(&info);
 }
 
-type_init(mos6522_register_types)
+type_init(MOS6522State_cpp_register_types)

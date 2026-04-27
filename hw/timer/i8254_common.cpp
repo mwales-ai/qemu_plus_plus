@@ -247,10 +247,8 @@ static const Property pit_common_properties[] = {
     DEFINE_PROP_UINT32("iobase", PITCommonState, iobase,  -1),
 };
 
-static void pit_common_class_init(ObjectClass *klass, const void *data)
+void PITCommonState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = pit_common_realize;
     dc->vmsd = &vmstate_pit_common;
     /*
@@ -262,18 +260,6 @@ static void pit_common_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pit_common_properties);
 }
 
-static const TypeInfo pit_common_type = {
-    .name          = TYPE_PIT_COMMON,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PITCommonState),
-    .is_abstract   = true,
-    .class_size    = sizeof(PITCommonClass),
-    .class_init    = pit_common_class_init,
-};
-
-static void register_devices(void)
-{
-    type_register_static(&pit_common_type);
-}
-
-type_init(register_devices);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(PITCommonState, PITCommonClass,
+                              TYPE_PIT_COMMON, TYPE_ISA_DEVICE)

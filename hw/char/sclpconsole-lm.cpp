@@ -46,6 +46,10 @@ struct SCLPConsoleLM {
     uint32_t write_errors;      /* errors writing to char layer           */
     uint32_t length;            /* length of byte stream in buffer        */
     uint8_t buf[SIZE_CONSOLE_BUFFER];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct SCLPConsoleLM SCLPConsoleLM;
 
@@ -288,17 +292,19 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *ebh)
 
 /* functions for live migration */
 
+static const VMStateField vmstate_sclplmconsole_fields[] = {
+    VMSTATE_BOOL(event.event_pending, SCLPConsoleLM),
+    VMSTATE_UINT32(write_errors, SCLPConsoleLM),
+    VMSTATE_UINT32(length, SCLPConsoleLM),
+    VMSTATE_UINT8_ARRAY(buf, SCLPConsoleLM, SIZE_CONSOLE_BUFFER),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sclplmconsole = {
     .name = "sclplmconsole",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(event.event_pending, SCLPConsoleLM),
-        VMSTATE_UINT32(write_errors, SCLPConsoleLM),
-        VMSTATE_UINT32(length, SCLPConsoleLM),
-        VMSTATE_UINT8_ARRAY(buf, SCLPConsoleLM, SIZE_CONSOLE_BUFFER),
-        VMSTATE_END_OF_LIST()
-     }
+    .fields = vmstate_sclplmconsole_fields,
 };
 
 /* qemu object creation and initialization functions */
@@ -339,9 +345,9 @@ static const Property console_properties[] = {
     DEFINE_PROP_BOOL("echo", SCLPConsoleLM, echo, true),
 };
 
-static void console_class_init(ObjectClass *klass, const void *data)
+void SCLPConsoleLM::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     device_class_set_props(dc, console_properties);
@@ -356,17 +362,6 @@ static void console_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo sclp_console_info = {
-    .name          = TYPE_SCLPLM_CONSOLE,
-    .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPConsoleLM),
-    .class_init    = console_class_init,
-    .class_size    = sizeof(SCLPEventClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&sclp_console_info);
-}
-
-type_init(register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(SCLPConsoleLM, SCLPEventClass,
+                                TYPE_SCLPLM_CONSOLE, TYPE_SCLP_EVENT)

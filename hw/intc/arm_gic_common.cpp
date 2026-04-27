@@ -371,9 +371,9 @@ static const Property arm_gic_common_properties[] = {
     DEFINE_PROP_UINT32("num-priority-bits", GICState, n_prio_bits, 8),
 };
 
-static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
+static void arm_gic_common_class_init_impl(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
 
@@ -384,27 +384,31 @@ static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
+static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
+{
+    arm_gic_common_class_init_impl(DEVICE_CLASS(klass));
+}
+
 static const InterfaceInfo arm_gic_common_interfaces[] = {
     { TYPE_ARM_LINUX_BOOT_IF },
     { },
 };
 
-static const TypeInfo arm_gic_common_type = {
-    .name = TYPE_ARM_GIC_COMMON,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GICState),
-    .is_abstract = true,
-    .class_size = sizeof(ARMGICCommonClass),
-    .class_init = arm_gic_common_class_init,
-    .interfaces = arm_gic_common_interfaces,
-};
-
-static void register_types(void)
+static void arm_gic_common_register_types(void)
 {
-    type_register_static(&arm_gic_common_type);
+    static const TypeInfo info = {
+        .name       = TYPE_ARM_GIC_COMMON,
+        .parent     = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(GICState),
+        .is_abstract = true,
+        .class_size = sizeof(ARMGICCommonClass),
+        .class_init = arm_gic_common_class_init,
+        .interfaces = arm_gic_common_interfaces,
+    };
+    type_register_static(&info);
 }
 
-type_init(register_types)
+type_init(arm_gic_common_register_types)
 
 const char *gic_class_name(void)
 {

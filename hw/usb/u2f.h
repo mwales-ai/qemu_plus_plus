@@ -64,6 +64,10 @@ struct U2FKeyState {
     uint8_t pending_in_start;
     uint8_t pending_in_end;
     uint8_t pending_in_num;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*

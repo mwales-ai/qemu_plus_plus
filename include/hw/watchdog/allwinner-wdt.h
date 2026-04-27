@@ -60,6 +60,11 @@ struct AwWdtState {
     struct ptimer_state *timer;
 
     uint32_t regs[AW_WDT_REGS_NUM];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

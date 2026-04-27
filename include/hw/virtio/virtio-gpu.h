@@ -163,6 +163,10 @@ struct VirtIOGPUBase {
 
     int enabled_output_bitmask;
     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct VirtIOGPUBaseClass {
@@ -283,7 +287,7 @@ struct VirtIOGPU {
     /* Migration helpers */
     bool loadRestoreMapping(struct virtio_gpu_simple_resource *res);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

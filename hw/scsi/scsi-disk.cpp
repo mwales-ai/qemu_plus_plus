@@ -142,6 +142,7 @@ struct SCSIDiskState {
     bool blockIsPassthrough(uint8_t *buf);
 
     static void resetWrapper(DeviceState *dev);
+    static void classInit(DeviceClass *dc);
     static void baseClassInit(ObjectClass *klass, const void *data);
     static void hdClassInit(ObjectClass *klass, const void *data);
     static void cdClassInit(ObjectClass *klass, const void *data);
@@ -3218,14 +3219,10 @@ void SCSIDiskState::baseClassInit(ObjectClass *klass, const void *data)
     sdc->need_fua  = scsi_is_cmd_fua;
 }
 
-static const TypeInfo scsi_disk_base_info = {
-    .name          = TYPE_SCSI_DISK_BASE,
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDiskState),
-    .is_abstract      = true,
-    .class_size    = sizeof(SCSIDiskClass),
-    .class_init    = SCSIDiskState::baseClassInit,
-};
+void SCSIDiskState::classInit(DeviceClass *dc)
+{
+    SCSIDiskState::baseClassInit(reinterpret_cast<ObjectClass *>(dc), nullptr);
+}
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                   \
     DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),  \
@@ -3382,9 +3379,8 @@ static const TypeInfo scsi_block_info = {
 };
 #endif
 
-static void scsi_disk_register_types(void)
+static void __attribute__((constructor)) register_scsi_disk_concretes(void)
 {
-    type_register_static(&scsi_disk_base_info);
     type_register_static(&scsi_hd_info);
     type_register_static(&scsi_cd_info);
 #ifdef __linux__
@@ -3392,4 +3388,6 @@ static void scsi_disk_register_types(void)
 #endif
 }
 
-type_init(scsi_disk_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(SCSIDiskState, SCSIDiskClass,
+                               TYPE_SCSI_DISK_BASE, TYPE_SCSI_DEVICE)

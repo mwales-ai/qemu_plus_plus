@@ -51,7 +51,7 @@ struct EMC141XState {
     static int tx(I2CSlave *i2c, uint8_t data);
     static int event(I2CSlave *i2c, enum i2c_event event);
     void reset();
-    static void initfn(Object *obj);
+    void init();
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -271,8 +271,9 @@ void EMC141XState::reset()
     len = 0;
 }
 
-void EMC141XState::initfn(Object *obj)
+void EMC141XState::init()
 {
+    Object *obj = OBJECT(this);
     object_property_add(obj, "temperature0", "int",
                         EMC141XState::getTemperature,
                         EMC141XState::setTemperature, NULL, NULL);
@@ -317,15 +318,6 @@ void EMC141XClass::emc1414ClassInit(ObjectClass *klass, const void *data)
     ec->sensors_count = 4;
 }
 
-static const TypeInfo emc141x_info = {
-    .name          = TYPE_EMC141X,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(EMC141XState),
-    .instance_init = EMC141XState::initfn,
-    .is_abstract   = true,
-    .class_size    = sizeof(EMC141XClass),
-};
-
 static const TypeInfo emc1413_info = {
     .name          = "emc1413",
     .parent        = TYPE_EMC141X,
@@ -338,11 +330,25 @@ static const TypeInfo emc1414_info = {
     .class_init    = EMC141XClass::emc1414ClassInit,
 };
 
-static void emc141x_register_types(void)
+#include "qom/cpp/object.h"
+/*
+ * emc141x abstract base has instance_init; use manual registration with
+ * trampoline_init so the init() member is called.
+ */
+static void EMC141XState_cpp_register_types(void)
 {
-    type_register_static(&emc141x_info);
+    static TypeInfo info = {
+        .name          = TYPE_EMC141X,
+        .parent        = TYPE_I2C_SLAVE,
+        .instance_size = sizeof(EMC141XState),
+        .instance_init = qemu_device_detail::trampoline_init<EMC141XState>,
+        .is_abstract   = true,
+        .class_size    = sizeof(EMC141XClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<EMC141XState>,
+    };
+    type_register_static(&info);
     type_register_static(&emc1413_info);
     type_register_static(&emc1414_info);
 }
 
-type_init(emc141x_register_types)
+type_init(EMC141XState_cpp_register_types)

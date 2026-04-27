@@ -54,6 +54,8 @@ struct FDCtrlSysBus {
 
     struct FDCtrl state;
     MemoryRegion iomem;
+
+    static void classInit(DeviceClass *dc);
 };
 
 static uint64_t fdctrl_read_mem(void *opaque, hwaddr reg, unsigned ize)
@@ -176,25 +178,13 @@ static const VMStateDescription vmstate_sysbus_fdc = {
     }
 };
 
-static void sysbus_fdc_common_class_init(ObjectClass *klass, const void *data)
+void FDCtrlSysBus::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = sysbus_fdc_realize;
     device_class_set_legacy_reset(dc, fdctrl_external_reset_sysbus);
     dc->vmsd = &vmstate_sysbus_fdc;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
-
-static const TypeInfo sysbus_fdc_common_typeinfo = {
-    .name          = TYPE_SYSBUS_FDC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FDCtrlSysBus),
-    .instance_init = sysbus_fdc_common_instance_init,
-    .is_abstract      = true,
-    .class_init    = sysbus_fdc_common_class_init,
-    .class_size    = sizeof(FDCtrlSysBusClass),
-};
 
 static const Property sysbus_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtypeA", FDCtrlSysBus, state.qdev_for_drives[0].type,
@@ -247,11 +237,30 @@ static const TypeInfo sun4m_fdc_typeinfo = {
     .class_init    = sun4m_fdc_class_init,
 };
 
-static void sysbus_fdc_register_types(void)
+static void __attribute__((constructor)) register_sysbus_fdc_concretes(void)
 {
-    type_register_static(&sysbus_fdc_common_typeinfo);
     type_register_static(&sysbus_fdc_typeinfo);
     type_register_static(&sun4m_fdc_typeinfo);
 }
 
-type_init(sysbus_fdc_register_types)
+#include "qom/cpp/object.h"
+/*
+ * sysbus_fdc_common_typeinfo: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
+ * register manually with C++ trampolines.
+ */
+static void FDCtrlSysBus_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_SYSBUS_FDC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(FDCtrlSysBus),
+        .instance_init = sysbus_fdc_common_instance_init,
+        .is_abstract   = true,
+        .class_size    = sizeof(FDCtrlSysBusClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<FDCtrlSysBus>,
+    };
+    type_register_static(&info);
+}
+
+type_init(FDCtrlSysBus_cpp_register_types)

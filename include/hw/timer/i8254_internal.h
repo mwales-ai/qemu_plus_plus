@@ -59,6 +59,10 @@ struct PITCommonState {
     MemoryRegion ioports;
     uint32_t iobase;
     PITChannelState channels[3];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct PITCommonClass {

@@ -436,6 +436,10 @@ struct PMBusDevice {
     uint8_t *in_buf;
     int32_t out_buf_len;
     uint8_t out_buf[SMBUS_DATA_MAX_LEN];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

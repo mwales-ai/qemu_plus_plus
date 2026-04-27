@@ -86,6 +86,10 @@ struct XilinxSPIPS {
     uint32_t regs[XLNX_SPIPS_R_MAX];
 
     bool man_start_com;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct XilinxQSPIPS {

@@ -254,6 +254,9 @@ struct USBDevice {
     inline void setInterface(int interface, int alt_old, int alt_new);
     inline void flushEpQueue(USBEndpoint *ep);
     inline void epStopped(USBEndpoint *ep);
+
+    void init();
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

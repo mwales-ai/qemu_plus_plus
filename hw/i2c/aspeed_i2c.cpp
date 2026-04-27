@@ -1308,10 +1308,8 @@ static const Property aspeed_i2c_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
+void AspeedI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &aspeed_i2c_vmstate;
     device_class_set_legacy_reset(dc, aspeed_i2c_reset);
     device_class_set_props(dc, aspeed_i2c_properties);
@@ -1319,15 +1317,6 @@ static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Aspeed I2C Controller";
 }
 
-static const TypeInfo aspeed_i2c_info = {
-    .name          = TYPE_ASPEED_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedI2CState),
-    .instance_init = aspeed_i2c_instance_init,
-    .is_abstract   = true,
-    .class_size = sizeof(AspeedI2CClass),
-    .class_init    = aspeed_i2c_class_init,
-};
 
 static int aspeed_i2c_bus_new_slave_event(AspeedI2CBus *bus,
                                           enum i2c_event event)
@@ -1668,11 +1657,10 @@ static const TypeInfo aspeed_2700_i2c_info = {
     .class_init = aspeed_2700_i2c_class_init,
 };
 
-static void aspeed_i2c_register_types(void)
+static void __attribute__((constructor)) register_aspeed_i2c_others(void)
 {
     type_register_static(&aspeed_i2c_bus_info);
     type_register_static(&aspeed_i2c_bus_slave_info);
-    type_register_static(&aspeed_i2c_info);
     type_register_static(&aspeed_2400_i2c_info);
     type_register_static(&aspeed_2500_i2c_info);
     type_register_static(&aspeed_2600_i2c_info);
@@ -1680,7 +1668,27 @@ static void aspeed_i2c_register_types(void)
     type_register_static(&aspeed_2700_i2c_info);
 }
 
-type_init(aspeed_i2c_register_types)
+#include "qom/cpp/object.h"
+/*
+ * aspeed_i2c_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
+ * register manually with C++ trampolines.
+ */
+static void AspeedI2CState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_ASPEED_I2C,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedI2CState),
+        .instance_init = aspeed_i2c_instance_init,
+        .is_abstract   = true,
+        .class_size    = sizeof(AspeedI2CClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AspeedI2CState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AspeedI2CState_cpp_register_types)
 
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr)

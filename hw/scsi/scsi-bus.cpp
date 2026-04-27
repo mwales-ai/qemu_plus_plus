@@ -2003,10 +2003,9 @@ static void scsi_device_class_init_impl(DeviceClass *k)
     device_class_set_props(k, scsi_props);
 }
 
-static void scsi_device_class_init(ObjectClass *klass, const void *data)
+void SCSIDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
-    scsi_device_class_init_impl(k);
+    scsi_device_class_init_impl(dc);
 }
 
 static void scsi_dev_instance_init(Object *obj)
@@ -2018,15 +2017,6 @@ static void scsi_dev_instance_init(Object *obj)
                                   &s->qdev);
 }
 
-static const TypeInfo scsi_device_type_info = {
-    .name = TYPE_SCSI_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SCSIDevice),
-    .instance_init = scsi_dev_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(SCSIDeviceClass),
-    .class_init = scsi_device_class_init,
-};
 
 static void scsi_bus_class_init_impl(BusClass *k, HotplugHandlerClass *hc)
 {
@@ -2056,10 +2046,29 @@ static const TypeInfo scsi_bus_info = {
     .interfaces = scsi_bus_interfaces,
 };
 
-static void scsi_register_types(void)
+static void __attribute__((constructor)) register_scsi_bus_type(void)
 {
     type_register_static(&scsi_bus_info);
-    type_register_static(&scsi_device_type_info);
 }
 
-type_init(scsi_register_types)
+#include "qom/cpp/object.h"
+/*
+ * scsi_device_type_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
+ * register manually with C++ trampolines.
+ */
+static void SCSIDevice_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_SCSI_DEVICE,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(SCSIDevice),
+        .instance_init = scsi_dev_instance_init,
+        .is_abstract   = true,
+        .class_size    = sizeof(SCSIDeviceClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<SCSIDevice>,
+    };
+    type_register_static(&info);
+}
+
+type_init(SCSIDevice_cpp_register_types)

@@ -1227,14 +1227,11 @@ void IntelHDAState::hdaCodecDeviceClassInit(ObjectClass *klass, const void *data
     device_class_set_props(k, hda_props);
 }
 
-static const TypeInfo hda_codec_device_type_info = {
-    .name = TYPE_HDA_CODEC_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(HDACodecDevice),
-    .is_abstract = true,
-    .class_size = sizeof(HDACodecDeviceClass),
-    .class_init = IntelHDAState::hdaCodecDeviceClassInit,
-};
+void HDACodecDevice::classInit(DeviceClass *dc)
+{
+    IntelHDAState::hdaCodecDeviceClassInit(
+        reinterpret_cast<ObjectClass *>(dc), nullptr);
+}
 
 /*
  * create intel hda controller with codec attached to it,
@@ -1262,8 +1259,11 @@ static void intel_hda_register_types(void)
     type_register_static(&intel_hda_info);
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
-    type_register_static(&hda_codec_device_type_info);
     audio_register_model_with_cb("hda", "Intel HD Audio", intel_hda_and_codec_init);
 }
 
 type_init(intel_hda_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(HDACodecDevice, HDACodecDeviceClass,
+                               TYPE_HDA_CODEC_DEVICE, TYPE_DEVICE)

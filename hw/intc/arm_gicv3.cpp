@@ -477,16 +477,28 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     reinterpret_cast<GICv3State *>(dev)->realize(dev, errp);
 }
 
-void GICv3State::classInit(DeviceClass *dc)
+#include "qom/cpp/object.h"
+
+static void arm_gicv3_class_init(ObjectClass *oc, const void *data)
 {
-    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
-    ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
-    ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(oc);
+    ARMGICv3Class *agc = ARM_GICV3_CLASS(oc);
 
     agcc->post_load = arm_gicv3_post_load;
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }
 
-#include "qom/cpp/object.h"
-REGISTER_QEMU_DEVICE_CLASS_SIZE(GICv3State, ARMGICv3Class, TYPE_ARM_GICV3,
-                                TYPE_ARM_GICV3_COMMON)
+static void arm_gicv3_register_types(void)
+{
+    static TypeInfo arm_gicv3_info = {
+        .name          = TYPE_ARM_GICV3,
+        .parent        = TYPE_ARM_GICV3_COMMON,
+        .instance_size = sizeof(GICv3State),
+        .class_size    = sizeof(ARMGICv3Class),
+        .class_init    = arm_gicv3_class_init,
+    };
+    type_register_static(&arm_gicv3_info);
+}
+
+type_init(arm_gicv3_register_types)

@@ -81,6 +81,11 @@ struct NVICState {
     uint32_t num_irq;
     qemu_irq excpout;
     qemu_irq sysresetreq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

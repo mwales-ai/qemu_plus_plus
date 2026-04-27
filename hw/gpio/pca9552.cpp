@@ -434,9 +434,9 @@ static const Property pca955x_properties[] = {
     DEFINE_PROP_STRING("description", PCA955xState, description),
 };
 
-static void pca955x_class_init(ObjectClass *klass, const void *data)
+void PCA955xState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->event = pca955x_event;
@@ -445,16 +445,6 @@ static void pca955x_class_init(ObjectClass *klass, const void *data)
     dc->realize = pca955x_realize;
     device_class_set_props(dc, pca955x_properties);
 }
-
-static const TypeInfo pca955x_info = {
-    .name          = TYPE_PCA955X,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(PCA955xState),
-    .instance_init = pca955x_initfn,
-    .is_abstract      = true,
-    .class_size    = sizeof(PCA955xClass),
-    .class_init    = pca955x_class_init,
-};
 
 static void pca9552_class_init(ObjectClass *oc, const void *data)
 {
@@ -473,10 +463,29 @@ static const TypeInfo pca9552_info = {
     .class_init    = pca9552_class_init,
 };
 
-static void pca955x_register_types(void)
+static void __attribute__((constructor)) register_pca9552_concrete(void)
 {
-    type_register_static(&pca955x_info);
     type_register_static(&pca9552_info);
 }
 
-type_init(pca955x_register_types)
+#include "qom/cpp/object.h"
+/*
+ * pca955x_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
+ * register manually with C++ trampolines.
+ */
+static void PCA955xState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_PCA955X,
+        .parent        = TYPE_I2C_SLAVE,
+        .instance_size = sizeof(PCA955xState),
+        .instance_init = pca955x_initfn,
+        .is_abstract   = true,
+        .class_size    = sizeof(PCA955xClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<PCA955xState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(PCA955xState_cpp_register_types)

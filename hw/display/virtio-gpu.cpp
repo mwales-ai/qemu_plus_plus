@@ -1837,9 +1837,9 @@ static void virtio_gpu_resource_destroy_wrapper(VirtIOGPU *g,
     g->resourceDestroy(res, errp);
 }
 
-void VirtIOGPU::classInit(ObjectClass *klass, const void *data)
+void VirtIOGPU::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
     VirtIOGPUClass *vgc = reinterpret_cast<VirtIOGPUClass *>(klass);
     VirtIOGPUBaseClass *vgbc = &vgc->parent;
@@ -1860,24 +1860,9 @@ void VirtIOGPU::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_gpu_properties);
 }
 
-static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
-{
-    VirtIOGPU::classInit(klass, data);
-}
-
-static const TypeInfo virtio_gpu_info = {
-    .name = TYPE_VIRTIO_GPU,
-    .parent = TYPE_VIRTIO_GPU_BASE,
-    .instance_size = sizeof(VirtIOGPU),
-    .class_size = sizeof(VirtIOGPUClass),
-    .class_init = virtio_gpu_class_init,
-};
+#include "qom/cpp/object.h"
 module_obj(TYPE_VIRTIO_GPU);
 module_kconfig(VIRTIO_GPU);
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_gpu_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(VirtIOGPU, VirtIOGPUClass,
+                                TYPE_VIRTIO_GPU, TYPE_VIRTIO_GPU_BASE)

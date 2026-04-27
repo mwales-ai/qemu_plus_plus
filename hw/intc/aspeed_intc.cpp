@@ -866,9 +866,9 @@ static void aspeed_intc_unrealize(DeviceState *dev)
 }
 
 __attribute__((used))
-static void aspeed_intc_class_init(ObjectClass *klass, const void *data)
+void AspeedINTCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     AspeedINTCClass *aic = ASPEED_INTC_CLASS(klass);
 
     dc->desc = "ASPEED INTC Controller";
@@ -879,16 +879,6 @@ static void aspeed_intc_class_init(ObjectClass *klass, const void *data)
 
     aic->reg_ops = &aspeed_intc_ops;
 }
-
-static const TypeInfo aspeed_intc_info = {
-    .name = TYPE_ASPEED_INTC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedINTCState),
-    .instance_init = aspeed_intc_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(AspeedINTCClass),
-    .class_init = aspeed_intc_class_init,
-};
 
 static AspeedINTCIRQ aspeed_2700_intc_irqs[ASPEED_INTC_MAX_INPINS] = {
     {0, 0, 10, R_GICINT192_201_EN, R_GICINT192_201_STATUS},
@@ -1095,9 +1085,8 @@ static const TypeInfo aspeed_2700tsp_intcio_info = {
     .class_init = aspeed_2700tsp_intcio_class_init,
 };
 
-static void aspeed_intc_register_types(void)
+static void __attribute__((constructor)) register_aspeed_intc_concretes(void)
 {
-    type_register_static(&aspeed_intc_info);
     type_register_static(&aspeed_2700_intc_info);
     type_register_static(&aspeed_2700_intcio_info);
     type_register_static(&aspeed_2700ssp_intc_info);
@@ -1106,4 +1095,24 @@ static void aspeed_intc_register_types(void)
     type_register_static(&aspeed_2700tsp_intcio_info);
 }
 
-type_init(aspeed_intc_register_types);
+#include "qom/cpp/object.h"
+/*
+ * aspeed_intc_info: abstract base with instance_init + class_size.
+ * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
+ * register manually with C++ trampolines.
+ */
+static void AspeedINTCState_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_ASPEED_INTC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedINTCState),
+        .instance_init = aspeed_intc_instance_init,
+        .is_abstract   = true,
+        .class_size    = sizeof(AspeedINTCClass),
+        .class_init    = qemu_device_detail::trampoline_class_init<AspeedINTCState>,
+    };
+    type_register_static(&info);
+}
+
+type_init(AspeedINTCState_cpp_register_types);

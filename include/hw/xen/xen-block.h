@@ -55,6 +55,10 @@ struct XenBlockDevice {
     XenBlockDataPlane *dataplane;
     XenBlockDrive *drive;
     XenBlockIOThread *iothread;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct XenBlockDevice XenBlockDevice;
 

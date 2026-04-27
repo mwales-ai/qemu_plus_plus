@@ -48,6 +48,10 @@ struct AspeedINTCState {
     uint32_t enable[ASPEED_INTC_MAX_INPINS];
     uint32_t mask[ASPEED_INTC_MAX_INPINS];
     uint32_t pending[ASPEED_INTC_MAX_INPINS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct AspeedINTCClass {

@@ -1527,15 +1527,14 @@ static const VMStateDescription vmstate_aspeed_gpio = {
     .fields = vmstate_aspeed_gpio_fields,
 };
 
-static void aspeed_gpio_class_init(ObjectClass *klass, const void *data)
+void AspeedGPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = aspeed_gpio_realize;
     device_class_set_legacy_reset(dc, aspeed_gpio_reset);
     dc->desc = "Aspeed GPIO Controller";
     dc->vmsd = &vmstate_aspeed_gpio;
 }
+
 
 static void aspeed_gpio_ast2400_class_init(ObjectClass *klass, const void *data)
 {
@@ -1616,14 +1615,6 @@ static void aspeed_gpio_2700_class_init(ObjectClass *klass, const void *data)
     agc->reg_ops = &aspeed_gpio_2700_ops;
 }
 
-static const TypeInfo aspeed_gpio_info = {
-    .name           = TYPE_ASPEED_GPIO,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedGPIOState),
-    .is_abstract    = true,
-    .class_size     = sizeof(AspeedGPIOClass),
-    .class_init     = aspeed_gpio_class_init,
-};
 
 static const TypeInfo aspeed_gpio_ast2400_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2400",
@@ -1667,9 +1658,8 @@ static const TypeInfo aspeed_gpio_ast2700_info = {
     .class_init     = aspeed_gpio_2700_class_init,
 };
 
-static void aspeed_gpio_register_types(void)
+static void __attribute__((constructor)) register_aspeed_gpio_concretes(void)
 {
-    type_register_static(&aspeed_gpio_info);
     type_register_static(&aspeed_gpio_ast2400_info);
     type_register_static(&aspeed_gpio_ast2500_info);
     type_register_static(&aspeed_gpio_ast2600_3_3v_info);
@@ -1678,4 +1668,6 @@ static void aspeed_gpio_register_types(void)
     type_register_static(&aspeed_gpio_ast2700_info);
 }
 
-type_init(aspeed_gpio_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedGPIOState, AspeedGPIOClass,
+                               TYPE_ASPEED_GPIO, TYPE_SYS_BUS_DEVICE)

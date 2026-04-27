@@ -142,27 +142,31 @@ static void gicv3_its_common_reset_hold(Object *obj, ResetType type)
     memset(&s->baser, 0, sizeof(s->baser));
 }
 
-static void gicv3_its_common_class_init(ObjectClass *klass, const void *data)
+static void gicv3_its_common_class_init_impl(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = gicv3_its_common_reset_hold;
     dc->vmsd = &vmstate_its;
 }
 
-static const TypeInfo gicv3_its_common_info = {
-    .name = TYPE_ARM_GICV3_ITS_COMMON,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GICv3ITSState),
-    .is_abstract = true,
-    .class_size = sizeof(GICv3ITSCommonClass),
-    .class_init = gicv3_its_common_class_init,
-};
+static void gicv3_its_common_class_init(ObjectClass *klass, const void *data)
+{
+    gicv3_its_common_class_init_impl(DEVICE_CLASS(klass));
+}
 
 static void gicv3_its_common_register_types(void)
 {
-    type_register_static(&gicv3_its_common_info);
+    static const TypeInfo info = {
+        .name       = TYPE_ARM_GICV3_ITS_COMMON,
+        .parent     = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(GICv3ITSState),
+        .is_abstract = true,
+        .class_size = sizeof(GICv3ITSCommonClass),
+        .class_init = gicv3_its_common_class_init,
+    };
+    type_register_static(&info);
 }
 
 type_init(gicv3_its_common_register_types)

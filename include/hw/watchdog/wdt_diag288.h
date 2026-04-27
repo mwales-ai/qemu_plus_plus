@@ -25,6 +25,10 @@ struct DIAG288State {
     bool enabled;
 
     /*< public >*/
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct DIAG288Class {

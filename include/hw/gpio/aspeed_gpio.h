@@ -108,6 +108,10 @@ struct AspeedGPIOState {
     /* Parallel GPIO Registers */
     uint32_t debounce_regs[ASPEED_GPIO_NR_DEBOUNCE_REGS];
     GPIOSets sets[ASPEED_GPIO_MAX_NR_SETS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* ASPEED_GPIO_H */

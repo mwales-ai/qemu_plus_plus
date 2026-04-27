@@ -429,29 +429,21 @@ static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
     return false;
 }
 
-static void i2c_slave_class_init(ObjectClass *klass, const void *data)
+void I2CSlave::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
-    set_bit(DEVICE_CATEGORY_MISC, k->categories);
-    k->bus_type = TYPE_I2C_BUS;
-    device_class_set_props(k, i2c_props);
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->bus_type = TYPE_I2C_BUS;
+    device_class_set_props(dc, i2c_props);
     sc->match_and_add = i2c_slave_match;
 }
 
-static const TypeInfo i2c_slave_type_info = {
-    .name = TYPE_I2C_SLAVE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(I2CSlave),
-    .is_abstract = true,
-    .class_size = sizeof(I2CSlaveClass),
-    .class_init = i2c_slave_class_init,
-};
-
-static void i2c_slave_register_types(void)
+static void __attribute__((constructor)) register_i2c_bus_type(void)
 {
     type_register_static(&i2c_bus_info);
-    type_register_static(&i2c_slave_type_info);
 }
 
-type_init(i2c_slave_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(I2CSlave, I2CSlaveClass, TYPE_I2C_SLAVE,
+                               TYPE_DEVICE)

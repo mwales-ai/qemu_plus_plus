@@ -679,9 +679,9 @@ static const Property xen_block_props[] = {
                      TYPE_IOTHREAD, IOThread *),
 };
 
-static void xen_block_class_init(ObjectClass *klass, const void *data)
+void XenBlockDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "qdisk";
@@ -691,17 +691,8 @@ static void xen_block_class_init(ObjectClass *klass, const void *data)
     xendev_class->frontend_changed = xen_block_frontend_changed;
     xendev_class->unrealize = xen_block_unrealize;
 
-    device_class_set_props(dev_class, xen_block_props);
+    device_class_set_props(dc, xen_block_props);
 }
-
-static const TypeInfo xen_block_type_info = {
-    .name = TYPE_XEN_BLOCK_DEVICE,
-    .parent = TYPE_XEN_DEVICE,
-    .instance_size = sizeof(XenBlockDevice),
-    .is_abstract = true,
-    .class_size = sizeof(XenBlockDeviceClass),
-    .class_init = xen_block_class_init,
-};
 
 static void xen_disk_unrealize(XenBlockDevice *blockdev)
 {
@@ -789,14 +780,15 @@ static const TypeInfo xen_cdrom_type_info = {
     .class_init = xen_cdrom_class_init,
 };
 
-static void xen_block_register_types(void)
+static void __attribute__((constructor)) register_xen_block_concretes(void)
 {
-    type_register_static(&xen_block_type_info);
     type_register_static(&xen_disk_type_info);
     type_register_static(&xen_cdrom_type_info);
 }
 
-type_init(xen_block_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(XenBlockDevice, XenBlockDeviceClass,
+                               TYPE_XEN_BLOCK_DEVICE, TYPE_XEN_DEVICE)
 
 static void xen_block_blockdev_del(const char *node_name, Error **errp)
 {

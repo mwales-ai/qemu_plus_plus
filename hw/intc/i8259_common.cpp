@@ -206,9 +206,9 @@ static const Property pic_properties_common[] = {
     DEFINE_PROP_BIT("master", PICCommonState, master,  0, false),
 };
 
-static void pic_common_class_init(ObjectClass *klass, const void *data)
+void PICCommonState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
 
     dc->vmsd = &vmstate_pic_common;
@@ -230,19 +230,7 @@ static const InterfaceInfo pic_common_interfaces[] = {
     { }
 };
 
-static const TypeInfo pic_common_type = {
-    .name = TYPE_PIC_COMMON,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PICCommonState),
-    .is_abstract = true,
-    .class_size = sizeof(PICCommonClass),
-    .class_init = pic_common_class_init,
-    .interfaces = pic_common_interfaces,
-};
-
-static void pic_common_register_types(void)
-{
-    type_register_static(&pic_common_type);
-}
-
-type_init(pic_common_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(PICCommonState, PICCommonClass,
+                                      TYPE_PIC_COMMON, TYPE_ISA_DEVICE,
+                                      pic_common_interfaces)

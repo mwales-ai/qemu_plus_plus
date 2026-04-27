@@ -37,6 +37,10 @@ struct PCA955xState {
     qemu_irq gpio_out[PCA955X_PIN_COUNT_MAX];
     uint8_t ext_state[PCA955X_PIN_COUNT_MAX];
     char *description; /* For debugging purpose only */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
