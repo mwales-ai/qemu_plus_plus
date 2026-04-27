@@ -66,9 +66,10 @@ struct Ppe42MachineState {
         memory_region_add_subregion(get_system_memory(), 0xfff80000, machine->ram);
     }
 
-    static void classInit(ObjectClass *oc, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
         static const char * const valid_cpu_types[] = {
             POWERPC_CPU_TYPE_NAME("PPE42"),
             POWERPC_CPU_TYPE_NAME("PPE42X"),
@@ -85,17 +86,6 @@ struct Ppe42MachineState {
     }
 };
 
-static const TypeInfo ppe42_machine_info = {
-        .name          = TYPE_PPE42_MACHINE,
-        .parent        = TYPE_MACHINE,
-        .instance_size = sizeof(Ppe42MachineState),
-        .class_size    = sizeof(Ppe42MachineClass),
-        .class_init    = Ppe42MachineState::classInit,
-};
-
-static void ppe42_machine_register_types(void)
-{
-    type_register_static(&ppe42_machine_info);
-}
-
-type_init(ppe42_machine_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(Ppe42MachineState, Ppe42MachineClass,
+                                TYPE_PPE42_MACHINE, TYPE_MACHINE)

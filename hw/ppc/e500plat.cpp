@@ -68,55 +68,54 @@ HotplugHandler *e500plat_machine_get_hotpug_handler(MachineState *machine,
 
 #define TYPE_E500PLAT_MACHINE  MACHINE_TYPE_NAME("ppce500")
 
-static void e500plat_machine_class_init(ObjectClass *oc, const void *data)
-{
-    PPCE500MachineClass *pmc = PPCE500_MACHINE_CLASS(oc);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
-    MachineClass *mc = MACHINE_CLASS(oc);
+struct E500platMachineState {
+    PPCE500MachineState parent_obj;
 
-    assert(!mc->get_hotplug_handler);
-    mc->get_hotplug_handler = e500plat_machine_get_hotpug_handler;
-    hc->plug = e500plat_machine_device_plug_cb;
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        PPCE500MachineClass *pmc = PPCE500_MACHINE_CLASS(oc);
+        HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+        MachineClass *mc = MACHINE_CLASS(oc);
 
-    pmc->pci_first_slot = 0x1;
-    pmc->pci_nr_slots = PCI_SLOT_MAX - 1;
-    pmc->fixup_devtree = e500plat_fixup_devtree;
-    pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_42;
-    pmc->has_mpc8xxx_gpio = true;
-    pmc->has_esdhc = true;
-    pmc->platform_bus_base = 0xf00000000ULL;
-    pmc->platform_bus_size = 128 * MiB;
-    pmc->platform_bus_first_irq = 5;
-    pmc->platform_bus_num_irqs = 10;
-    pmc->ccsrbar_base = 0xFE0000000ULL;
-    pmc->pci_pio_base = 0xFE1000000ULL;
-    pmc->pci_mmio_base = 0xC00000000ULL;
-    pmc->pci_mmio_bus_base = 0xE0000000ULL;
-    pmc->spin_base = 0xFEF000000ULL;
-    pmc->clock_freq = PLATFORM_CLK_FREQ_HZ;
-    pmc->tb_freq = PLATFORM_CLK_FREQ_HZ;
+        assert(!mc->get_hotplug_handler);
+        mc->get_hotplug_handler = e500plat_machine_get_hotpug_handler;
+        hc->plug = e500plat_machine_device_plug_cb;
 
-    mc->desc = "generic paravirt e500 platform";
-    mc->init = e500plat_init;
-    mc->max_cpus = 32;
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
-    mc->default_ram_id = "mpc8544ds.ram";
-    mc->default_nic = "virtio-net-pci";
-    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_ETSEC_COMMON);
- }
+        pmc->pci_first_slot = 0x1;
+        pmc->pci_nr_slots = PCI_SLOT_MAX - 1;
+        pmc->fixup_devtree = e500plat_fixup_devtree;
+        pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_42;
+        pmc->has_mpc8xxx_gpio = true;
+        pmc->has_esdhc = true;
+        pmc->platform_bus_base = 0xf00000000ULL;
+        pmc->platform_bus_size = 128 * MiB;
+        pmc->platform_bus_first_irq = 5;
+        pmc->platform_bus_num_irqs = 10;
+        pmc->ccsrbar_base = 0xFE0000000ULL;
+        pmc->pci_pio_base = 0xFE1000000ULL;
+        pmc->pci_mmio_base = 0xC00000000ULL;
+        pmc->pci_mmio_bus_base = 0xE0000000ULL;
+        pmc->spin_base = 0xFEF000000ULL;
+        pmc->clock_freq = PLATFORM_CLK_FREQ_HZ;
+        pmc->tb_freq = PLATFORM_CLK_FREQ_HZ;
 
-static const TypeInfo e500plat_info = {
-    .name          = TYPE_E500PLAT_MACHINE,
-    .parent        = TYPE_PPCE500_MACHINE,
-    .class_init    = e500plat_machine_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
+        mc->desc = "generic paravirt e500 platform";
+        mc->init = e500plat_init;
+        mc->max_cpus = 32;
+        mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
+        mc->default_ram_id = "mpc8544ds.ram";
+        mc->default_nic = "virtio-net-pci";
+        machine_class_allow_dynamic_sysbus_dev(mc, TYPE_ETSEC_COMMON);
     }
 };
 
-static void e500plat_register_types(void)
-{
-    type_register_static(&e500plat_info);
-}
-type_init(e500plat_register_types)
+static const InterfaceInfo e500plat_ifaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(E500platMachineState, PPCE500MachineClass,
+                                       TYPE_E500PLAT_MACHINE, TYPE_PPCE500_MACHINE,
+                                       e500plat_ifaces)

@@ -412,44 +412,38 @@ void mips_pica61_init(MachineState *machine)
     mips_jazz_init(machine, JAZZ_PICA61);
 }
 
-static void mips_magnum_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
+struct MipsJazzMagnumState {
+    MachineState parent_obj;
 
-    mc->desc = "MIPS Magnum";
-    mc->init = mips_magnum_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
-    mc->default_ram_id = "mips_jazz.ram";
-}
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
 
-static const TypeInfo mips_magnum_type = {
-    .name = MACHINE_TYPE_NAME("magnum"),
-    .parent = TYPE_MACHINE,
-    .class_init = mips_magnum_class_init,
+        mc->desc = "MIPS Magnum";
+        mc->init = mips_magnum_init;
+        mc->block_default_type = IF_SCSI;
+        mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
+        mc->default_ram_id = "mips_jazz.ram";
+    }
 };
 
-static void mips_pica61_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
+struct MipsJazzPica61State {
+    MachineState parent_obj;
 
-    mc->desc = "Acer Pica 61";
-    mc->init = mips_pica61_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
-    mc->default_ram_id = "mips_jazz.ram";
-}
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
 
-static const TypeInfo mips_pica61_type = {
-    .name = MACHINE_TYPE_NAME("pica61"),
-    .parent = TYPE_MACHINE,
-    .class_init = mips_pica61_class_init,
+        mc->desc = "Acer Pica 61";
+        mc->init = mips_pica61_init;
+        mc->block_default_type = IF_SCSI;
+        mc->default_cpu_type = MIPS_CPU_TYPE_NAME("R4000");
+        mc->default_ram_id = "mips_jazz.ram";
+    }
 };
 
-static void mips_jazz_machine_init(void)
-{
-    type_register_static(&mips_magnum_type);
-    type_register_static(&mips_pica61_type);
-}
-
-type_init(mips_jazz_machine_init)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MipsJazzMagnumState, MACHINE_TYPE_NAME("magnum"), TYPE_MACHINE)
+REGISTER_QEMU_DEVICE(MipsJazzPica61State, MACHINE_TYPE_NAME("pica61"), TYPE_MACHINE)

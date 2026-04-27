@@ -786,74 +786,60 @@ static GlobalProperty hw_compat_sparc64[] = {
 };
 static const size_t hw_compat_sparc64_len = G_N_ELEMENTS(hw_compat_sparc64);
 
-struct Sun4uMachine {
-    static void classInit(ObjectClass *oc, const void *data);
+struct Sun4uMachineState {
+    MachineState parent_obj;
+
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
+        FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+
+        mc->desc = "Sun4u platform";
+        mc->init = sun4u_init;
+        mc->block_default_type = IF_IDE;
+        mc->max_cpus = 1; /* XXX for now */
+        mc->is_default = true;
+        mc->default_boot_order = "c";
+        mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
+        mc->ignore_boot_device_suffixes = true;
+        mc->default_display = "std";
+        mc->default_nic = "sunhme";
+        mc->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
+        fwc->get_dev_path = sun4u_fw_dev_path;
+        compat_props_add(mc->compat_props, hw_compat_sparc64, hw_compat_sparc64_len);
+    }
 };
 
-void Sun4uMachine::classInit(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
-    FWPathProviderClass *fwc = reinterpret_cast<FWPathProviderClass *>(oc);
+struct Sun4vMachineState {
+    MachineState parent_obj;
 
-    mc->desc = "Sun4u platform";
-    mc->init = sun4u_init;
-    mc->block_default_type = IF_IDE;
-    mc->max_cpus = 1; /* XXX for now */
-    mc->is_default = true;
-    mc->default_boot_order = "c";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
-    mc->ignore_boot_device_suffixes = true;
-    mc->default_display = "std";
-    mc->default_nic = "sunhme";
-    mc->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
-    fwc->get_dev_path = sun4u_fw_dev_path;
-    compat_props_add(mc->compat_props, hw_compat_sparc64, hw_compat_sparc64_len);
-}
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
 
-static const TypeInfo sun4u_type = {
-    .name = MACHINE_TYPE_NAME("sun4u"),
-    .parent = TYPE_MACHINE,
-    .class_init = Sun4uMachine::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { }
-    },
+        mc->desc = "Sun4v platform";
+        mc->init = sun4v_init;
+        mc->block_default_type = IF_IDE;
+        mc->max_cpus = 1; /* XXX for now */
+        mc->default_boot_order = "c";
+        mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
+        mc->default_display = "std";
+        mc->default_nic = "sunhme";
+        mc->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
+    }
 };
 
-struct Sun4vMachine {
-    static void classInit(ObjectClass *oc, const void *data);
+static const InterfaceInfo sun4u_ifaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { }
 };
-
-void Sun4vMachine::classInit(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
-
-    mc->desc = "Sun4v platform";
-    mc->init = sun4v_init;
-    mc->block_default_type = IF_IDE;
-    mc->max_cpus = 1; /* XXX for now */
-    mc->default_boot_order = "c";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
-    mc->default_display = "std";
-    mc->default_nic = "sunhme";
-    mc->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
-}
-
-static const TypeInfo sun4v_type = {
-    .name = MACHINE_TYPE_NAME("sun4v"),
-    .parent = TYPE_MACHINE,
-    .class_init = Sun4vMachine::classInit,
-};
-
-static void sun4u_register_types(void)
-{
-    type_register_static(&sun4u_type);
-    type_register_static(&sun4v_type);
-}
-
-type_init(sun4u_register_types)
 
 #include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(Sun4uMachineState, MACHINE_TYPE_NAME("sun4u"),
+                            TYPE_MACHINE, sun4u_ifaces)
+REGISTER_QEMU_DEVICE(Sun4vMachineState, MACHINE_TYPE_NAME("sun4v"), TYPE_MACHINE)
 REGISTER_QEMU_DEVICE(PowerDevice, TYPE_SUN4U_POWER, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE_IFACES(EbusState, TYPE_EBUS, TYPE_PCI_DEVICE, ebus_ifaces)
 REGISTER_QEMU_DEVICE(PROMState, TYPE_OPENPROM, TYPE_SYS_BUS_DEVICE)

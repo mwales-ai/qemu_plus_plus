@@ -161,27 +161,22 @@ static void niagara_init(MachineState *machine)
     sun4v_rtc_init(NIAGARA_RTC_BASE);
 }
 
-static void niagara_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
+struct NiagaraMachineState {
+    MachineState parent_obj;
 
-    mc->desc = "Sun4v platform, Niagara";
-    mc->init = niagara_init;
-    mc->max_cpus = 1; /* XXX for now */
-    mc->default_boot_order = "c";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
-    mc->default_ram_id = "sun4v-partition.ram";
-}
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
 
-static const TypeInfo niagara_type = {
-    .name = MACHINE_TYPE_NAME("niagara"),
-    .parent = TYPE_MACHINE,
-    .class_init = niagara_class_init,
+        mc->desc = "Sun4v platform, Niagara";
+        mc->init = niagara_init;
+        mc->max_cpus = 1; /* XXX for now */
+        mc->default_boot_order = "c";
+        mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
+        mc->default_ram_id = "sun4v-partition.ram";
+    }
 };
 
-static void niagara_register_types(void)
-{
-    type_register_static(&niagara_type);
-}
-
-type_init(niagara_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NiagaraMachineState, MACHINE_TYPE_NAME("niagara"), TYPE_MACHINE)

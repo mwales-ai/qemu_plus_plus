@@ -395,45 +395,40 @@ static int heathrow_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
-static void heathrow_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+struct HeathrowMachineState {
+    MachineState parent_obj;
 
-    mc->desc = "Heathrow based PowerMac";
-    mc->init = ppc_heathrow_init;
-    mc->block_default_type = IF_IDE;
-    /* SMP is not supported currently */
-    mc->max_cpus = 1;
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = MACHINE_CLASS(oc);
+        FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+
+        mc->desc = "Heathrow based PowerMac";
+        mc->init = ppc_heathrow_init;
+        mc->block_default_type = IF_IDE;
+        /* SMP is not supported currently */
+        mc->max_cpus = 1;
 #ifndef TARGET_PPC64
-    mc->is_default = true;
+        mc->is_default = true;
 #endif
-    /* TOFIX "cad" when Mac floppy is implemented */
-    mc->default_boot_order = "cd";
-    mc->kvm_type = heathrow_kvm_type;
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
-    mc->default_display = "std";
-    mc->default_nic = "ne2k_pci";
-    mc->ignore_boot_device_suffixes = true;
-    mc->default_ram_id = "ppc_heathrow.ram";
-    fwc->get_dev_path = heathrow_fw_dev_path;
-}
+        /* TOFIX "cad" when Mac floppy is implemented */
+        mc->default_boot_order = "cd";
+        mc->kvm_type = heathrow_kvm_type;
+        mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
+        mc->default_display = "std";
+        mc->default_nic = "ne2k_pci";
+        mc->ignore_boot_device_suffixes = true;
+        mc->default_ram_id = "ppc_heathrow.ram";
+        fwc->get_dev_path = heathrow_fw_dev_path;
+    }
+};
 
 static const InterfaceInfo heathrow_interfaces[] = {
     { TYPE_FW_PATH_PROVIDER },
     { }
 };
 
-static const TypeInfo ppc_heathrow_machine_info = {
-    .name          = MACHINE_TYPE_NAME("g3beige"),
-    .parent        = TYPE_MACHINE,
-    .class_init    = heathrow_class_init,
-    .interfaces = heathrow_interfaces,
-};
-
-static void ppc_heathrow_register_types(void)
-{
-    type_register_static(&ppc_heathrow_machine_info);
-}
-
-type_init(ppc_heathrow_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(HeathrowMachineState, MACHINE_TYPE_NAME("g3beige"),
+                            TYPE_MACHINE, heathrow_interfaces)
