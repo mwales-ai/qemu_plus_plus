@@ -32,6 +32,7 @@
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "qemu/bswap.h"
+#include "qom/cpp/object.h"
 
 /* Kernel boot protocol is specified in the kernel docs
  * Documentation/arm/Booting and Documentation/arm64/booting.txt
@@ -1300,15 +1301,4 @@ void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
     }
 }
 
-static const TypeInfo arm_linux_boot_if_info = {
-    .name = TYPE_ARM_LINUX_BOOT_IF,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(ARMLinuxBootIfClass),
-};
-
-static void arm_linux_boot_register_types(void)
-{
-    type_register_static(&arm_linux_boot_if_info);
-}
-
-type_init(arm_linux_boot_register_types)
+REGISTER_QEMU_INTERFACE(ARMLinuxBootIfClass, TYPE_ARM_LINUX_BOOT_IF)

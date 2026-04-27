@@ -2,6 +2,7 @@
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/stream.h"
@@ -24,18 +25,6 @@ stream_can_push(StreamSink *sink, StreamCanPushNotifyFn notify,
     return k->can_push ? k->can_push(sink, notify, notify_opaque) : true;
 }
 
-static const TypeInfo stream_sink_info = {
-    .name          = TYPE_STREAM_SINK,
-    .parent        = TYPE_INTERFACE,
-    .class_size = sizeof(StreamSinkClass),
-};
-
-
-static void stream_sink_register_types(void)
-{
-    type_register_static(&stream_sink_info);
-}
-
-type_init(stream_sink_register_types)
-
 } /* extern "C" */
+
+REGISTER_QEMU_INTERFACE(StreamSinkClass, TYPE_STREAM_SINK)

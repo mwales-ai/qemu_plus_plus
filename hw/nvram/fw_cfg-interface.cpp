@@ -8,16 +8,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/nvram/fw_cfg.h"
+#include "qom/cpp/object.h"
 
-static const TypeInfo fw_cfg_data_generator_interface_info = {
-    .name = TYPE_FW_CFG_DATA_GENERATOR_INTERFACE,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(FWCfgDataGeneratorClass),
-};
-
-static void fw_cfg_register_interfaces(void)
-{
-    type_register_static(&fw_cfg_data_generator_interface_info);
-}
-
-type_init(fw_cfg_register_interfaces)
+REGISTER_QEMU_INTERFACE(FWCfgDataGeneratorClass, TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)

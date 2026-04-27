@@ -19,6 +19,7 @@
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/fw-path-provider.h"
@@ -45,17 +46,6 @@ char *fw_path_provider_try_get_dev_path(Object *o, BusState *bus,
     return NULL;
 }
 
-static const TypeInfo fw_path_provider_info = {
-    .name          = TYPE_FW_PATH_PROVIDER,
-    .parent        = TYPE_INTERFACE,
-    .class_size    = sizeof(FWPathProviderClass),
-};
-
-static void fw_path_provider_register_types(void)
-{
-    type_register_static(&fw_path_provider_info);
-}
-
-type_init(fw_path_provider_register_types)
-
 } /* extern "C" */
+
+REGISTER_QEMU_INTERFACE(FWPathProviderClass, TYPE_FW_PATH_PROVIDER)

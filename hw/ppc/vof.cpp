@@ -23,6 +23,7 @@
 #include "trace.h"
 
 #include <libfdt.h>
+#include "qom/cpp/object.h"
 
 /*
  * OF 1275 "nextprop" description suggests is it 32 bytes max but
@@ -1065,14 +1066,4 @@ void vof_build_dt(void *fdt, Vof *vof)
     vof_dt_memory_available(fdt, vof->claimed, vof->claimed_base);
 }
 
-static const TypeInfo vof_machine_if_info = {
-    .name = TYPE_VOF_MACHINE_IF,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(VofMachineIfClass),
-};
-
-static void vof_machine_if_register_types(void)
-{
-    type_register_static(&vof_machine_if_info);
-}
-type_init(vof_machine_if_register_types)
+REGISTER_QEMU_INTERFACE(VofMachineIfClass, TYPE_VOF_MACHINE_IF)

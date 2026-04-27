@@ -19,6 +19,7 @@
 #include "system/kvm.h"
 #include "system/address-spaces.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 static bool memory_device_is_empty(const MemoryDeviceState *md)
 {
@@ -547,15 +548,4 @@ void machine_memory_devices_init(MachineState *ms, hwaddr base, uint64_t size)
                              &ms->device_memory->as);
 }
 
-static const TypeInfo memory_device_info = {
-    .name          = TYPE_MEMORY_DEVICE,
-    .parent        = TYPE_INTERFACE,
-    .class_size = sizeof(MemoryDeviceClass),
-};
-
-static void memory_device_register_types(void)
-{
-    type_register_static(&memory_device_info);
-}
-
-type_init(memory_device_register_types)
+REGISTER_QEMU_INTERFACE(MemoryDeviceClass, TYPE_MEMORY_DEVICE)

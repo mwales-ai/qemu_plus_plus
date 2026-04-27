@@ -30,6 +30,7 @@
 #include "hw/ppc/pnv_xscom.h"
 
 #include <libfdt.h>
+#include "qom/cpp/object.h"
 
 /* PRD registers */
 #define PRD_P8_IPOLL_REG_MASK           0x01020013
@@ -221,18 +222,7 @@ void pnv_xscom_init(PnvChip *chip, uint64_t size, hwaddr addr)
     g_free(name);
 }
 
-static const TypeInfo pnv_xscom_interface_info = {
-    .name = TYPE_PNV_XSCOM_INTERFACE,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(PnvXScomInterfaceClass),
-};
-
-static void pnv_xscom_register_types(void)
-{
-    type_register_static(&pnv_xscom_interface_info);
-}
-
-type_init(pnv_xscom_register_types)
+REGISTER_QEMU_INTERFACE(PnvXScomInterfaceClass, TYPE_PNV_XSCOM_INTERFACE)
 
 typedef struct ForeachPopulateArgs {
     void *fdt;

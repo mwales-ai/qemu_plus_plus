@@ -9,6 +9,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/misc/xlnx-cfi-if.h"
+#include "qom/cpp/object.h"
 
 void xlnx_cfi_transfer_packet(XlnxCfiIf *cfi_if, XlnxCfiPacket *pkt)
 {
@@ -19,16 +20,5 @@ void xlnx_cfi_transfer_packet(XlnxCfiIf *cfi_if, XlnxCfiPacket *pkt)
     }
 }
 
-static const TypeInfo xlnx_cfi_if_info = {
-    .name          = TYPE_XLNX_CFI_IF,
-    .parent        = TYPE_INTERFACE,
-    .class_size = sizeof(XlnxCfiIfClass),
-};
-
-static void xlnx_cfi_if_register_types(void)
-{
-    type_register_static(&xlnx_cfi_if_info);
-}
-
-type_init(xlnx_cfi_if_register_types)
+REGISTER_QEMU_INTERFACE(XlnxCfiIfClass, TYPE_XLNX_CFI_IF)
 

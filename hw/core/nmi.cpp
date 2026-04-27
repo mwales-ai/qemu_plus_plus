@@ -23,6 +23,7 @@
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/nmi.h"
@@ -78,17 +79,6 @@ void nmi_monitor_handle(int cpu_index, Error **errp)
     }
 }
 
-static const TypeInfo nmi_info = {
-    .name          = TYPE_NMI,
-    .parent        = TYPE_INTERFACE,
-    .class_size    = sizeof(NMIClass),
-};
-
-static void nmi_register_types(void)
-{
-    type_register_static(&nmi_info);
-}
-
-type_init(nmi_register_types)
-
 } /* extern "C" */
+
+REGISTER_QEMU_INTERFACE(NMIClass, TYPE_NMI)

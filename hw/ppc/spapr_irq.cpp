@@ -22,14 +22,9 @@
 #include "system/kvm.h"
 
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 QEMU_BUILD_BUG_ON(SPAPR_IRQ_NR_IPIS > SPAPR_XIRQ_BASE);
-
-static const TypeInfo spapr_intc_info = {
-    .name = TYPE_SPAPR_INTC,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(SpaprInterruptControllerClass),
-};
 
 static void spapr_irq_msi_init(SpaprMachineState *spapr)
 {
@@ -566,9 +561,4 @@ int spapr_irq_find(SpaprMachineState *spapr, int num, bool align, Error **errp)
     return first + ics->offset;
 }
 
-static void spapr_irq_register_types(void)
-{
-    type_register_static(&spapr_intc_info);
-}
-
-type_init(spapr_irq_register_types)
+REGISTER_QEMU_INTERFACE(SpaprInterruptControllerClass, TYPE_SPAPR_INTC)
