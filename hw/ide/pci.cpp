@@ -621,29 +621,20 @@ void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
     bm->pci_dev = d;
 }
 
-static void pci_ide_init(Object *obj)
+void PCIIDEState::init()
 {
-    PCIIDEState *d = PCI_IDE(obj);
-
-    qdev_init_gpio_out_named(DEVICE(d), d->isa_irq, "isa-irq",
-                             ARRAY_SIZE(d->isa_irq));
+    qdev_init_gpio_out_named(DEVICE(this), isa_irq, "isa-irq",
+                             ARRAY_SIZE(isa_irq));
 }
 
-static const TypeInfo pci_ide_type_info = {
-    .name = TYPE_PCI_IDE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIIDEState),
-    .instance_init = pci_ide_init,
-    .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo pci_ide_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void pci_ide_register_types(void)
-{
-    type_register_static(&pci_ide_type_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(pci_ide_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(PCIIDEState,
+                                            TYPE_PCI_IDE,
+                                            TYPE_PCI_DEVICE,
+                                            pci_ide_interfaces)

@@ -160,16 +160,8 @@ char *vhost_scsi_common_get_fw_dev_path(FWPathProvider *p, BusState *bus,
                            qdev_fw_name(dev), vsc->target, vsc->lun);
 }
 
-static const TypeInfo vhost_scsi_common_info = {
-    .name = TYPE_VHOST_SCSI_COMMON,
-    .parent = TYPE_VIRTIO_SCSI_COMMON,
-    .instance_size = sizeof(VHostSCSICommon),
-    .is_abstract = true,
-};
+#include "qom/cpp/object.h"
 
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_scsi_common_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(VHostSCSICommon,
+                                     TYPE_VHOST_SCSI_COMMON,
+                                     TYPE_VIRTIO_SCSI_COMMON)

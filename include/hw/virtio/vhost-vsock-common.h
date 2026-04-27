@@ -43,6 +43,10 @@ struct VHostVSockCommon {
 
     /* features */
     OnOffAuto seqpacket;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 int vhost_vsock_common_start(VirtIODevice *vdev);

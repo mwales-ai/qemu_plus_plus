@@ -218,7 +218,7 @@ struct IntelHDAState {
 
     static void realizeWrapper(PCIDevice *pci, Error **errp);
     static void resetWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void hdaCodecDeviceClassInit(ObjectClass *klass, const void *data);
 };
 
@@ -1155,9 +1155,9 @@ static const Property intel_hda_properties[] = {
     DEFINE_PROP_BOOL("old_msi_addr", IntelHDAState, old_msi_addr, false),
 };
 
-void IntelHDAState::classInit(ObjectClass *klass, const void *data)
+void IntelHDAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = IntelHDAState::realizeWrapper;
@@ -1196,14 +1196,7 @@ static const InterfaceInfo intel_hda_interfaces[] = {
     { },
 };
 
-static const TypeInfo intel_hda_info = {
-    .name          = TYPE_INTEL_HDA_GENERIC,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IntelHDAState),
-    .is_abstract   = true,
-    .class_init    = IntelHDAState::classInit,
-    .interfaces    = intel_hda_interfaces,
-};
+/* intel_hda_info registered via REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES below */
 
 static const TypeInfo intel_hda_info_ich6 = {
     .name          = "intel-hda",
@@ -1256,7 +1249,6 @@ static void intel_hda_and_codec_init(const char *audiodev)
 static void intel_hda_register_types(void)
 {
     type_register_static(&hda_codec_bus_info);
-    type_register_static(&intel_hda_info);
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     audio_register_model_with_cb("hda", "Intel HD Audio", intel_hda_and_codec_init);
@@ -1267,3 +1259,8 @@ type_init(intel_hda_register_types)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE_ABSTRACT(HDACodecDevice, HDACodecDeviceClass,
                                TYPE_HDA_CODEC_DEVICE, TYPE_DEVICE)
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(IntelHDAState,
+                                            TYPE_INTEL_HDA_GENERIC,
+                                            TYPE_PCI_DEVICE,
+                                            intel_hda_interfaces)

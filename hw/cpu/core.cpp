@@ -63,23 +63,21 @@ static void core_prop_set_nr_threads(Object *obj, Visitor *v, const char *name,
     core->nr_threads = value;
 }
 
-static void cpu_core_instance_init(Object *obj)
+void CPUCore::init()
 {
-    CPUCore *core = CPU_CORE(obj);
-
     /*
      * Only '-device something-cpu-core,help' can get us there before
      * the machine has been created. We don't care to set nr_threads
      * in this case since it isn't used afterwards.
      */
     if (current_machine) {
-        core->nr_threads = current_machine->smp.threads;
+        nr_threads = current_machine->smp.threads;
     }
 }
 
-static void cpu_core_class_init(ObjectClass *oc, const void *data)
+void CPUCore::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
 
     set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     object_class_property_add(oc, "core-id", "int", core_prop_get_core_id,
@@ -88,18 +86,6 @@ static void cpu_core_class_init(ObjectClass *oc, const void *data)
                               core_prop_set_nr_threads, NULL, NULL);
 }
 
-static const TypeInfo cpu_core_type_info = {
-    .name = TYPE_CPU_CORE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(CPUCore),
-    .instance_init = cpu_core_instance_init,
-    .is_abstract = true,
-    .class_init = cpu_core_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void cpu_core_register_types(void)
-{
-    type_register_static(&cpu_core_type_info);
-}
-
-type_init(cpu_core_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(CPUCore, TYPE_CPU_CORE, TYPE_DEVICE)

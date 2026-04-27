@@ -58,6 +58,10 @@ struct PCIIDEState {
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);

@@ -193,6 +193,7 @@ struct HDAAudioState {
     void reset();
     static void resetWrapper(DeviceState *dev);
     static void baseClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void outputClassInit(ObjectClass *klass, const void *data);
     static void duplexClassInit(ObjectClass *klass, const void *data);
     static void microClassInit(ObjectClass *klass, const void *data);
@@ -936,13 +937,10 @@ void HDAAudioState::baseClassInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, hda_audio_properties);
 }
 
-static const TypeInfo hda_audio_info = {
-    .name          = TYPE_HDA_AUDIO,
-    .parent        = TYPE_HDA_CODEC_DEVICE,
-    .instance_size = sizeof(HDAAudioState),
-    .is_abstract   = true,
-    .class_init    = HDAAudioState::baseClassInit,
-};
+void HDAAudioState::classInit(DeviceClass *dc)
+{
+    baseClassInit(reinterpret_cast<ObjectClass *>(dc), nullptr);
+}
 
 void HDAAudioState::outputClassInit(ObjectClass *klass, const void *data)
 {
@@ -991,10 +989,15 @@ static const TypeInfo hda_audio_micro_info = {
 
 static void hda_audio_register_types(void)
 {
-    type_register_static(&hda_audio_info);
     type_register_static(&hda_audio_output_info);
     type_register_static(&hda_audio_duplex_info);
     type_register_static(&hda_audio_micro_info);
 }
 
 type_init(hda_audio_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(HDAAudioState,
+                                     TYPE_HDA_AUDIO,
+                                     TYPE_HDA_CODEC_DEVICE)

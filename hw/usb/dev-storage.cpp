@@ -600,9 +600,9 @@ static const VMStateDescription vmstate_usb_msd = {
     .fields = vmstate_usb_msd_fields
 };
 
-static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)
+void MSDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->product_desc   = "QEMU USB MSD";
@@ -617,17 +617,8 @@ static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_usb_msd;
 }
 
-static const TypeInfo usb_storage_dev_type_info = {
-    .name = TYPE_USB_STORAGE,
-    .parent = TYPE_USB_DEVICE,
-    .instance_size = sizeof(MSDState),
-    .is_abstract = true,
-    .class_init = usb_msd_class_initfn_common,
-};
+#include "qom/cpp/object.h"
 
-static void usb_msd_register_types(void)
-{
-    type_register_static(&usb_storage_dev_type_info);
-}
-
-type_init(usb_msd_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(MSDState,
+                                     TYPE_USB_STORAGE,
+                                     TYPE_USB_DEVICE)

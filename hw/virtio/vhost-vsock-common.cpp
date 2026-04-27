@@ -290,9 +290,9 @@ static const Property vhost_vsock_common_properties[] = {
                             ON_OFF_AUTO_AUTO),
 };
 
-static void vhost_vsock_common_class_init(ObjectClass *klass, const void *data)
+void VHostVSockCommon::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vhost_vsock_common_properties);
@@ -302,17 +302,8 @@ static void vhost_vsock_common_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = vhost_vsock_common_get_vhost;
 }
 
-static const TypeInfo vhost_vsock_common_info = {
-    .name = TYPE_VHOST_VSOCK_COMMON,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VHostVSockCommon),
-    .is_abstract = true,
-    .class_init = vhost_vsock_common_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void vhost_vsock_common_register_types(void)
-{
-    type_register_static(&vhost_vsock_common_info);
-}
-
-type_init(vhost_vsock_common_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(VHostVSockCommon,
+                                     TYPE_VHOST_VSOCK_COMMON,
+                                     TYPE_VIRTIO_DEVICE)

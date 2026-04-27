@@ -23,6 +23,11 @@ struct CPUCore {
     /*< public >*/
     int core_id;
     int nr_threads;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /* Note: topology field names need to be kept in sync with

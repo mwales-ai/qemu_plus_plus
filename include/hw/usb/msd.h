@@ -45,6 +45,10 @@ struct MSDState {
     bool commandlog;
     SCSIDevice *scsi_dev;
     bool needs_reset;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct MSDState MSDState;
