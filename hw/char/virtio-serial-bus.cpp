@@ -1160,9 +1160,9 @@ static const Property virtio_serial_properties[] = {
                       VIRTIO_CONSOLE_F_EMERG_WRITE, true),
 };
 
-static void virtio_serial_class_init(ObjectClass *klass, const void *data)
+void VirtIOSerial::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
@@ -1184,22 +1184,18 @@ static void virtio_serial_class_init(ObjectClass *klass, const void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
-static const TypeInfo virtio_device_info = {
-    .name = TYPE_VIRTIO_SERIAL,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOSerial),
-    .class_init = virtio_serial_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+static const InterfaceInfo virtio_serial_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-static void virtio_serial_register_types(void)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(VirtIOSerial, TYPE_VIRTIO_SERIAL, TYPE_VIRTIO_DEVICE,
+                            virtio_serial_interfaces)
+
+static void register_virtser_bus_and_port_types(void)
 {
     type_register_static(&virtser_bus_info);
     type_register_static(&virtio_serial_port_type_info);
-    type_register_static(&virtio_device_info);
 }
-
-type_init(virtio_serial_register_types)
+type_init(register_virtser_bus_and_port_types)

@@ -435,13 +435,12 @@ static const VMStateDescription qemu_s390_flic_vmstate = {
     }
 };
 
-static void qemu_s390_flic_instance_init(Object *obj)
+void QEMUS390FLICState::init()
 {
-    QEMUS390FLICState *flic = QEMU_S390_FLIC(obj);
     int isc;
 
     for (isc = 0; isc < 8; isc++) {
-        QLIST_INIT(&flic->io[isc]);
+        QLIST_INIT(&io[isc]);
     }
 }
 
@@ -450,10 +449,10 @@ static const Property qemu_s390_flic_properties[] = {
                      migrate_all_state, true),
 };
 
-static void qemu_s390_flic_class_init(ObjectClass *oc, const void *data)
+void QEMUS390FLICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(klass);
 
     device_class_set_props(dc, qemu_s390_flic_properties);
     device_class_set_legacy_reset(dc, qemu_s390_flic_reset);
@@ -484,30 +483,20 @@ static void s390_flic_class_init(ObjectClass *oc, const void *data)
     dc->realize = s390_flic_common_realize;
 }
 
-static const TypeInfo qemu_s390_flic_info = {
-    .name          = TYPE_QEMU_S390_FLIC,
-    .parent        = TYPE_S390_FLIC_COMMON,
-    .instance_size = sizeof(QEMUS390FLICState),
-    .instance_init = qemu_s390_flic_instance_init,
-    .class_init    = qemu_s390_flic_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(QEMUS390FLICState, TYPE_QEMU_S390_FLIC, TYPE_S390_FLIC_COMMON)
 
-
-static const TypeInfo s390_flic_common_info = {
-    .name          = TYPE_S390_FLIC_COMMON,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(S390FLICState),
-    .class_init    = s390_flic_class_init,
-    .class_size    = sizeof(S390FLICStateClass),
-};
-
-static void qemu_s390_flic_register_types(void)
+static void __attribute__((constructor)) register_s390_flic_common(void)
 {
+    static const TypeInfo s390_flic_common_info = {
+        .name          = TYPE_S390_FLIC_COMMON,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(S390FLICState),
+        .class_init    = s390_flic_class_init,
+        .class_size    = sizeof(S390FLICStateClass),
+    };
     type_register_static(&s390_flic_common_info);
-    type_register_static(&qemu_s390_flic_info);
 }
-
-type_init(qemu_s390_flic_register_types)
 
 const VMStateDescription vmstate_adapter_info_so = {
     .name = "s390_adapter_info/summary_offset",

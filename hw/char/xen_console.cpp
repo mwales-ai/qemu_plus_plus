@@ -55,6 +55,8 @@ struct XenConsole {
     void              *sring;
     CharFrontend       chr;
     int               backlog;
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_XEN_CONSOLE_DEVICE "xen-console"
@@ -491,9 +493,9 @@ static const Property xen_console_properties[] = {
     DEFINE_PROP_INT32("idx", XenConsole, dev, -1),
 };
 
-static void xen_console_class_init(ObjectClass *klass, const void *data)
+void XenConsole::classInit(DeviceClass *dc)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "console";
@@ -504,22 +506,11 @@ static void xen_console_class_init(ObjectClass *klass, const void *data)
     xendev_class->unrealize = xen_console_unrealize;
     xendev_class->get_frontend_path = xen_console_get_frontend_path;
 
-    device_class_set_props(dev_class, xen_console_properties);
+    device_class_set_props(dc, xen_console_properties);
 }
 
-static const TypeInfo xen_console_type_info = {
-    .name = TYPE_XEN_CONSOLE_DEVICE,
-    .parent = TYPE_XEN_DEVICE,
-    .instance_size = sizeof(XenConsole),
-    .class_init = xen_console_class_init,
-};
-
-static void xen_console_register_types(void)
-{
-    type_register_static(&xen_console_type_info);
-}
-
-type_init(xen_console_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenConsole, TYPE_XEN_CONSOLE_DEVICE, TYPE_XEN_DEVICE)
 
 /* Called to instantiate a XenConsole when the backend is detected. */
 static void xen_console_device_create(XenBackendInstance *backend,
