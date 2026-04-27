@@ -393,6 +393,51 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS: abstract base class WITHOUT a custom
+ * class struct. The QOM class layout uses the parent's class_size; only
+ * the state struct is extended. Useful for abstract bases that customize
+ * instance state (e.g., PCIQXLDevice extends PCIDevice) without needing
+ * extra class-level fields.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(ClassName, type_name_str,        \
+                                             parent_type_str)                \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name           = type_name_str,                                     \
+        .parent         = parent_type_str,                                   \
+        .instance_size  = sizeof(ClassName),                                 \
+        .is_abstract    = true,                                              \
+        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES: as above but with interfaces.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(ClassName,                \
+                                                    type_name_str,           \
+                                                    parent_type_str,         \
+                                                    ifaces_array)            \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name           = type_name_str,                                     \
+        .parent         = parent_type_str,                                   \
+        .instance_size  = sizeof(ClassName),                                 \
+        .is_abstract    = true,                                              \
+        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .interfaces     = ifaces_array,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES: like REGISTER_QEMU_DEVICE_CLASS_SIZE
  * but with an InterfaceInfo array.
  */

@@ -127,6 +127,10 @@ struct PCIQXLDevice {
     int                num_dirty_rects;
     QXLRect            dirty[QXL_NUM_DIRTY_RECTS];
     QEMUBH            *update_area_bh;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_PCI_QXL "pci-qxl"

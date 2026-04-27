@@ -452,6 +452,8 @@ struct FloppyDrive {
     uint32_t        unit;
     BlockConf       conf;
     FloppyDriveType type;
+
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property floppy_drive_properties[] = {
@@ -553,22 +555,14 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     fd_revalidate(drive);
 }
 
-static void floppy_drive_class_init(ObjectClass *klass, const void *data)
+void FloppyDrive::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
-    k->realize = floppy_drive_realize;
-    set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
-    k->bus_type = TYPE_FLOPPY_BUS;
-    device_class_set_props(k, floppy_drive_properties);
-    k->desc = "virtual floppy drive";
+    dc->realize = floppy_drive_realize;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->bus_type = TYPE_FLOPPY_BUS;
+    device_class_set_props(dc, floppy_drive_properties);
+    dc->desc = "virtual floppy drive";
 }
-
-static const TypeInfo floppy_drive_info = {
-    .name = TYPE_FLOPPY_DRIVE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FloppyDrive),
-    .class_init = floppy_drive_class_init,
-};
 
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
@@ -2389,10 +2383,10 @@ void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl, Error **errp)
     }
 }
 
-static void fdc_register_types(void)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(FloppyDrive, TYPE_FLOPPY_DRIVE, TYPE_DEVICE)
+
+static void __attribute__((constructor)) register_floppy_bus(void)
 {
     type_register_static(&floppy_bus_info);
-    type_register_static(&floppy_drive_info);
 }
-
-type_init(fdc_register_types)

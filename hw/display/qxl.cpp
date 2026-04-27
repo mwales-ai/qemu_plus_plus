@@ -2507,9 +2507,9 @@ static const Property qxl_properties[] = {
         DEFINE_PROP_BOOL("global-vmstate", PCIQXLDevice, vga.global_vmstate, false),
 };
 
-static void qxl_pci_class_init(ObjectClass *klass, const void *data)
+void PCIQXLDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
@@ -2520,17 +2520,14 @@ static void qxl_pci_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, qxl_properties);
 }
 
-static const TypeInfo qxl_pci_type_info = {
-    .name = TYPE_PCI_QXL,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIQXLDevice),
-    .is_abstract = true,
-    .class_init = qxl_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo qxl_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(PCIQXLDevice, TYPE_PCI_QXL,
+                                            TYPE_PCI_DEVICE, qxl_pci_interfaces)
 
 static void qxl_primary_class_init(ObjectClass *klass, const void *data)
 {
@@ -2569,13 +2566,10 @@ static const TypeInfo qxl_secondary_info = {
 };
 module_obj("qxl");
 
-static void qxl_register_types(void)
+static void __attribute__((constructor)) register_qxl_concretes(void)
 {
-    type_register_static(&qxl_pci_type_info);
     type_register_static(&qxl_primary_info);
     type_register_static(&qxl_secondary_info);
 }
-
-type_init(qxl_register_types)
 
 module_dep("ui-spice-core");
