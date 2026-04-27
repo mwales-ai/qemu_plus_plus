@@ -62,14 +62,20 @@ typedef struct MicrochipPFSoCState {
 #define MICROCHIP_PFSOC(obj) \
     OBJECT_CHECK(MicrochipPFSoCState, (obj), TYPE_MICROCHIP_PFSOC)
 
-typedef struct MicrochipIcicleKitState {
+struct MicrochipIcicleKitState {
     /*< private >*/
     MachineState parent_obj;
 
     /*< public >*/
     uint32_t clint_timebase_freq;
     MicrochipPFSoCState soc;
-} MicrochipIcicleKitState;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
+typedef struct MicrochipIcicleKitState MicrochipIcicleKitState;
 
 #define TYPE_MICROCHIP_ICICLE_KIT_MACHINE \
     MACHINE_TYPE_NAME("microchip-icicle-kit")

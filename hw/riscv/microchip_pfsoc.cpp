@@ -704,15 +704,14 @@ static void microchip_icicle_kit_get_clint_timebase_freq(Object *obj,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static void microchip_icicle_kit_machine_instance_init(Object *obj)
+void MicrochipIcicleKitState::init()
 {
-    MicrochipIcicleKitState *m = MICROCHIP_ICICLE_KIT_MACHINE(obj);
-    m->clint_timebase_freq = 1000000;
+    clint_timebase_freq = 1000000;
 }
 
-static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
-                                                    const void *data)
+void MicrochipIcicleKitState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Microchip PolarFire SoC Icicle Kit";
@@ -741,17 +740,7 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
                                   "Set CLINT timebase frequency in Hz.");
 }
 
-static const TypeInfo microchip_icicle_kit_machine_typeinfo = {
-    .name          = MACHINE_TYPE_NAME("microchip-icicle-kit"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(MicrochipIcicleKitState),
-    .instance_init = microchip_icicle_kit_machine_instance_init,
-    .class_init    = microchip_icicle_kit_machine_class_init,
-};
-
-static void microchip_icicle_kit_machine_init_register_types(void)
-{
-    type_register_static(&microchip_icicle_kit_machine_typeinfo);
-}
-
-type_init(microchip_icicle_kit_machine_init_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MicrochipIcicleKitState,
+                     MACHINE_TYPE_NAME("microchip-icicle-kit"),
+                     TYPE_MACHINE)
