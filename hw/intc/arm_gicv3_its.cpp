@@ -2025,16 +2025,6 @@ static void arm_gicv3_its_class_init(ObjectClass *oc, const void *data)
     icc->post_load = GICv3ITSClass::postLoad;
 }
 
-static void arm_gicv3_its_register_types(void)
-{
-    static TypeInfo arm_gicv3_its_info = {
-        .name          = TYPE_ARM_GICV3_ITS,
-        .parent        = TYPE_ARM_GICV3_ITS_COMMON,
-        .instance_size = sizeof(GICv3ITSState),
-        .class_size    = sizeof(GICv3ITSClass),
-        .class_init    = arm_gicv3_its_class_init,
-    };
-    type_register_static(&arm_gicv3_its_info);
-}
-
-type_init(arm_gicv3_its_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(GICv3ITSState, GICv3ITSClass, TYPE_ARM_GICV3_ITS,
+                               TYPE_ARM_GICV3_ITS_COMMON,
+                               arm_gicv3_its_class_init)

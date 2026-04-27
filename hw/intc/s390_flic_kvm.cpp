@@ -708,17 +708,7 @@ void KVMS390FLICStateClass::classInit(ObjectClass *oc, const void *data)
     fsc->inject_crw_mchk = kvm_s390_inject_crw_mchk;
 }
 
-static const TypeInfo kvm_s390_flic_info = {
-    .name          = TYPE_KVM_S390_FLIC,
-    .parent        = TYPE_S390_FLIC_COMMON,
-    .instance_size = sizeof(KVMS390FLICState),
-    .class_size    = sizeof(KVMS390FLICStateClass),
-    .class_init    = KVMS390FLICStateClass::classInit,
-};
-
-static void kvm_s390_flic_register_types(void)
-{
-    type_register_static(&kvm_s390_flic_info);
-}
-
-type_init(kvm_s390_flic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(KVMS390FLICState, KVMS390FLICStateClass,
+                               TYPE_KVM_S390_FLIC, TYPE_S390_FLIC_COMMON,
+                               KVMS390FLICStateClass::classInit)

@@ -304,17 +304,6 @@ static void kvm_pit_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, kvm_pit_properties);
 }
 
-static const TypeInfo kvm_pit_info = {
-    .name          = TYPE_KVM_I8254,
-    .parent        = TYPE_PIT_COMMON,
-    .instance_size = sizeof(KVMPITState),
-    .class_size = sizeof(KVMPITClass),
-    .class_init = kvm_pit_class_init,
-};
-
-static void kvm_pit_register(void)
-{
-    type_register_static(&kvm_pit_info);
-}
-
-type_init(kvm_pit_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(KVMPITState, KVMPITClass, TYPE_KVM_I8254,
+                               TYPE_PIT_COMMON, kvm_pit_class_init)

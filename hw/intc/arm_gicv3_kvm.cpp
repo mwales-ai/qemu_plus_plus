@@ -963,17 +963,6 @@ static void kvm_arm_gicv3_class_init(ObjectClass *klass, const void *data)
                                        &kgc->parent_phases);
 }
 
-static const TypeInfo kvm_arm_gicv3_info = {
-    .name = TYPE_KVM_ARM_GICV3,
-    .parent = TYPE_ARM_GICV3_COMMON,
-    .instance_size = sizeof(GICv3State),
-    .class_init = kvm_arm_gicv3_class_init,
-    .class_size = sizeof(KVMARMGICv3Class),
-};
-
-static void kvm_arm_gicv3_register_types(void)
-{
-    type_register_static(&kvm_arm_gicv3_info);
-}
-
-type_init(kvm_arm_gicv3_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(GICv3State, KVMARMGICv3Class, TYPE_KVM_ARM_GICV3,
+                               TYPE_ARM_GICV3_COMMON, kvm_arm_gicv3_class_init)

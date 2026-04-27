@@ -259,17 +259,6 @@ static void kvm_arm_its_class_init(ObjectClass *klass, const void *data)
     icc->post_load = kvm_arm_its_post_load;
 }
 
-static const TypeInfo kvm_arm_its_info = {
-    .name = TYPE_KVM_ARM_ITS,
-    .parent = TYPE_ARM_GICV3_ITS_COMMON,
-    .instance_size = sizeof(GICv3ITSState),
-    .class_init = kvm_arm_its_class_init,
-    .class_size = sizeof(KVMARMITSClass),
-};
-
-static void kvm_arm_its_register_types(void)
-{
-    type_register_static(&kvm_arm_its_info);
-}
-
-type_init(kvm_arm_its_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(GICv3ITSState, KVMARMITSClass, TYPE_KVM_ARM_ITS,
+                               TYPE_ARM_GICV3_ITS_COMMON, kvm_arm_its_class_init)

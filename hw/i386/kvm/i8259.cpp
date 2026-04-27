@@ -151,17 +151,6 @@ static void kvm_i8259_class_init(ObjectClass *klass, const void *data)
     k->post_load  = kvm_pic_put;
 }
 
-static const TypeInfo kvm_i8259_info = {
-    .name = TYPE_KVM_I8259,
-    .parent = TYPE_PIC_COMMON,
-    .instance_size = sizeof(PICCommonState),
-    .class_size = sizeof(KVMPICClass),
-    .class_init = kvm_i8259_class_init,
-};
-
-static void kvm_pic_register_types(void)
-{
-    type_register_static(&kvm_i8259_info);
-}
-
-type_init(kvm_pic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(PICCommonState, KVMPICClass, TYPE_KVM_I8259,
+                               TYPE_PIC_COMMON, kvm_i8259_class_init)

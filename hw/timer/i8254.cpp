@@ -386,17 +386,6 @@ void PITClass::classInit(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, PITClass::resetfn);
 }
 
-static const TypeInfo pit_info = {
-    .name          = TYPE_I8254,
-    .parent        = TYPE_PIT_COMMON,
-    .instance_size = sizeof(PITCommonState),
-    .class_size    = sizeof(PITClass),
-    .class_init    = PITClass::classInit,
-};
-
-static void pit_register_types(void)
-{
-    type_register_static(&pit_info);
-}
-
-type_init(pit_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(PITCommonState, PITClass, TYPE_I8254,
+                               TYPE_PIT_COMMON, PITClass::classInit)

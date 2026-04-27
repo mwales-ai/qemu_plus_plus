@@ -489,16 +489,5 @@ static void arm_gicv3_class_init(ObjectClass *oc, const void *data)
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }
 
-static void arm_gicv3_register_types(void)
-{
-    static TypeInfo arm_gicv3_info = {
-        .name          = TYPE_ARM_GICV3,
-        .parent        = TYPE_ARM_GICV3_COMMON,
-        .instance_size = sizeof(GICv3State),
-        .class_size    = sizeof(ARMGICv3Class),
-        .class_init    = arm_gicv3_class_init,
-    };
-    type_register_static(&arm_gicv3_info);
-}
-
-type_init(arm_gicv3_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(GICv3State, ARMGICv3Class, TYPE_ARM_GICV3,
+                               TYPE_ARM_GICV3_COMMON, arm_gicv3_class_init)
