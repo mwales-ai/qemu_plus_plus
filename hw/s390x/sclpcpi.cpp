@@ -163,9 +163,9 @@ static const VMStateDescription vmstate_sclpcpi = {
     }
 };
 
-static void cpi_class_init(ObjectClass *klass, const void *data)
+void SCLPEventCPI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SCLPEventClass *k = SCLP_EVENT_CLASS(klass);
 
     dc->user_creatable = false;
@@ -201,16 +201,5 @@ static void cpi_class_init(ObjectClass *klass, const void *data)
             "latest update of CPI data in nanoseconds since the UNIX EPOCH");
 }
 
-static const TypeInfo sclp_cpi_info = {
-    .name          = TYPE_SCLP_EVENT_CPI,
-    .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPEventCPI),
-    .class_init    = cpi_class_init,
-};
-
-static void sclp_cpi_register_types(void)
-{
-    type_register_static(&sclp_cpi_info);
-}
-
-type_init(sclp_cpi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SCLPEventCPI, TYPE_SCLP_EVENT_CPI, TYPE_SCLP_EVENT)

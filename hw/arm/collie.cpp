@@ -70,8 +70,9 @@ struct CollieMachineState {
         arm_load_kernel(cms->sa1110->cpu, machine, &collie_binfo);
     }
 
-    static void classInit(ObjectClass *oc, const void *data)
+    static void classInit(DeviceClass *dc)
     {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
         MachineClass *mc = MACHINE_CLASS(oc);
 
         mc->desc = "Sharp SL-5500 (Collie) PDA (SA-1110)";
@@ -83,16 +84,6 @@ struct CollieMachineState {
     }
 };
 
-static const TypeInfo collie_machine_typeinfo = {
-    .name = TYPE_COLLIE_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(CollieMachineState),
-    .class_init = CollieMachineState::classInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void collie_machine_register_types(void)
-{
-    type_register_static(&collie_machine_typeinfo);
-}
-type_init(collie_machine_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(CollieMachineState, TYPE_COLLIE_MACHINE,
+                             TYPE_MACHINE, arm_machine_interfaces)

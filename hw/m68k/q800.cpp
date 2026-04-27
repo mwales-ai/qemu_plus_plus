@@ -705,9 +705,9 @@ static void q800_set_easc(Object *obj, bool value, Error **errp)
     ms->easc = value;
 }
 
-static void q800_init(Object *obj)
+void Q800MachineState::init()
 {
-    Q800MachineState *ms = Q800_MACHINE(obj);
+    Q800MachineState *ms = this;
 
     /* Default to EASC */
     ms->easc = true;
@@ -728,12 +728,13 @@ static GlobalProperty hw_compat_q800[] = {
 };
 static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
 
-static void q800_machine_class_init(ObjectClass *oc, const void *data)
+void Q800MachineState::classInit(DeviceClass *dc)
 {
     static const char * const valid_cpu_types[] = {
         M68K_CPU_TYPE_NAME("m68040"),
         NULL
     };
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Macintosh Quadra 800";
@@ -751,17 +752,5 @@ static void q800_machine_class_init(ObjectClass *oc, const void *data)
         "Set to off to use ASC rather than EASC");
 }
 
-static const TypeInfo q800_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("q800"),
-    .parent     = TYPE_MACHINE,
-    .instance_init = q800_init,
-    .instance_size = sizeof(Q800MachineState),
-    .class_init = q800_machine_class_init,
-};
-
-static void q800_machine_register_types(void)
-{
-    type_register_static(&q800_machine_typeinfo);
-}
-
-type_init(q800_machine_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Q800MachineState, MACHINE_TYPE_NAME("q800"), TYPE_MACHINE)

@@ -99,7 +99,7 @@ struct ZynqMachineState {
     /* methods */
     static void setBootMode(Object *obj, const char *str, Error **errp);
     static void machineInit(MachineState *machine);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static void zynq_write_board_setup(ARMCPU *cpu,
@@ -460,12 +460,13 @@ void ZynqMachineState::machineInit(MachineState *machine)
     arm_load_kernel(zynq_machine->cpu[0], machine, &zynq_binfo);
 }
 
-void ZynqMachineState::classInit(ObjectClass *oc, const void *data)
+void ZynqMachineState::classInit(DeviceClass *dc)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
         NULL
     };
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     ObjectProperty *prop;
     mc->desc = "Xilinx Zynq 7000 Platform Baseboard for Cortex-A9";
@@ -482,17 +483,6 @@ void ZynqMachineState::classInit(ObjectClass *oc, const void *data)
     object_property_set_default_str(prop, "qspi");
 }
 
-static const TypeInfo zynq_machine_type = {
-    .name = TYPE_ZYNQ_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(ZynqMachineState),
-    .class_init = ZynqMachineState::classInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void zynq_machine_register_types(void)
-{
-    type_register_static(&zynq_machine_type);
-}
-
-type_init(zynq_machine_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ZynqMachineState, TYPE_ZYNQ_MACHINE,
+                             TYPE_MACHINE, arm_machine_interfaces)

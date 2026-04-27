@@ -338,12 +338,13 @@ static void spike_set_signature(Object *obj, const char *val, Error **errp)
     sig_file = g_strdup(val);
 }
 
-static void spike_machine_instance_init(Object *obj)
+void SpikeState::init()
 {
 }
 
-static void spike_machine_class_init(ObjectClass *oc, const void *data)
+void SpikeState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Spike board";
@@ -368,17 +369,5 @@ static void spike_machine_class_init(ObjectClass *oc, const void *data)
                                           "file");
 }
 
-static const TypeInfo spike_machine_typeinfo = {
-    .name          = MACHINE_TYPE_NAME("spike"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SpikeState),
-    .instance_init = spike_machine_instance_init,
-    .class_init    = spike_machine_class_init,
-};
-
-static void spike_machine_init_register_types(void)
-{
-    type_register_static(&spike_machine_typeinfo);
-}
-
-type_init(spike_machine_init_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpikeState, TYPE_SPIKE_MACHINE, TYPE_MACHINE)

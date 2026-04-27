@@ -70,6 +70,9 @@ struct X86IOMMUState {
     bool pt_supported;          /* Whether vIOMMU supports pass-through */
     bool dma_translation;       /* Whether vIOMMU supports DMA translation */
     QLIST_HEAD(, IEC_Notifier) iec_notifiers; /* IEC notify list */
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 bool x86_iommu_ir_supported(X86IOMMUState *s);

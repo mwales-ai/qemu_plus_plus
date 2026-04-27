@@ -26,6 +26,12 @@ struct VFIOUserPCIDevice {
     bool send_queued;   /* all sends are queued */
     uint32_t wait_time; /* timeout for message replies */
     bool no_post;       /* all region writes are sync */
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*
@@ -344,13 +350,13 @@ error:
     vfio_pci_put_device(vdev);
 }
 
-static void vfio_user_pci_init(Object *obj)
+void VFIOUserPCIDevice::init()
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
-    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
+    PCIDevice *pci_dev = PCI_DEVICE(this);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(this);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
-    device_add_bootindex_property(obj, &vdev->bootindex,
+    device_add_bootindex_property(OBJECT(this), &vdev->bootindex,
                                   "bootindex", NULL,
                                   &pci_dev->qdev);
     vdev->host.domain = ~0U;
@@ -370,9 +376,9 @@ static void vfio_user_pci_init(Object *obj)
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static void vfio_user_pci_finalize(Object *obj)
+void VFIOUserPCIDevice::finalize()
 {
-    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(obj);
+    VFIOPCIDevice *vdev = VFIO_PCI_DEVICE(this);
     VFIODevice *vbasedev = &vdev->vbasedev;
 
     if (vdev->msix != NULL) {
@@ -446,9 +452,9 @@ static void vfio_user_pci_set_socket(Object *obj, Visitor *v, const char *name,
     }
 }
 
-static void vfio_user_pci_class_init(ObjectClass *klass, const void *data)
+void VFIOUserPCIDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pdc = PCI_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, vfio_user_pci_reset);
@@ -463,18 +469,5 @@ static void vfio_user_pci_class_init(ObjectClass *klass, const void *data)
     pdc->realize = vfio_user_pci_realize;
 }
 
-static const TypeInfo vfio_user_pci_info = {
-    .name = TYPE_VFIO_USER_PCI,
-    .parent = TYPE_VFIO_PCI_DEVICE,
-    .instance_size = sizeof(VFIOUserPCIDevice),
-    .instance_init = vfio_user_pci_init,
-    .instance_finalize = vfio_user_pci_finalize,
-    .class_init = vfio_user_pci_class_init,
-};
-
-static void register_vfio_user_dev_type(void)
-{
-    type_register_static(&vfio_user_pci_info);
-}
-
-type_init(register_vfio_user_dev_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VFIOUserPCIDevice, TYPE_VFIO_USER_PCI, TYPE_VFIO_PCI_DEVICE)

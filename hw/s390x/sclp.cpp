@@ -399,21 +399,22 @@ static void sclp_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void sclp_init(Object *obj)
+void SCLPDevice::init()
 {
-    SCLPDevice *sclp = SCLP(obj);
     Object *new;
 
     new = object_new(TYPE_SCLP_EVENT_FACILITY);
-    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new);
+    object_property_add_child(OBJECT(this), TYPE_SCLP_EVENT_FACILITY, new);
     object_unref(new);
-    sclp->event_facility = EVENT_FACILITY(new);
+    event_facility = EVENT_FACILITY(new);
 }
 
-static void sclp_class_init(ObjectClass *oc, const void *data)
+#include "qom/cpp/object.h"
+
+void SCLPDevice::classInit(DeviceClass *dc)
 {
-    SCLPDeviceClass *sc = SCLP_CLASS(oc);
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    SCLPDeviceClass *sc = SCLP_CLASS(klass);
 
     dc->desc = "SCLP (Service-Call Logical Processor)";
     dc->realize = sclp_realize;
@@ -431,17 +432,5 @@ static void sclp_class_init(ObjectClass *oc, const void *data)
     sc->service_interrupt = service_interrupt;
 }
 
-static const TypeInfo sclp_info = {
-    .name = TYPE_SCLP,
-    .parent = TYPE_DEVICE,
-    .instance_init = sclp_init,
-    .instance_size = sizeof(SCLPDevice),
-    .class_init = sclp_class_init,
-    .class_size = sizeof(SCLPDeviceClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&sclp_info);
-}
-type_init(register_types);
+REGISTER_QEMU_DEVICE_CLASS_SIZE(SCLPDevice, SCLPDeviceClass,
+                                TYPE_SCLP, TYPE_DEVICE)

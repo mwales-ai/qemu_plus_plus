@@ -103,6 +103,10 @@ struct MicrovmMachineState {
     struct GPEXConfig gpex;
 
     uint32_t ioapic_phandle[2];
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")

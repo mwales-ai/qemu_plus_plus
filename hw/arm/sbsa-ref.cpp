@@ -109,7 +109,8 @@ struct SBSAMachineState {
     DeviceState *gic;
     PFlashCFI01 *flash[2];
 
-    static void classInit(ObjectClass *oc, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
@@ -888,15 +889,14 @@ sbsa_ref_get_default_cpu_node_id(const MachineState *ms, int idx)
     return idx % ms->numa_state->num_nodes;
 }
 
-static void sbsa_ref_instance_init(Object *obj)
+void SBSAMachineState::init()
 {
-    SBSAMachineState *sms = reinterpret_cast<SBSAMachineState *>(obj);
-
-    sbsa_flash_create(sms);
+    sbsa_flash_create(this);
 }
 
-void SBSAMachineState::classInit(ObjectClass *oc, const void *data)
+void SBSAMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a57"),
@@ -929,18 +929,6 @@ void SBSAMachineState::classInit(ObjectClass *oc, const void *data)
     mc->cpu_cluster_has_numa_boundary = true;
 }
 
-static const TypeInfo sbsa_ref_info = {
-    .name          = TYPE_SBSA_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SBSAMachineState),
-    .instance_init = sbsa_ref_instance_init,
-    .class_init    = SBSAMachineState::classInit,
-    .interfaces    = aarch64_machine_interfaces,
-};
-
-static void sbsa_ref_machine_init(void)
-{
-    type_register_static(&sbsa_ref_info);
-}
-
-type_init(sbsa_ref_machine_init);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SBSAMachineState, TYPE_SBSA_MACHINE, TYPE_MACHINE,
+                             aarch64_machine_interfaces)

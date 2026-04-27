@@ -58,6 +58,10 @@ struct XenPVHMachineClass {
 struct XenPVHMachineState {
     /*< private >*/
     MachineState parent;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 
     XenIOState ioreq;
 

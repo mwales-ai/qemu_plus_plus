@@ -1750,9 +1750,9 @@ static void virt_machine_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&s->machine_done);
 }
 
-static void virt_machine_instance_init(Object *obj)
+void RISCVVirtState::init()
 {
-    RISCVVirtState *s = RISCV_VIRT_MACHINE(obj);
+    RISCVVirtState *s = this;
 
     virt_flash_create(s);
 
@@ -1916,8 +1916,9 @@ static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void virt_machine_class_init(ObjectClass *oc, const void *data)
+void RISCVVirtState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
@@ -1989,18 +1990,6 @@ static const InterfaceInfo virt_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo virt_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("virt"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(RISCVVirtState),
-    .instance_init = virt_machine_instance_init,
-    .class_init    = virt_machine_class_init,
-    .interfaces    = virt_machine_interfaces,
-};
-
-static void virt_machine_init_register_types(void)
-{
-    type_register_static(&virt_machine_typeinfo);
-}
-
-type_init(virt_machine_init_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(RISCVVirtState, MACHINE_TYPE_NAME("virt"),
+                             TYPE_MACHINE, virt_machine_interfaces)

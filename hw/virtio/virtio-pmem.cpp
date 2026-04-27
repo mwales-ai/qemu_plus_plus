@@ -167,9 +167,11 @@ static const Property virtio_pmem_properties[] = {
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
 };
 
-static void virtio_pmem_class_init(ObjectClass *klass, const void *data)
+#include "qom/cpp/object.h"
+
+void VirtIOPMEM::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_CLASS(klass);
 
@@ -185,17 +187,5 @@ static void virtio_pmem_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo virtio_pmem_info = {
-    .name          = TYPE_VIRTIO_PMEM,
-    .parent        = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOPMEM),
-    .class_size    = sizeof(VirtIOPMEMClass),
-    .class_init    = virtio_pmem_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_pmem_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(VirtIOPMEM, VirtIOPMEMClass,
+                                TYPE_VIRTIO_PMEM, TYPE_VIRTIO_DEVICE)

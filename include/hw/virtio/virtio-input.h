@@ -73,6 +73,10 @@ struct VirtIOInput {
     uint32_t                          qindex, qsize;
 
     bool                              active;
+#ifdef __cplusplus
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct VirtIOInputClass {

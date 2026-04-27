@@ -70,6 +70,11 @@ struct Q800MachineState {
     MemoryRegion macio_alias;
     MemoryRegion machine_id;
     MemoryRegion escc_alias;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_Q800_MACHINE MACHINE_TYPE_NAME("q800")

@@ -615,17 +615,15 @@ static void microvm_machine_set_auto_kernel_cmdline(Object *obj, bool value,
     mms->auto_kernel_cmdline = value;
 }
 
-static void microvm_machine_initfn(Object *obj)
+void MicrovmMachineState::init()
 {
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-
     /* Configuration */
-    mms->rtc = ON_OFF_AUTO_AUTO;
-    mms->pcie = ON_OFF_AUTO_AUTO;
-    mms->ioapic2 = ON_OFF_AUTO_AUTO;
-    mms->isa_serial = true;
-    mms->option_roms = true;
-    mms->auto_kernel_cmdline = true;
+    rtc = ON_OFF_AUTO_AUTO;
+    pcie = ON_OFF_AUTO_AUTO;
+    ioapic2 = ON_OFF_AUTO_AUTO;
+    isa_serial = true;
+    option_roms = true;
+    auto_kernel_cmdline = true;
 }
 
 GlobalProperty microvm_properties[] = {
@@ -638,8 +636,9 @@ GlobalProperty microvm_properties[] = {
     { TYPE_VFIO_PCI_NOHOTPLUG, "use-legacy-x86-rom", "true" },
 };
 
-static void microvm_class_init(ObjectClass *oc, const void *data)
+void MicrovmMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
     MicrovmMachineClass *mmc = MICROVM_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -722,21 +721,13 @@ static void microvm_class_init(ObjectClass *oc, const void *data)
                      G_N_ELEMENTS(microvm_properties));
 }
 
-static const TypeInfo microvm_machine_info = {
-    .name          = TYPE_MICROVM_MACHINE,
-    .parent        = TYPE_X86_MACHINE,
-    .instance_size = sizeof(MicrovmMachineState),
-    .instance_init = microvm_machine_initfn,
-    .class_size    = sizeof(MicrovmMachineClass),
-    .class_init    = microvm_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-    },
+static const InterfaceInfo microvm_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-static void microvm_machine_init(void)
-{
-    type_register_static(&microvm_machine_info);
-}
-type_init(microvm_machine_init);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(MicrovmMachineState, MicrovmMachineClass,
+                                       TYPE_MICROVM_MACHINE, TYPE_X86_MACHINE,
+                                       microvm_machine_interfaces)

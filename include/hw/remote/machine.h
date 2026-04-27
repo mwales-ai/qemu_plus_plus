@@ -30,6 +30,11 @@ struct RemoteMachineState {
     bool vfio_user;
 
     bool auto_shutdown;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /* Used to pass to co-routine device and ioc. */

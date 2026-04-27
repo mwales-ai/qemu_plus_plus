@@ -173,27 +173,14 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void isa_superio_class_init(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
+#include "qom/cpp/object.h"
 
+void ISASuperIODevice::classInit(DeviceClass *dc)
+{
     dc->realize = isa_superio_realize;
     /* Reason: Uses parallel_hds[0] in realize(), so it can't be used twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo isa_superio_type_info = {
-    .name = TYPE_ISA_SUPERIO,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISASuperIODevice),
-    .is_abstract = true,
-    .class_size = sizeof(ISASuperIOClass),
-    .class_init = isa_superio_class_init,
-};
-
-static void isa_superio_register_types(void)
-{
-    type_register_static(&isa_superio_type_info);
-}
-
-type_init(isa_superio_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(ISASuperIODevice, ISASuperIOClass,
+                              TYPE_ISA_SUPERIO, TYPE_ISA_DEVICE)

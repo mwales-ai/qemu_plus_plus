@@ -63,6 +63,10 @@ struct KVMS390StAttribState {
     S390StAttribState parent_obj;
     uint64_t still_dirty;
     uint8_t *incoming_buffer;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void s390_stattrib_init(void);

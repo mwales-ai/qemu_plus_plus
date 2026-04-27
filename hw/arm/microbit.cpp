@@ -62,8 +62,9 @@ struct MicrobitMachineState {
                            0, s->nrf51.flash_size);
     }
 
-    static void classInit(ObjectClass *oc, const void *data)
+    static void classInit(DeviceClass *dc)
     {
+        ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
         MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
         mc->desc = "BBC micro:bit (Cortex-M0)";
@@ -72,17 +73,6 @@ struct MicrobitMachineState {
     }
 };
 
-static const TypeInfo microbit_info = {
-    .name = TYPE_MICROBIT_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(MicrobitMachineState),
-    .class_init = MicrobitMachineState::classInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void microbit_machine_init(void)
-{
-    type_register_static(&microbit_info);
-}
-
-type_init(microbit_machine_init);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(MicrobitMachineState, TYPE_MICROBIT_MACHINE,
+                             TYPE_MACHINE, arm_machine_interfaces)

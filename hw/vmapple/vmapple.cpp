@@ -72,8 +72,8 @@ struct VMAppleMachineState {
     uint64_t uuid;
 
     /* methods */
-    static void machineClassInit(ObjectClass *oc, const void *data);
-    static void instanceInit(Object *obj);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_VMAPPLE_MACHINE   MACHINE_TYPE_NAME("vmapple")
@@ -577,8 +577,9 @@ static GlobalProperty vmapple_compat_defaults[] = {
     { TYPE_XHCI_PCI, "conditional-intr-mapping", "on" },
 };
 
-void VMAppleMachineState::machineClassInit(ObjectClass *oc, const void *data)
+void VMAppleMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->init = mach_vmapple_init;
@@ -598,9 +599,10 @@ void VMAppleMachineState::machineClassInit(ObjectClass *oc, const void *data)
                      G_N_ELEMENTS(vmapple_compat_defaults));
 }
 
-void VMAppleMachineState::instanceInit(Object *obj)
+void VMAppleMachineState::init()
 {
-    VMAppleMachineState *vms = VMAPPLE_MACHINE(obj);
+    VMAppleMachineState *vms = this;
+    Object *obj = OBJECT(this);
 
     vms->irqmap = irqmap;
 
@@ -609,17 +611,6 @@ void VMAppleMachineState::instanceInit(Object *obj)
     object_property_set_description(obj, "uuid", "Machine UUID (SDOM)");
 }
 
-static const TypeInfo vmapple_machine_info = {
-    .name          = TYPE_VMAPPLE_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(VMAppleMachineState),
-    .class_init    = VMAppleMachineState::machineClassInit,
-    .instance_init = VMAppleMachineState::instanceInit,
-};
-
-static void machvmapple_machine_init(void)
-{
-    type_register_static(&vmapple_machine_info);
-}
-type_init(machvmapple_machine_init);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VMAppleMachineState, TYPE_VMAPPLE_MACHINE, TYPE_MACHINE)
 

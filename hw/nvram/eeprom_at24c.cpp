@@ -245,19 +245,5 @@ void EEPROMState::classInit(DeviceClass *dc)
 
 #include "qom/cpp/object.h"
 
-static void EEPROMState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name              = TYPE_AT24C_EE,
-        .parent            = TYPE_I2C_SLAVE,
-        .instance_size     = sizeof(EEPROMState),
-        .instance_init     = qemu_device_detail::get_instance_init<EEPROMState>(),
-        .instance_finalize = qemu_device_detail::get_instance_finalize<EEPROMState>(),
-        .class_size        = sizeof(I2CSlaveClass),
-        .class_init        = qemu_device_detail::trampoline_class_init<EEPROMState>,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<EEPROMState>();
-    type_register_static(&info);
-}
-
-type_init(EEPROMState_cpp_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(EEPROMState, I2CSlaveClass,
+                                TYPE_AT24C_EE, TYPE_I2C_SLAVE)

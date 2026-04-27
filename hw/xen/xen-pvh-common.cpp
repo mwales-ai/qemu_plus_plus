@@ -369,9 +369,12 @@ do {                                                                      \
 #endif
 }
 
-static void xen_pvh_class_init(ObjectClass *oc, const void *data)
+#include "qom/cpp/object.h"
+
+void XenPVHMachineState::classInit(DeviceClass *dc)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    MachineClass *mc = MACHINE_CLASS(klass);
 
     mc->init = xen_pvh_init;
 
@@ -382,18 +385,5 @@ static void xen_pvh_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 0;
 }
 
-static const TypeInfo xen_pvh_info = {
-    .name = TYPE_XEN_PVH_MACHINE,
-    .parent = TYPE_MACHINE,
-    .is_abstract = true,
-    .instance_size = sizeof(XenPVHMachineState),
-    .class_size = sizeof(XenPVHMachineClass),
-    .class_init = xen_pvh_class_init,
-};
-
-static void xen_pvh_register_types(void)
-{
-    type_register_static(&xen_pvh_info);
-}
-
-type_init(xen_pvh_register_types);
+REGISTER_QEMU_DEVICE_ABSTRACT(XenPVHMachineState, XenPVHMachineClass,
+                              TYPE_XEN_PVH_MACHINE, TYPE_MACHINE)

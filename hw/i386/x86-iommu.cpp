@@ -133,30 +133,19 @@ static const Property x86_iommu_properties[] = {
     DEFINE_PROP_BOOL("dma-translation", X86IOMMUState, dma_translation, true),
 };
 
-static void x86_iommu_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->realize = x86_iommu_realize;
-    device_class_set_props(dc, x86_iommu_properties);
-}
-
 extern "C" bool x86_iommu_ir_supported(X86IOMMUState *s)
 {
     return s->intr_supported == ON_OFF_AUTO_ON;
 }
 
-static const TypeInfo x86_iommu_info = {
-    .name          = TYPE_X86_IOMMU_DEVICE,
-    .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-    .instance_size = sizeof(X86IOMMUState),
-    .is_abstract   = true,
-    .class_size    = sizeof(X86IOMMUClass),
-    .class_init    = x86_iommu_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void x86_iommu_register_types(void)
+void X86IOMMUState::classInit(DeviceClass *dc)
 {
-    type_register_static(&x86_iommu_info);
+    dc->realize = x86_iommu_realize;
+    device_class_set_props(dc, x86_iommu_properties);
 }
 
-type_init(x86_iommu_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(X86IOMMUState, X86IOMMUClass,
+                              TYPE_X86_IOMMU_DEVICE,
+                              TYPE_DYNAMIC_SYS_BUS_DEVICE)

@@ -28,9 +28,9 @@ extern "C" {
 #define NR_VIRTIO_MMIO_DEVICES   \
    (GUEST_VIRTIO_MMIO_SPI_LAST - GUEST_VIRTIO_MMIO_SPI_FIRST)
 
-static void xen_arm_instance_init(Object *obj)
+void XenPVHMachineState::init()
 {
-    XenPVHMachineState *s = XEN_PVH_MACHINE(obj);
+    XenPVHMachineState *s = this;
 
     /* Default values.  */
     MemMapEntry ram_low_val = { GUEST_RAM0_BASE, GUEST_RAM0_SIZE };
@@ -55,8 +55,9 @@ static void xen_pvh_set_pci_intx_irq(void *opaque, int intx_irq, int level)
     }
 }
 
-static void xen_arm_machine_class_init(ObjectClass *oc, const void *data)
+void XenPVHMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     XenPVHMachineClass *xpc = XEN_PVH_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -96,18 +97,6 @@ static void xen_arm_machine_class_init(ObjectClass *oc, const void *data)
     xen_pvh_class_setup_common_props(xpc);
 }
 
-static const TypeInfo xen_arm_machine_type = {
-    .name = TYPE_XEN_ARM,
-    .parent = TYPE_XEN_PVH_MACHINE,
-    .class_init = xen_arm_machine_class_init,
-    .instance_size = sizeof(XenPVHMachineState),
-    .instance_init = xen_arm_instance_init,
-    .interfaces = arm_aarch64_machine_interfaces,
-};
-
-static void xen_arm_machine_register_types(void)
-{
-    type_register_static(&xen_arm_machine_type);
-}
-
-type_init(xen_arm_machine_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(XenPVHMachineState, TYPE_XEN_ARM,
+                             TYPE_XEN_PVH_MACHINE, arm_aarch64_machine_interfaces)

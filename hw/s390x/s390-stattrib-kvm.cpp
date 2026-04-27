@@ -29,11 +29,9 @@ Object *kvm_s390_stattrib_create(void)
     return NULL;
 }
 
-static void kvm_s390_stattrib_instance_init(Object *obj)
+void KVMS390StAttribState::init()
 {
-    KVMS390StAttribState *sas = KVM_S390_STATTRIB(obj);
-
-    sas->still_dirty = 0;
+    still_dirty = 0;
 }
 
 static int kvm_s390_stattrib_read_helper(S390StAttribState *sa,
@@ -188,10 +186,12 @@ static int kvm_s390_stattrib_get_active(S390StAttribState *sa)
     return kvm_s390_cmma_active();
 }
 
-static void kvm_s390_stattrib_class_init(ObjectClass *oc, const void *data)
+#include "qom/cpp/object.h"
+
+void KVMS390StAttribState::classInit(DeviceClass *dc)
 {
-    S390StAttribClass *sac = S390_STATTRIB_CLASS(oc);
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    S390StAttribClass *sac = S390_STATTRIB_CLASS(klass);
 
     sac->get_stattr = kvm_s390_stattrib_get_stattr;
     sac->peek_stattr = kvm_s390_stattrib_peek_stattr;
@@ -205,18 +205,5 @@ static void kvm_s390_stattrib_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo kvm_s390_stattrib_info = {
-    .name          = TYPE_KVM_S390_STATTRIB,
-    .parent        = TYPE_S390_STATTRIB,
-    .instance_init = kvm_s390_stattrib_instance_init,
-    .instance_size = sizeof(KVMS390StAttribState),
-    .class_init    = kvm_s390_stattrib_class_init,
-    .class_size    = sizeof(S390StAttribClass),
-};
-
-static void kvm_s390_stattrib_register_types(void)
-{
-    type_register_static(&kvm_s390_stattrib_info);
-}
-
-type_init(kvm_s390_stattrib_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(KVMS390StAttribState, S390StAttribClass,
+                                TYPE_KVM_S390_STATTRIB, TYPE_S390_STATTRIB)

@@ -1668,38 +1668,37 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
 }
 
 
-static void pc_machine_initfn(Object *obj)
+void PCMachineState::init()
 {
-    PCMachineState *pcms = PC_MACHINE(obj);
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(this);
 
 #ifdef CONFIG_VMPORT
-    pcms->vmport = ON_OFF_AUTO_AUTO;
+    vmport = ON_OFF_AUTO_AUTO;
 #else
-    pcms->vmport = ON_OFF_AUTO_OFF;
+    vmport = ON_OFF_AUTO_OFF;
 #endif /* CONFIG_VMPORT */
-    pcms->max_ram_below_4g = 0; /* use default */
-    pcms->smbios_entry_point_type = pcmc->default_smbios_ep_type;
-    pcms->south_bridge = pcmc->default_south_bridge;
+    max_ram_below_4g = 0; /* use default */
+    smbios_entry_point_type = pcmc->default_smbios_ep_type;
+    south_bridge = pcmc->default_south_bridge;
 
     /* acpi build is enabled by default if machine supports it */
-    pcms->acpi_build_enabled = pcmc->has_acpi_build;
-    pcms->smbus_enabled = true;
-    pcms->sata_enabled = true;
-    pcms->i8042_enabled = true;
-    pcms->max_fw_size = 8 * MiB;
+    acpi_build_enabled = pcmc->has_acpi_build;
+    smbus_enabled = true;
+    sata_enabled = true;
+    i8042_enabled = true;
+    max_fw_size = 8 * MiB;
 #if defined(CONFIG_HPET)
-    pcms->hpet_enabled = true;
+    hpet_enabled = true;
 #endif
-    pcms->fd_bootchk = true;
-    pcms->default_bus_bypass_iommu = false;
+    fd_bootchk = true;
+    default_bus_bypass_iommu = false;
 
-    pc_system_flash_create(pcms);
-    pcms->pcspk = isa_new(TYPE_PC_SPEAKER);
-    object_property_add_alias(OBJECT(pcms), "pcspk-audiodev",
-                              OBJECT(pcms->pcspk), "audiodev");
+    pc_system_flash_create(this);
+    pcspk = isa_new(TYPE_PC_SPEAKER);
+    object_property_add_alias(OBJECT(this), "pcspk-audiodev",
+                              OBJECT(pcspk), "audiodev");
     if (pcmc->pci_enabled) {
-        cxl_machine_init(obj, &pcms->cxl_devices_state);
+        cxl_machine_init(OBJECT(this), &cxl_devices_state);
     }
 }
 
@@ -1727,8 +1726,9 @@ static void pc_machine_wakeup(MachineState *machine)
     cpu_synchronize_all_post_reset();
 }
 
-static void pc_machine_class_init(ObjectClass *oc, const void *data)
+void PCMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
     PCMachineClass *pcmc = PC_MACHINE_CLASS(oc);
@@ -1839,20 +1839,8 @@ static const InterfaceInfo pc_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo pc_machine_info = {
-    .name = TYPE_PC_MACHINE,
-    .parent = TYPE_X86_MACHINE,
-    .instance_size = sizeof(PCMachineState),
-    .instance_init = pc_machine_initfn,
-    .is_abstract = true,
-    .class_size = sizeof(PCMachineClass),
-    .class_init = pc_machine_class_init,
-    .interfaces = pc_machine_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void pc_machine_register_types(void)
-{
-    type_register_static(&pc_machine_info);
-}
-
-type_init(pc_machine_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(PCMachineState, PCMachineClass,
+                                     TYPE_PC_MACHINE, TYPE_X86_MACHINE,
+                                     pc_machine_interfaces)

@@ -200,6 +200,10 @@ struct SCLPDevice {
     DeviceState parent_obj;
 
     struct SCLPEventFacility *event_facility;
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct SCLPDeviceClass {

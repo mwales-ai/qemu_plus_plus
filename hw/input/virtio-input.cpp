@@ -273,17 +273,16 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
     vinput->sts = virtio_add_queue(vdev, 64, virtio_input_handle_sts);
 }
 
-static void virtio_input_finalize(Object *obj)
+void VirtIOInput::finalize()
 {
-    VirtIOInput *vinput = VIRTIO_INPUT(obj);
     VirtIOInputConfig *cfg, *next;
 
-    QTAILQ_FOREACH_SAFE(cfg, &vinput->cfg_list, node, next) {
-        QTAILQ_REMOVE(&vinput->cfg_list, cfg, node);
+    QTAILQ_FOREACH_SAFE(cfg, &cfg_list, node, next) {
+        QTAILQ_REMOVE(&cfg_list, cfg, node);
         g_free(cfg);
     }
 
-    g_free(vinput->queue);
+    g_free(queue);
 }
 
 static void virtio_input_device_unrealize(DeviceState *dev)
@@ -317,10 +316,9 @@ static const Property virtio_input_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOInput, serial),
 };
 
-static void virtio_input_class_init(ObjectClass *klass, const void *data)
+void VirtIOInput::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(reinterpret_cast<ObjectClass *>(dc));
 
     device_class_set_props(dc, virtio_input_properties);
     dc->vmsd           = &vmstate_virtio_input;
@@ -334,21 +332,9 @@ static void virtio_input_class_init(ObjectClass *klass, const void *data)
     vdc->reset        = virtio_input_reset;
 }
 
-static const TypeInfo virtio_input_info = {
-    .name          = TYPE_VIRTIO_INPUT,
-    .parent        = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOInput),
-    .instance_finalize = virtio_input_finalize,
-    .is_abstract      = true,
-    .class_size    = sizeof(VirtIOInputClass),
-    .class_init    = virtio_input_class_init,
-};
-
 /* ----------------------------------------------------------------- */
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_input_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(VirtIOInput, VirtIOInputClass,
+                              TYPE_VIRTIO_INPUT, TYPE_VIRTIO_DEVICE)

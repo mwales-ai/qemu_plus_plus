@@ -127,10 +127,11 @@ static uint64_t get_max_kernel_cmdline_size(void)
     return LEGACY_KERN_PARM_AREA_SIZE;
 }
 
-static void s390_ipl_realize(DeviceState *dev, Error **errp)
+void S390IPLState::realize(Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    S390IPLState *ipl = S390_IPL(dev);
+    S390IPLState *ipl = this;
+    DeviceState *dev = DEVICE(this);
     uint32_t *ipl_psw;
     uint64_t pentry;
     char *magic;
@@ -729,9 +730,9 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
     s390_ipl_prepare_qipl(cpu);
 }
 
-static void s390_ipl_reset(DeviceState *dev)
+void S390IPLState::reset()
 {
-    S390IPLState *ipl = S390_IPL(dev);
+    S390IPLState *ipl = this;
 
     if (ipl->reset_type != S390_RESET_REIPL) {
         ipl->iplb_valid = false;
@@ -739,29 +740,14 @@ static void s390_ipl_reset(DeviceState *dev)
     }
 }
 
-static void s390_ipl_class_init(ObjectClass *klass, const void *data)
+void S390IPLState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = s390_ipl_realize;
     device_class_set_props(dc, s390_ipl_properties);
-    device_class_set_legacy_reset(dc, s390_ipl_reset);
     dc->vmsd = &vmstate_ipl;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     /* Reason: Loads the ROMs and thus can only be used one time - internally */
     dc->user_creatable = false;
 }
 
-static const TypeInfo s390_ipl_info = {
-    .class_init = s390_ipl_class_init,
-    .parent = TYPE_DEVICE,
-    .name  = TYPE_S390_IPL,
-    .instance_size  = sizeof(S390IPLState),
-};
-
-static void s390_ipl_register_types(void)
-{
-    type_register_static(&s390_ipl_info);
-}
-
-type_init(s390_ipl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(S390IPLState, TYPE_S390_IPL, TYPE_DEVICE)

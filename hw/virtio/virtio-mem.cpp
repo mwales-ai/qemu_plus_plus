@@ -1679,12 +1679,12 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
     vmem->block_size = value;
 }
 
-static void virtio_mem_instance_init(Object *obj)
+void VirtIOMEM::init()
 {
-    VirtIOMEM *vmem = VIRTIO_MEM(obj);
+    Object *obj = OBJECT(this);
 
-    notifier_list_init(&vmem->size_change_notifiers);
-    QLIST_INIT(&vmem->rdl_list);
+    notifier_list_init(&size_change_notifiers);
+    QLIST_INIT(&rdl_list);
 
     object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", virtio_mem_get_size,
                         NULL, NULL, NULL);
@@ -1696,19 +1696,17 @@ static void virtio_mem_instance_init(Object *obj)
                         NULL, NULL);
 }
 
-static void virtio_mem_instance_finalize(Object *obj)
+void VirtIOMEM::finalize()
 {
-    VirtIOMEM *vmem = VIRTIO_MEM(obj);
-
     /*
      * Note: the core already dropped the references on all memory regions
      * (it's passed as the owner to memory_region_init_*()) and finalized
      * these objects. We can simply free the memory.
      */
-    g_free(vmem->memslots);
-    vmem->memslots = NULL;
-    g_free(vmem->mr);
-    vmem->mr = NULL;
+    g_free(memslots);
+    memslots = NULL;
+    g_free(mr);
+    mr = NULL;
 }
 
 static const Property virtio_mem_properties[] = {
@@ -1871,9 +1869,9 @@ static void virtio_mem_unplug_request_check(VirtIOMEM *vmem, Error **errp)
     }
 }
 
-static void virtio_mem_class_init(ObjectClass *klass, const void *data)
+void VirtIOMEM::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOMEMClass *vmc = VIRTIO_MEM_CLASS(klass);
     RamDiscardManagerClass *rdmc = RAM_DISCARD_MANAGER_CLASS(klass);
@@ -1913,23 +1911,11 @@ static const InterfaceInfo virtio_mem_interfaces[] = {
     { }
 };
 
-static const TypeInfo virtio_mem_info = {
-    .name = TYPE_VIRTIO_MEM,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOMEM),
-    .instance_init = virtio_mem_instance_init,
-    .instance_finalize = virtio_mem_instance_finalize,
-    .class_size = sizeof(VirtIOMEMClass),
-    .class_init = virtio_mem_class_init,
-    .interfaces = virtio_mem_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_mem_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(VirtIOMEM, VirtIOMEMClass,
+                                       TYPE_VIRTIO_MEM, TYPE_VIRTIO_DEVICE,
+                                       virtio_mem_interfaces)
 
 OBJECT_DEFINE_SIMPLE_TYPE_WITH_INTERFACES(VirtioMemSystemReset, virtio_mem_system_reset, VIRTIO_MEM_SYSTEM_RESET, OBJECT, { TYPE_RESETTABLE_INTERFACE }, { })
 

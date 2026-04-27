@@ -59,14 +59,17 @@
  */
 #define RISCV_IOMMU_PCI_ICVEC_VECTORS 0x3333
 
-typedef struct RISCVIOMMUStatePci {
+struct RISCVIOMMUStatePci {
     PCIDevice        pci;     /* Parent PCIe device state */
     uint16_t         vendor_id;
     uint16_t         device_id;
     uint8_t          revision;
     MemoryRegion     bar0;    /* PCI BAR (including MSI-x config) */
     RISCVIOMMUState  iommu;   /* common IOMMU state */
-} RISCVIOMMUStatePci;
+
+    void init();
+    static void classInit(DeviceClass *dc);
+};
 
 /* interrupt delivery callback */
 static void riscv_iommu_pci_notify(RISCVIOMMUState *iommu, unsigned vector)
@@ -148,10 +151,11 @@ static const VMStateDescription riscv_iommu_vmstate = {
     .unmigratable = 1
 };
 
-static void riscv_iommu_pci_init(Object *obj)
+void RISCVIOMMUStatePci::init()
 {
-    RISCVIOMMUStatePci *s = RISCV_IOMMU_PCI(obj);
+    RISCVIOMMUStatePci *s = this;
     RISCVIOMMUState *iommu = &s->iommu;
+    Object *obj = OBJECT(this);
 
     object_initialize_child(obj, "iommu", iommu, TYPE_RISCV_IOMMU);
     qdev_alias_all_properties(DEVICE(iommu), obj);
@@ -178,9 +182,9 @@ static void riscv_iommu_pci_reset_hold(Object *obj, ResetType type)
     trace_riscv_iommu_pci_reset_hold(type);
 }
 
-static void riscv_iommu_pci_class_init(ObjectClass *klass, const void *data)
+void RISCVIOMMUStatePci::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -202,18 +206,6 @@ static const InterfaceInfo riscv_iommu_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo riscv_iommu_pci = {
-    .name = TYPE_RISCV_IOMMU_PCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(RISCVIOMMUStatePci),
-    .instance_init = riscv_iommu_pci_init,
-    .class_init = riscv_iommu_pci_class_init,
-    .interfaces = riscv_iommu_pci_interfaces,
-};
-
-static void riscv_iommu_register_pci_types(void)
-{
-    type_register_static(&riscv_iommu_pci);
-}
-
-type_init(riscv_iommu_register_pci_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(RISCVIOMMUStatePci, TYPE_RISCV_IOMMU_PCI,
+                             TYPE_PCI_DEVICE, riscv_iommu_pci_interfaces)

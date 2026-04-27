@@ -104,9 +104,9 @@ static void remote_machine_set_auto_shutdown(Object *obj, bool value,
     s->auto_shutdown = value;
 }
 
-static void remote_machine_instance_init(Object *obj)
+void RemoteMachineState::init()
 {
-    RemoteMachineState *s = REMOTE_MACHINE(obj);
+    RemoteMachineState *s = this;
 
     s->auto_shutdown = true;
 }
@@ -121,8 +121,9 @@ static void remote_machine_dev_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-static void remote_machine_class_init(ObjectClass *oc, const void *data)
+void RemoteMachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
@@ -140,21 +141,11 @@ static void remote_machine_class_init(ObjectClass *oc, const void *data)
                                    remote_machine_set_auto_shutdown);
 }
 
-static const TypeInfo remote_machine = {
-    .name = TYPE_REMOTE_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(RemoteMachineState),
-    .instance_init = remote_machine_instance_init,
-    .class_init = remote_machine_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+static const InterfaceInfo remote_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-static void remote_machine_register_types(void)
-{
-    type_register_static(&remote_machine);
-}
-
-type_init(remote_machine_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(RemoteMachineState, TYPE_REMOTE_MACHINE,
+                             TYPE_MACHINE, remote_machine_interfaces)

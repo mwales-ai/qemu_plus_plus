@@ -357,23 +357,22 @@ static int x86_kvm_type(MachineState *ms, const char *vm_type)
     return kvm_enabled() ? kvm_get_vm_type(ms) : 0;
 }
 
-static void x86_machine_initfn(Object *obj)
+void X86MachineState::init()
 {
-    X86MachineState *x86ms = X86_MACHINE(obj);
-
-    x86ms->smm = ON_OFF_AUTO_AUTO;
-    x86ms->acpi = ON_OFF_AUTO_AUTO;
-    x86ms->pit = ON_OFF_AUTO_AUTO;
-    x86ms->pic = ON_OFF_AUTO_AUTO;
-    x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
-    x86ms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
-    x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
-    x86ms->bus_lock_ratelimit = 0;
-    x86ms->above_4g_mem_start = 4 * GiB;
+    smm = ON_OFF_AUTO_AUTO;
+    acpi = ON_OFF_AUTO_AUTO;
+    pit = ON_OFF_AUTO_AUTO;
+    pic = ON_OFF_AUTO_AUTO;
+    pci_irq_mask = ACPI_BUILD_PCI_IRQS;
+    oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
+    oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+    bus_lock_ratelimit = 0;
+    above_4g_mem_start = 4 * GiB;
 }
 
-static void x86_machine_class_init(ObjectClass *oc, const void *data)
+void X86MachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
@@ -446,20 +445,8 @@ static const InterfaceInfo x86_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo x86_machine_info = {
-    .name = TYPE_X86_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(X86MachineState),
-    .instance_init = x86_machine_initfn,
-    .is_abstract = true,
-    .class_size = sizeof(X86MachineClass),
-    .class_init = x86_machine_class_init,
-    .interfaces = x86_machine_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void x86_machine_register_types(void)
-{
-    type_register_static(&x86_machine_info);
-}
-
-type_init(x86_machine_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(X86MachineState, X86MachineClass,
+                                     TYPE_X86_MACHINE, TYPE_MACHINE,
+                                     x86_machine_interfaces)

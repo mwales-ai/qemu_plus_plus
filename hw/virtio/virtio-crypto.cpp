@@ -1277,9 +1277,9 @@ static struct vhost_dev *virtio_crypto_get_vhost(VirtIODevice *vdev)
     return &vhost_crypto->dev;
 }
 
-static void virtio_crypto_class_init(ObjectClass *klass, const void *data)
+void VirtIOCrypto::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, virtio_crypto_properties);
@@ -1296,9 +1296,9 @@ static void virtio_crypto_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = virtio_crypto_get_vhost;
 }
 
-static void virtio_crypto_instance_init(Object *obj)
+void VirtIOCrypto::init()
 {
-    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(obj);
+    VirtIOCrypto *vcrypto = this;
 
     /*
      * The default config_size is sizeof(struct virtio_crypto_config).
@@ -1307,17 +1307,5 @@ static void virtio_crypto_instance_init(Object *obj)
     vcrypto->config_size = sizeof(struct virtio_crypto_config);
 }
 
-static const TypeInfo virtio_crypto_info = {
-    .name = TYPE_VIRTIO_CRYPTO,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOCrypto),
-    .instance_init = virtio_crypto_instance_init,
-    .class_init = virtio_crypto_class_init,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_crypto_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOCrypto, TYPE_VIRTIO_CRYPTO, TYPE_VIRTIO_DEVICE)

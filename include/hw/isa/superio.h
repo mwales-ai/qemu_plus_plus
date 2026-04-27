@@ -36,6 +36,9 @@ struct ISASuperIODevice {
     ISADevice *floppy;
     ISADevice *kbc;
     ISADevice *ide;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct ISASuperIOFuncs {

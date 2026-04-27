@@ -206,6 +206,10 @@ struct SCLPEventCPI {
     uint64_t system_level;
     uint8_t sysplex_name[8];
     uint64_t timestamp;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"

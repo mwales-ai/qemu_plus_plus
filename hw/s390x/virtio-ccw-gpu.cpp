@@ -22,6 +22,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUCcw, VIRTIO_GPU_CCW)
 struct VirtIOGPUCcw {
     VirtioCcwDevice parent_obj;
     VirtIOGPU vdev;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void virtio_ccw_gpu_realize(VirtioCcwDevice *ccw_dev, Error **errp)
@@ -32,13 +37,13 @@ static void virtio_ccw_gpu_realize(VirtioCcwDevice *ccw_dev, Error **errp)
     qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
 }
 
-static void virtio_ccw_gpu_instance_init(Object *obj)
+void VirtIOGPUCcw::init()
 {
-    VirtIOGPUCcw *dev = VIRTIO_GPU_CCW(obj);
-    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+    VirtIOGPUCcw *dev = this;
+    VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(this);
 
     ccw_dev->force_revision_1 = true;
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+    virtio_instance_init_common(OBJECT(this), &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VIRTIO_GPU);
 }
 
@@ -49,9 +54,9 @@ static const Property virtio_ccw_gpu_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_gpu_class_init(ObjectClass *klass, const void *data)
+void VirtIOGPUCcw::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
     k->realize = virtio_ccw_gpu_realize;
@@ -60,23 +65,10 @@ static void virtio_ccw_gpu_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_gpu = {
-    .name          = TYPE_VIRTIO_GPU_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOGPUCcw),
-    .instance_init = virtio_ccw_gpu_instance_init,
-    .class_init    = virtio_ccw_gpu_class_init,
-};
 module_obj(TYPE_VIRTIO_GPU_CCW);
 module_kconfig(VIRTIO_CCW);
 
-static void virtio_ccw_gpu_register(void)
-{
-    if (have_virtio_ccw) {
-        type_register_static(&virtio_ccw_gpu);
-    }
-}
-
-type_init(virtio_ccw_gpu_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOGPUCcw, TYPE_VIRTIO_GPU_CCW, TYPE_VIRTIO_CCW_DEVICE)
 
 module_arch("s390x");

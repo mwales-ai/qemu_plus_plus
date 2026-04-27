@@ -440,6 +440,9 @@ struct SpaprNVDIMMDevice {
      * flush for the nvdimm device even if the backend is a pmem
      */
     bool pmem_override;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static int flush_worker_cb(void *opaque)
@@ -892,39 +895,27 @@ static const Property spapr_nvdimm_properties[] = {
 };
 #endif
 
-static void spapr_nvdimm_class_init(ObjectClass *oc, const void *data)
+void SpaprNVDIMMDevice::init()
 {
-    NVDIMMClass *nvc = NVDIMM_CLASS(oc);
+    hcall_flush_required = false;
+    QLIST_INIT(&pending_nvdimm_flush_states);
+    QLIST_INIT(&completed_nvdimm_flush_states);
+}
+
+#include "qom/cpp/object.h"
+
+void SpaprNVDIMMDevice::classInit(DeviceClass *dc)
+{
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    NVDIMMClass *nvc = NVDIMM_CLASS(klass);
 
     nvc->realize = spapr_nvdimm_realize;
     nvc->unrealize = spapr_nvdimm_unrealize;
 
 #ifdef CONFIG_LIBPMEM
-    device_class_set_props(DEVICE_CLASS(oc), spapr_nvdimm_properties);
+    device_class_set_props(dc, spapr_nvdimm_properties);
 #endif
 }
 
-static void spapr_nvdimm_init(Object *obj)
-{
-    SpaprNVDIMMDevice *s_nvdimm = SPAPR_NVDIMM(obj);
-
-    s_nvdimm->hcall_flush_required = false;
-    QLIST_INIT(&s_nvdimm->pending_nvdimm_flush_states);
-    QLIST_INIT(&s_nvdimm->completed_nvdimm_flush_states);
-}
-
-static const TypeInfo spapr_nvdimm_info = {
-    .name          = TYPE_SPAPR_NVDIMM,
-    .parent        = TYPE_NVDIMM,
-    .instance_size = sizeof(SpaprNVDIMMDevice),
-    .instance_init = spapr_nvdimm_init,
-    .class_size    = sizeof(SPAPRNVDIMMClass),
-    .class_init    = spapr_nvdimm_class_init,
-};
-
-static void spapr_nvdimm_register_types(void)
-{
-    type_register_static(&spapr_nvdimm_info);
-}
-
-type_init(spapr_nvdimm_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(SpaprNVDIMMDevice, SPAPRNVDIMMClass,
+                                TYPE_SPAPR_NVDIMM, TYPE_NVDIMM)

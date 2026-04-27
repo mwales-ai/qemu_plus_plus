@@ -123,6 +123,11 @@ struct VirtIOMEM {
 
     /* Catch system resets -> qemu_devices_reset() only. */
     VirtioMemSystemReset *system_reset;
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct VirtioMemSystemReset {

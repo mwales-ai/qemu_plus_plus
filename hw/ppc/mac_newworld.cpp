@@ -109,8 +109,8 @@ struct Core99MachineState {
 
     Core99ViaConfig via_config;
 
-    static void classInit(ObjectClass *oc, const void *data);
-    static void instanceInit(Object *obj);
+    void init();
+    static void classInit(DeviceClass *dc);
     static char *getViaConfig(Object *obj, Error **errp);
     static void setViaConfig(Object *obj, const char *value, Error **errp);
 };
@@ -563,8 +563,9 @@ static int core99_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
-void Core99MachineState::classInit(ObjectClass *oc, const void *data)
+void Core99MachineState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     FWPathProviderClass *fwc = reinterpret_cast<FWPathProviderClass *>(oc);
 
@@ -620,9 +621,10 @@ void Core99MachineState::setViaConfig(Object *obj, const char *value, Error **er
     }
 }
 
-void Core99MachineState::instanceInit(Object *obj)
+void Core99MachineState::init()
 {
-    Core99MachineState *cms = reinterpret_cast<Core99MachineState *>(obj);
+    Core99MachineState *cms = this;
+    Object *obj = OBJECT(this);
 
     /* Default via_config is CORE99_VIA_CONFIG_CUDA */
     cms->via_config = CORE99_VIA_CONFIG_CUDA;
@@ -638,18 +640,6 @@ static const InterfaceInfo core99_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo core99_machine_info = {
-    .name          = MACHINE_TYPE_NAME("mac99"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(Core99MachineState),
-    .instance_init = Core99MachineState::instanceInit,
-    .class_init    = Core99MachineState::classInit,
-    .interfaces    = core99_machine_interfaces,
-};
-
-static void mac_machine_register_types(void)
-{
-    type_register_static(&core99_machine_info);
-}
-
-type_init(mac_machine_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(Core99MachineState, MACHINE_TYPE_NAME("mac99"),
+                             TYPE_MACHINE, core99_machine_interfaces)
