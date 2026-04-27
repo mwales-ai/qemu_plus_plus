@@ -54,6 +54,11 @@ struct PCDIMMDevice {
     uint32_t node;
     int32_t slot;
     HostMemoryBackend *hostmem;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

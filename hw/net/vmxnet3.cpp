@@ -2232,13 +2232,12 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void vmxnet3_instance_init(Object *obj)
+void VMXNET3State::init()
 {
-    VMXNET3State *s = VMXNET3(obj);
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    device_add_bootindex_property(OBJECT(this), &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
-    PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
+                                  DEVICE(this));
+    parent_obj.cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
 static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
@@ -2482,9 +2481,9 @@ static const Property vmxnet3_properties[] = {
     DEFINE_NIC_PROPERTIES(VMXNET3State, conf),
 };
 
-static void vmxnet3_class_init(ObjectClass *klass, const void *data)
+void VMXNET3State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
 
     c->realize = vmxnet3_pci_realize;
@@ -2509,20 +2508,7 @@ static const InterfaceInfo vmxnet3_interfaces[] = {
     { }
 };
 
-static const TypeInfo vmxnet3_info = {
-    .name          = TYPE_VMXNET3,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VMXNET3State),
-    .instance_init = vmxnet3_instance_init,
-    .class_size    = sizeof(VMXNET3Class),
-    .class_init    = vmxnet3_class_init,
-    .interfaces    = vmxnet3_interfaces,
-};
-
-static void vmxnet3_register_types(void)
-{
-    VMW_CBPRN("vmxnet3_register_types called...");
-    type_register_static(&vmxnet3_info);
-}
-
-type_init(vmxnet3_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(VMXNET3State, VMXNET3Class,
+                                        TYPE_VMXNET3, TYPE_PCI_DEVICE,
+                                        vmxnet3_interfaces)

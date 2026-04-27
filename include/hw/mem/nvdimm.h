@@ -91,6 +91,12 @@ struct NVDIMMDevice {
      * The PPC64 - spapr requires each nvdimm device have a uuid.
      */
     QemuUUID uuid;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct NVDIMMClass {

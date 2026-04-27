@@ -126,8 +126,8 @@ struct PVSCSIState {
     static void reset(DeviceState *dev);
     static void hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp);
     static void hotUnplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 typedef struct PVSCSIRequest {
@@ -1259,14 +1259,14 @@ static const Property pvscsi_properties[] = {
     DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
 };
 
-void PVSCSIState::instanceInit(Object *obj)
+void PVSCSIState::init()
 {
-    reinterpret_cast<PCIDevice *>(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    parent_obj.cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-void PVSCSIState::classInit(ObjectClass *klass, const void *data)
+void PVSCSIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
     HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
@@ -1291,20 +1291,7 @@ static const InterfaceInfo pvscsi_interfaces[] = {
     { }
 };
 
-static const TypeInfo pvscsi_info = {
-    .name          = TYPE_PVSCSI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PVSCSIState),
-    .instance_init = PVSCSIState::instanceInit,
-    .class_size    = sizeof(PVSCSIClass),
-    .class_init    = PVSCSIState::classInit,
-    .interfaces = pvscsi_interfaces,
-};
-
-static void
-pvscsi_register_types(void)
-{
-    type_register_static(&pvscsi_info);
-}
-
-type_init(pvscsi_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(PVSCSIState, PVSCSIClass,
+                                        TYPE_PVSCSI, TYPE_PCI_DEVICE,
+                                        pvscsi_interfaces)

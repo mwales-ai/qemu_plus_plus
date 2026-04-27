@@ -135,6 +135,11 @@ struct VMXNET3State {
 
         /* Compatibility flags for migration */
         uint32_t compat_flags;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

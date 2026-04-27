@@ -831,21 +831,6 @@ static const InterfaceInfo xlnx_csu_dma_interfaces[] = {
 };
 
 #include "qom/cpp/object.h"
-
-static void XlnxCSUDMA_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name              = TYPE_XLNX_CSU_DMA,
-        .parent            = TYPE_SYS_BUS_DEVICE,
-        .instance_size     = sizeof(XlnxCSUDMA),
-        .instance_init     = qemu_device_detail::get_instance_init<XlnxCSUDMA>(),
-        .instance_finalize = qemu_device_detail::get_instance_finalize<XlnxCSUDMA>(),
-        .class_size        = sizeof(XlnxCSUDMAClass),
-        .class_init        = qemu_device_detail::trampoline_class_init<XlnxCSUDMA>,
-        .interfaces        = xlnx_csu_dma_interfaces,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<XlnxCSUDMA>();
-    type_register_static(&info);
-}
-
-type_init(XlnxCSUDMA_cpp_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(XlnxCSUDMA, XlnxCSUDMAClass,
+                                        TYPE_XLNX_CSU_DMA, TYPE_SYS_BUS_DEVICE,
+                                        xlnx_csu_dma_interfaces)

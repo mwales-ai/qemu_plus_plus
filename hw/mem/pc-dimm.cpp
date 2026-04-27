@@ -180,10 +180,10 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void pc_dimm_init(Object *obj)
+void PCDIMMDevice::init()
 {
-    object_property_add(obj, PC_DIMM_SIZE_PROP, "uint64", pc_dimm_get_size,
-                        NULL, NULL, NULL);
+    object_property_add(OBJECT(this), PC_DIMM_SIZE_PROP, "uint64",
+                        pc_dimm_get_size, NULL, NULL, NULL);
 }
 
 static void pc_dimm_realize(DeviceState *dev, Error **errp)
@@ -282,9 +282,9 @@ static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
     }
 }
 
-static void pc_dimm_class_init(ObjectClass *oc, const void *data)
+void PCDIMMDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
 
     dc->realize = pc_dimm_realize;
@@ -305,19 +305,7 @@ static const InterfaceInfo pc_dimm_interfaces[] = {
     { }
 };
 
-static const TypeInfo pc_dimm_info = {
-    .name          = TYPE_PC_DIMM,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PCDIMMDevice),
-    .instance_init = pc_dimm_init,
-    .class_size    = sizeof(PCDIMMDeviceClass),
-    .class_init    = pc_dimm_class_init,
-    .interfaces    = pc_dimm_interfaces,
-};
-
-static void pc_dimm_register_types(void)
-{
-    type_register_static(&pc_dimm_info);
-}
-
-type_init(pc_dimm_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(PCDIMMDevice, PCDIMMDeviceClass,
+                                        TYPE_PC_DIMM, TYPE_DEVICE,
+                                        pc_dimm_interfaces)

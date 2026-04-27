@@ -2100,9 +2100,9 @@ void qmp_cxl_release_dynamic_capacity(const char *path, uint16_t host_id,
     }
 }
 
-static void ct3_class_init(ObjectClass *oc, const void *data)
+void CXLType3Dev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
     CXLType3Class *cvc = CXL_TYPE3_CLASS(oc);
 
@@ -2133,18 +2133,7 @@ static const InterfaceInfo ct3d_interfaces[] = {
     {}
 };
 
-static const TypeInfo ct3d_info = {
-    .name = TYPE_CXL_TYPE3,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(CXLType3Dev),
-    .class_size = sizeof(struct CXLType3Class),
-    .class_init = ct3_class_init,
-    .interfaces = ct3d_interfaces,
-};
-
-static void ct3d_registers(void)
-{
-    type_register_static(&ct3d_info);
-}
-
-type_init(ct3d_registers);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES(CXLType3Dev, CXLType3Class,
+                                        TYPE_CXL_TYPE3, TYPE_PCI_DEVICE,
+                                        ct3d_interfaces)

@@ -97,21 +97,19 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 }
 
 
-static void nvdimm_init(Object *obj)
+void NVDIMMDevice::init()
 {
-    object_property_add(obj, NVDIMM_LABEL_SIZE_PROP, "int",
+    object_property_add(OBJECT(this), NVDIMM_LABEL_SIZE_PROP, "int",
                         nvdimm_get_label_size, nvdimm_set_label_size, NULL,
                         NULL);
 
-    object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", nvdimm_get_uuid,
-                        nvdimm_set_uuid, NULL, NULL);
+    object_property_add(OBJECT(this), NVDIMM_UUID_PROP, "QemuUUID",
+                        nvdimm_get_uuid, nvdimm_set_uuid, NULL, NULL);
 }
 
-static void nvdimm_finalize(Object *obj)
+void NVDIMMDevice::finalize()
 {
-    NVDIMMDevice *nvdimm = NVDIMM(obj);
-
-    g_free(nvdimm->nvdimm_mr);
+    g_free(nvdimm_mr);
 }
 
 static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
@@ -250,12 +248,12 @@ static const Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
 };
 
-static void nvdimm_class_init(ObjectClass *oc, const void *data)
+void NVDIMMDevice::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     PCDIMMDeviceClass *ddc = PC_DIMM_CLASS(oc);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(oc);
     NVDIMMClass *nvc = NVDIMM_CLASS(oc);
-    DeviceClass *dc = DEVICE_CLASS(oc);
 
     ddc->realize = nvdimm_realize;
     ddc->unrealize = nvdimm_unrealize;
@@ -267,19 +265,6 @@ static void nvdimm_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo nvdimm_info = {
-    .name          = TYPE_NVDIMM,
-    .parent        = TYPE_PC_DIMM,
-    .instance_size = sizeof(NVDIMMDevice),
-    .instance_init = nvdimm_init,
-    .instance_finalize = nvdimm_finalize,
-    .class_size    = sizeof(NVDIMMClass),
-    .class_init    = nvdimm_class_init,
-};
-
-static void nvdimm_register_types(void)
-{
-    type_register_static(&nvdimm_info);
-}
-
-type_init(nvdimm_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(NVDIMMDevice, NVDIMMClass,
+                                 TYPE_NVDIMM, TYPE_PC_DIMM)

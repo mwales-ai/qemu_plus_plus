@@ -647,6 +647,10 @@ struct CXLType3Dev {
     } dc;
 
     struct CXLSanitizeInfo *media_op_sanitize;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_CXL_TYPE3 "cxl-type3"
