@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 struct VFIOCCWDevice {
     S390CCWDevice cdev;
@@ -51,6 +52,11 @@ struct VFIOCCWDevice {
     EventNotifier crw_notifier;
     EventNotifier req_notifier;
     bool force_orb_pfch;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static void vfio_ccw_compute_needs_reset(VFIODevice *vdev)
@@ -659,10 +665,9 @@ static const VMStateDescription vfio_ccw_vmstate = {
     .unmigratable = 1,
 };
 
-static void vfio_ccw_instance_init(Object *obj)
+void VFIOCCWDevice::init()
 {
-    VFIOCCWDevice *vcdev = VFIO_CCW(obj);
-    VFIODevice *vbasedev = &vcdev->vdev;
+    VFIODevice *vbasedev = &vdev;
 
     /* CCW device is mdev type device */
     vbasedev->mdev = true;
@@ -676,7 +681,7 @@ static void vfio_ccw_instance_init(Object *obj)
      * ram_block_discard_disable().
      */
     vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_CCW, &vfio_ccw_ops,
-                     DEVICE(vcdev), true);
+                     reinterpret_cast<DeviceState *>(this), true);
 }
 
 #ifdef CONFIG_IOMMUFD
@@ -686,9 +691,9 @@ static void vfio_ccw_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_ccw_class_init(ObjectClass *klass, const void *data)
+void VFIOCCWDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, vfio_ccw_properties);
@@ -723,17 +728,4 @@ static void vfio_ccw_class_init(ObjectClass *klass, const void *data)
                                           "Define which devices that can be used for booting");
 }
 
-static const TypeInfo vfio_ccw_info = {
-    .name = TYPE_VFIO_CCW,
-    .parent = TYPE_S390_CCW,
-    .instance_size = sizeof(VFIOCCWDevice),
-    .instance_init = vfio_ccw_instance_init,
-    .class_init = vfio_ccw_class_init,
-};
-
-static void register_vfio_ccw_type(void)
-{
-    type_register_static(&vfio_ccw_info);
-}
-
-type_init(register_vfio_ccw_type)
+REGISTER_QEMU_DEVICE(VFIOCCWDevice, TYPE_VFIO_CCW, TYPE_S390_CCW)

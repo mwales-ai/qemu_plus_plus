@@ -47,6 +47,10 @@ struct PCIProxyDev {
     EventNotifier intr;
     EventNotifier resample;
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

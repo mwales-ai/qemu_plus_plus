@@ -48,6 +48,7 @@
 
 #include "ccid.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define DPRINTF(s, lvl, fmt, ...) \
 do { \
@@ -357,7 +358,7 @@ struct USBCCIDState {
                               int value, int index, int length, uint8_t *data);
     static void handleData(USBDevice *dev, USBPacket *p);
     static void unrealize(USBDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void ccidCardClassInit(ObjectClass *klass, const void *data);
     static int postLoad(void *opaque, int version_id);
     static int preSave(void *opaque);
@@ -1502,9 +1503,9 @@ void USBCCIDState::ccidRealizeWrapper(USBDevice *dev, Error **errp)
     s->ccidRealize(errp);
 }
 
-void USBCCIDState::classInit(ObjectClass *klass, const void *data)
+void USBCCIDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
     HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
@@ -1525,14 +1526,6 @@ void USBCCIDState::classInit(ObjectClass *klass, const void *data)
 static const InterfaceInfo ccid_interfaces[] = {
     { TYPE_HOTPLUG_HANDLER },
     { }
-};
-
-static const TypeInfo ccid_info = {
-    .name          = TYPE_USB_CCID_DEV,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBCCIDState),
-    .class_init    = USBCCIDState::classInit,
-    .interfaces = ccid_interfaces,
 };
 
 void USBCCIDState::ccidCardClassInit(ObjectClass *klass, const void *data)
@@ -1557,7 +1550,9 @@ static void ccid_register_types(void)
 {
     type_register_static(&ccid_bus_info);
     type_register_static(&ccid_card_type_info);
-    type_register_static(&ccid_info);
 }
 
 type_init(ccid_register_types)
+
+REGISTER_QEMU_DEVICE_IFACES(USBCCIDState, TYPE_USB_CCID_DEV, TYPE_USB_DEVICE,
+                             ccid_interfaces)

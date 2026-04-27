@@ -35,6 +35,7 @@
 
 #include "qemu/osdep.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #ifndef CONFIG_WIN32
 #include <poll.h>
 #endif
@@ -121,6 +122,11 @@ struct USBHostDevice {
     /* request queues */
     QTAILQ_HEAD(, USBHostRequest)    requests;
     QTAILQ_HEAD(, USBHostIsoRing)    isorings;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct USBHostRequest {
@@ -1259,12 +1265,12 @@ static void usb_host_realize(USBDevice *udev, Error **errp)
     qemu_add_exit_notifier(&s->exit);
 }
 
-static void usb_host_instance_init(Object *obj)
+void USBHostDevice::init()
 {
-    USBDevice *udev = USB_DEVICE(obj);
-    USBHostDevice *s = USB_HOST_DEVICE(udev);
+    USBDevice *udev = reinterpret_cast<USBDevice *>(this);
 
-    device_add_bootindex_property(obj, &s->bootindex,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this),
+                                  &bootindex,
                                   "bootindex", NULL,
                                   &udev->qdev);
 }
@@ -1790,9 +1796,9 @@ static const Property usb_host_dev_properties[] = {
                      suppress_remote_wake, true),
 };
 
-static void usb_host_class_initfn(ObjectClass *klass, const void *data)
+void USBHostDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->realize        = usb_host_realize;
@@ -1810,23 +1816,17 @@ static void usb_host_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo usb_host_dev_info = {
-    .name          = TYPE_USB_HOST_DEVICE,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHostDevice),
-    .instance_init = usb_host_instance_init,
-    .class_init    = usb_host_class_initfn,
-};
 module_obj(TYPE_USB_HOST_DEVICE);
 module_kconfig(USB);
 
-static void usb_host_register_types(void)
+REGISTER_QEMU_DEVICE(USBHostDevice, TYPE_USB_HOST_DEVICE, TYPE_USB_DEVICE)
+
+static void usb_host_register_hmp(void)
 {
-    type_register_static(&usb_host_dev_info);
     monitor_register_hmp("usbhost", true, hmp_info_usbhost);
 }
 
-type_init(usb_host_register_types)
+type_init(usb_host_register_hmp)
 
 /* ------------------------------------------------------------------------ */
 

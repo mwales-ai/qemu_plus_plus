@@ -12,12 +12,18 @@
 #include "hw/uefi/hardware-info.h"
 #include "hw/uefi/var-service.h"
 #include "hw/uefi/var-service-api.h"
+#include "qom/cpp/object.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(uefi_vars_sysbus_state, UEFI_VARS_SYSBUS)
 
 struct uefi_vars_sysbus_state {
     SysBusDevice parent_obj;
     struct uefi_vars_state state;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static const VMStateDescription vmstate_uefi_vars_sysbus = {
@@ -41,11 +47,9 @@ static const Property uefi_vars_sysbus_properties[] = {
                      state.use_pio, false),
 };
 
-static void uefi_vars_sysbus_init(Object *obj)
+void uefi_vars_sysbus_state::init()
 {
-    uefi_vars_sysbus_state *uv = UEFI_VARS_SYSBUS(obj);
-
-    uefi_vars_init(obj, &uv->state);
+    uefi_vars_init(reinterpret_cast<Object *>(this), &state);
 }
 
 static void uefi_vars_sysbus_reset(DeviceState *dev)
@@ -64,10 +68,8 @@ static void uefi_vars_sysbus_realize(DeviceState *dev, Error **errp)
     uefi_vars_realize(&uv->state, errp);
 }
 
-static void uefi_vars_sysbus_class_init(ObjectClass *klass, const void *data)
+void uefi_vars_sysbus_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = uefi_vars_sysbus_realize;
     dc->vmsd = &vmstate_uefi_vars_sysbus;
     dc->user_creatable = true;
@@ -76,15 +78,9 @@ static void uefi_vars_sysbus_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-/* generic: hardware discovery via FDT */
-static const TypeInfo uefi_vars_sysbus_info = {
-    .name          = TYPE_UEFI_VARS_SYSBUS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(uefi_vars_sysbus_state),
-    .instance_init = uefi_vars_sysbus_init,
-    .class_init    = uefi_vars_sysbus_class_init,
-};
 module_obj(TYPE_UEFI_VARS_SYSBUS);
+REGISTER_QEMU_DEVICE(uefi_vars_sysbus_state, TYPE_UEFI_VARS_SYSBUS,
+                     TYPE_SYS_BUS_DEVICE)
 
 static void uefi_vars_x64_realize(DeviceState *dev, Error **errp)
 {
@@ -117,7 +113,6 @@ module_obj(TYPE_UEFI_VARS_X64);
 
 static void uefi_vars_sysbus_register_types(void)
 {
-    type_register_static(&uefi_vars_sysbus_info);
     type_register_static(&uefi_vars_x64_info);
 }
 

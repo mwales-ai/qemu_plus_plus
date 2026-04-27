@@ -32,6 +32,7 @@
 #include "hw/s390x/ap-bridge.h"
 #include "system/address-spaces.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_VFIO_AP_DEVICE      "vfio-ap"
 
@@ -40,6 +41,11 @@ struct VFIOAPDevice {
     VFIODevice vdev;
     EventNotifier req_notifier;
     EventNotifier cfg_notifier;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct APConfigChgEvent {
@@ -302,10 +308,9 @@ static const VMStateDescription vfio_ap_vmstate = {
     .unmigratable = 1,
 };
 
-static void vfio_ap_instance_init(Object *obj)
+void VFIOAPDevice::init()
 {
-    VFIOAPDevice *vapdev = VFIO_AP_DEVICE(obj);
-    VFIODevice *vbasedev = &vapdev->vdev;
+    VFIODevice *vbasedev = &vdev;
 
     /*
      * vfio-ap devices operate in a way compatible with discarding of
@@ -314,7 +319,7 @@ static void vfio_ap_instance_init(Object *obj)
      * handle ram_block_discard_disable().
      */
     vfio_device_init(vbasedev, VFIO_DEVICE_TYPE_AP, &vfio_ap_ops,
-                     DEVICE(vapdev), true);
+                     reinterpret_cast<DeviceState *>(this), true);
 
     /* AP device is mdev type device */
     vbasedev->mdev = true;
@@ -327,9 +332,9 @@ static void vfio_ap_set_fd(Object *obj, const char *str, Error **errp)
 }
 #endif
 
-static void vfio_ap_class_init(ObjectClass *klass, const void *data)
+void VFIOAPDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
 
     device_class_set_props(dc, vfio_ap_properties);
 #ifdef CONFIG_IOMMUFD
@@ -354,17 +359,4 @@ static void vfio_ap_class_init(ObjectClass *klass, const void *data)
 #endif
 }
 
-static const TypeInfo vfio_ap_info = {
-    .name = TYPE_VFIO_AP_DEVICE,
-    .parent = TYPE_AP_DEVICE,
-    .instance_size = sizeof(VFIOAPDevice),
-    .instance_init = vfio_ap_instance_init,
-    .class_init = vfio_ap_class_init,
-};
-
-static void vfio_ap_type_init(void)
-{
-    type_register_static(&vfio_ap_info);
-}
-
-type_init(vfio_ap_type_init)
+REGISTER_QEMU_DEVICE(VFIOAPDevice, TYPE_VFIO_AP_DEVICE, TYPE_AP_DEVICE)

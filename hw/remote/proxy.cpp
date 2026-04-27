@@ -22,6 +22,7 @@
 #include "qom/object.h"
 #include "qemu/event_notifier.h"
 #include "system/kvm.h"
+#include "qom/cpp/object.h"
 
 static void probe_pci_info(PCIDevice *dev, Error **errp);
 static void proxy_device_reset(DeviceState *dev);
@@ -199,9 +200,9 @@ static const Property proxy_properties[] = {
     DEFINE_PROP_STRING("fd", PCIProxyDev, fd),
 };
 
-static void pci_proxy_dev_class_init(ObjectClass *klass, const void *data)
+void PCIProxyDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_proxy_dev_realize;
@@ -219,20 +220,8 @@ static const InterfaceInfo pci_proxy_dev_interfaces[] = {
     { },
 };
 
-static const TypeInfo pci_proxy_dev_type_info = {
-    .name          = TYPE_PCI_PROXY_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIProxyDev),
-    .class_init    = pci_proxy_dev_class_init,
-    .interfaces    = pci_proxy_dev_interfaces,
-};
-
-static void pci_proxy_dev_register_types(void)
-{
-    type_register_static(&pci_proxy_dev_type_info);
-}
-
-type_init(pci_proxy_dev_register_types)
+REGISTER_QEMU_DEVICE_IFACES(PCIProxyDev, TYPE_PCI_PROXY_DEV, TYPE_PCI_DEVICE,
+                             pci_proxy_dev_interfaces)
 
 static void send_bar_access_msg(PCIProxyDev *pdev, MemoryRegion *mr,
                                 bool write, hwaddr addr, uint64_t *val,
