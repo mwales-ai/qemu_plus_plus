@@ -445,16 +445,5 @@ static void i8259_class_init(ObjectClass *oc, const void *data)
     device_class_set_legacy_reset(dc, pic_reset);
 }
 
-static void i8259_register_types(void)
-{
-    static TypeInfo i8259_info = {
-        .name          = TYPE_I8259,
-        .parent        = TYPE_PIC_COMMON,
-        .instance_size = sizeof(PICCommonState),
-        .class_size    = sizeof(PICClass),
-        .class_init    = i8259_class_init,
-    };
-    type_register_static(&i8259_info);
-}
-
-type_init(i8259_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(PICCommonState, PICClass, TYPE_I8259,
+                               TYPE_PIC_COMMON, i8259_class_init)

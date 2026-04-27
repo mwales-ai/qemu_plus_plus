@@ -393,6 +393,37 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_CUSTOM_CI: register a device with a user-supplied
+ * class_init free function (instead of the SFINAE-generated trampoline).
+ * Useful for devices that need parent_realize chaining via
+ * device_class_set_parent_realize, where the macro-generated trampoline's
+ * automatic dc->realize wiring would interfere.
+ *
+ * The user-supplied class_init_fn has the canonical
+ *   void (ObjectClass *, const void *data)
+ * signature. instance_init/instance_finalize are still SFINAE-detected.
+ */
+#define REGISTER_QEMU_DEVICE_CUSTOM_CI(ClassName, ClassStruct,               \
+                                        type_name_str, parent_type_str,      \
+                                        class_init_fn)                       \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static TypeInfo info = {                                                 \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    info.cpp_vtable = qemu_device_detail::extract_vtable<ClassName>();       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS: abstract base class WITHOUT a custom
  * class struct. The QOM class layout uses the parent's class_size; only
  * the state struct is extended. Useful for abstract bases that customize
