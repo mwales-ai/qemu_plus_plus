@@ -33,7 +33,7 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE/INTERFACE/BUS Macro Family — 766+ files
+### REGISTER_QEMU_DEVICE/INTERFACE/BUS Macro Family — 770+ files
 
 The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
 and type registration via SFINAE detection of `init()`, `finalize()`,
@@ -57,6 +57,11 @@ and type registration via SFINAE detection of `init()`, `finalize()`,
 | `REGISTER_QEMU_INTERFACE_CI` | Interface type with class_init function |
 | `REGISTER_QEMU_BUS` | QOM bus type (parent TYPE_BUS) |
 | `REGISTER_QEMU_BUS_CI` | Bus type with class_init function |
+| `REGISTER_QEMU_BUS_CI_IFACES` | Bus + class_init + interfaces |
+| `REGISTER_QEMU_BUS_INSTANCE_CI` | Bus + instance_init + class_init |
+| `REGISTER_QEMU_BUS_CLASS_SIZE` | Bus + custom class_size only |
+| `REGISTER_QEMU_BUS_FULL` | Bus + instance_init + class_size + class_init |
+| `REGISTER_QEMU_BUS_ABSTRACT` | Abstract bus base + class_size |
 
 Each conversion:
 - Replaces ~15-20 lines of TypeInfo / register_types / type_init boilerplate
