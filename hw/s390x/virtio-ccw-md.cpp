@@ -134,20 +134,12 @@ void virtio_ccw_md_unplug(VirtIOMDCcw *vmd, MachineState *ms, Error **errp)
     }
 }
 
-static const TypeInfo virtio_ccw_md_info = {
-    .name = TYPE_VIRTIO_MD_CCW,
-    .parent = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOMDCcw),
-    .class_size = sizeof(VirtIOMDCcwClass),
-    .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_MEMORY_DEVICE },
-        { }
-    },
+static const InterfaceInfo virtio_ccw_md_interfaces[] = {
+    { TYPE_MEMORY_DEVICE },
+    { }
 };
 
-static void virtio_ccw_md_register(void)
-{
-    type_register_static(&virtio_ccw_md_info);
-}
-type_init(virtio_ccw_md_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(VirtIOMDCcw, VirtIOMDCcwClass,
+                                      TYPE_VIRTIO_MD_CCW, TYPE_VIRTIO_CCW_DEVICE,
+                                      virtio_ccw_md_interfaces)

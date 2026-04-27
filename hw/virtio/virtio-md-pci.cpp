@@ -145,17 +145,7 @@ static const InterfaceInfo virtio_md_pci_interfaces[] = {
     { }
 };
 
-static const TypeInfo virtio_md_pci_info = {
-    .name = TYPE_VIRTIO_MD_PCI,
-    .parent = TYPE_VIRTIO_PCI,
-    .instance_size = sizeof(VirtIOMDPCI),
-    .is_abstract = true,
-    .class_size = sizeof(VirtIOMDPCIClass),
-    .interfaces = virtio_md_pci_interfaces,
-};
-
-static void virtio_md_pci_register(void)
-{
-    type_register_static(&virtio_md_pci_info);
-}
-type_init(virtio_md_pci_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(VirtIOMDPCI, VirtIOMDPCIClass,
+                                      TYPE_VIRTIO_MD_PCI, TYPE_VIRTIO_PCI,
+                                      virtio_md_pci_interfaces)
