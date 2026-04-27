@@ -573,6 +573,38 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_BUS: register a QOM bus type (parent TYPE_BUS).
+ * Buses extend BusClass, not DeviceClass. Use the _CI variant if a
+ * class_init is needed.
+ */
+#define REGISTER_QEMU_BUS(StateStruct, type_name_str)                        \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = TYPE_BUS,                                           \
+        .instance_size = sizeof(StateStruct),                                \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+#define REGISTER_QEMU_BUS_CI(StateStruct, type_name_str, class_init_fn)      \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = TYPE_BUS,                                           \
+        .instance_size = sizeof(StateStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_INTERFACE: register a QOM interface type. Interfaces have
  * no instance_size (no per-object data), only a class struct that derived
  * types extend. Simpler than the device variants — no SFINAE, no

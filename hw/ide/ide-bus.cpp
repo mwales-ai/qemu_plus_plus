@@ -46,12 +46,8 @@ static void idebus_unrealize(BusState *bus)
     }
 }
 
-static const TypeInfo ide_bus_info = {
-    .name = TYPE_IDE_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(IDEBus),
-    .class_init = ide_bus_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(IDEBus, TYPE_IDE_BUS, ide_bus_class_init)
 
 void ide_bus_init(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                  int bus_id, int max_units)
@@ -103,9 +99,3 @@ int ide_get_bios_chs_trans(BusState *bus, int unit)
     return DO_UPCAST(IDEBus, qbus, bus)->ifs[unit].chs_trans;
 }
 
-static void ide_bus_register_type(void)
-{
-    type_register_static(&ide_bus_info);
-}
-
-type_init(ide_bus_register_type)
