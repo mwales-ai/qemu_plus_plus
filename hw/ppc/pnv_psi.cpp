@@ -32,6 +32,7 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv_psi.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -917,9 +918,9 @@ static const TypeInfo pnv_psi_power10_info = {
     .class_init    = pnv_psi_power10_class_init,
 };
 
-static void pnv_psi_class_init(ObjectClass *klass, const void *data)
+void PnvPsiClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
     xdc->dt_xscom = pnv_psi_dt_xscom;
@@ -935,25 +936,17 @@ static const InterfaceInfo pnv_psi_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_psi_info = {
-    .name          = TYPE_PNV_PSI,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPsi),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvPsiClass),
-    .class_init    = pnv_psi_class_init,
-    .interfaces    = pnv_psi_interfaces,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(PnvPsi, PnvPsiClass,
+                                      TYPE_PNV_PSI, TYPE_DEVICE,
+                                      pnv_psi_interfaces)
 
-static void pnv_psi_register_types(void)
+__attribute__((constructor))
+static void pnv_psi_register_concrete_types(void)
 {
-    type_register_static(&pnv_psi_info);
     type_register_static(&pnv_psi_power8_info);
     type_register_static(&pnv_psi_power9_info);
     type_register_static(&pnv_psi_power10_info);
 }
-
-type_init(pnv_psi_register_types);
 
 void pnv_psi_pic_print_info(Pnv9Psi *psi9, GString *buf)
 {

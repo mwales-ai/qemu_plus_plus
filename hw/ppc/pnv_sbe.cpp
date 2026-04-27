@@ -27,6 +27,7 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_sbe.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /*
  * Most register and command definitions come from skiboot.
@@ -382,29 +383,22 @@ static void pnv_sbe_realize(DeviceState *dev, Error **errp)
     sbe->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, sbe_timer, sbe);
 }
 
-static void pnv_sbe_class_init(ObjectClass *klass, const void *data)
+void PnvSBEClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = pnv_sbe_realize;
     dc->desc = "PowerNV SBE Controller";
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_sbe_type_info = {
-    .name          = TYPE_PNV_SBE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvSBE),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvSBEClass),
-    .class_init    = pnv_sbe_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(PnvSBE, PnvSBEClass,
+                               TYPE_PNV_SBE, TYPE_DEVICE)
 
-static void pnv_sbe_register_types(void)
+__attribute__((constructor))
+static void pnv_sbe_register_concrete_types(void)
 {
-    type_register_static(&pnv_sbe_type_info);
     type_register_static(&pnv_sbe_power9_type_info);
     type_register_static(&pnv_sbe_power10_type_info);
 }
-
-type_init(pnv_sbe_register_types);

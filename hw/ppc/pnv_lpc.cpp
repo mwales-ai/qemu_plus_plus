@@ -30,6 +30,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/fdt.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -843,9 +844,10 @@ static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
 };
 
-static void pnv_lpc_class_init(ObjectClass *klass, const void *data)
+void PnvLpcClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, pnv_lpc_properties);
     dc->realize = pnv_lpc_realize;
@@ -853,24 +855,16 @@ static void pnv_lpc_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_lpc_info = {
-    .name          = TYPE_PNV_LPC,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvLpcController),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvLpcClass),
-    .class_init    = pnv_lpc_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(PnvLpcController, PnvLpcClass,
+                               TYPE_PNV_LPC, TYPE_DEVICE)
 
-static void pnv_lpc_register_types(void)
+__attribute__((constructor))
+static void pnv_lpc_register_concrete_types(void)
 {
-    type_register_static(&pnv_lpc_info);
     type_register_static(&pnv_lpc_power8_info);
     type_register_static(&pnv_lpc_power9_info);
     type_register_static(&pnv_lpc_power10_info);
 }
-
-type_init(pnv_lpc_register_types)
 
 /* If we don't use the built-in LPC interrupt deserializer, we need
  * to provide a set of qirqs for the ISA bus or things will go bad.

@@ -64,6 +64,10 @@ struct PnvOCCClass {
 
     int xscom_size;
     const MemoryRegionOps *xscom_ops;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define PNV_OCC_SENSOR_DATA_BLOCK_BASE(i)                               \

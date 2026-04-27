@@ -79,6 +79,10 @@ struct PnvPsiClass {
     uint64_t bar_mask;
     const char *compat;
     int compat_size;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /* The PSI and FSP interrupts are muxed on the same IRQ number */

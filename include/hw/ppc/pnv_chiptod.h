@@ -50,6 +50,10 @@ struct PnvChipTODClass {
     PnvCore *(*tx_ttype_target)(PnvChipTOD *chiptod, uint64_t val);
 
     int xscom_size;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* PPC_PNV_CHIPTOD_H */

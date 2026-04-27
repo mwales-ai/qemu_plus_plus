@@ -38,6 +38,7 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_chiptod.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -617,9 +618,10 @@ static void pnv_chiptod_unrealize(DeviceState *dev)
     qemu_unregister_reset(pnv_chiptod_reset, chiptod);
 }
 
-static void pnv_chiptod_class_init(ObjectClass *klass, const void *data)
+void PnvChipTODClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = pnv_chiptod_realize;
     dc->unrealize = pnv_chiptod_unrealize;
@@ -627,21 +629,13 @@ static void pnv_chiptod_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_chiptod_type_info = {
-    .name          = TYPE_PNV_CHIPTOD,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvChipTOD),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvChipTODClass),
-    .class_init    = pnv_chiptod_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(PnvChipTOD, PnvChipTODClass,
+                               TYPE_PNV_CHIPTOD, TYPE_DEVICE)
 
-static void pnv_chiptod_register_types(void)
+__attribute__((constructor))
+static void pnv_chiptod_register_concrete_types(void)
 {
-    type_register_static(&pnv_chiptod_type_info);
     type_register_static(&pnv_chiptod_power9_type_info);
     type_register_static(&pnv_chiptod_power10_type_info);
     type_register_static(&pnv_chiptod_power11_type_info);
 }
-
-type_init(pnv_chiptod_register_types);

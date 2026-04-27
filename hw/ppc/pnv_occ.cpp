@@ -27,6 +27,7 @@
 #include "hw/ppc/pnv_chip.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_occ.h"
+#include "qom/cpp/object.h"
 
 #define P8_HOMER_OPAL_DATA_OFFSET    0x1F8000
 #define P9_HOMER_OPAL_DATA_OFFSET    0x0E2000
@@ -329,33 +330,26 @@ static const Property pnv_occ_properties[] = {
     DEFINE_PROP_LINK("homer", PnvOCC, homer, TYPE_PNV_HOMER, PnvHomer *),
 };
 
-static void pnv_occ_class_init(ObjectClass *klass, const void *data)
+void PnvOCCClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = pnv_occ_realize;
     device_class_set_props(dc, pnv_occ_properties);
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_occ_type_info = {
-    .name          = TYPE_PNV_OCC,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvOCC),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvOCCClass),
-    .class_init    = pnv_occ_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(PnvOCC, PnvOCCClass,
+                               TYPE_PNV_OCC, TYPE_DEVICE)
 
-static void pnv_occ_register_types(void)
+__attribute__((constructor))
+static void pnv_occ_register_concrete_types(void)
 {
-    type_register_static(&pnv_occ_type_info);
     type_register_static(&pnv_occ_power8_type_info);
     type_register_static(&pnv_occ_power9_type_info);
     type_register_static(&pnv_occ_power10_type_info);
 }
-
-type_init(pnv_occ_register_types);
 
 /*
  * From skiboot/hw/occ.c with following changes:

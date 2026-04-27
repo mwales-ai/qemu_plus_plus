@@ -28,6 +28,7 @@
 #include "hw/ppc/pnv_chip.h"
 #include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_xscom.h"
+#include "qom/cpp/object.h"
 
 /* P8 PBA BARs */
 #define PBA_BAR0                     0x00
@@ -260,9 +261,10 @@ static const Property pnv_homer_properties[] = {
     DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
 };
 
-static void pnv_homer_class_init(ObjectClass *klass, const void *data)
+void PnvHomerClass::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = pnv_homer_realize;
     dc->desc = "PowerNV HOMER Memory";
@@ -270,21 +272,13 @@ static void pnv_homer_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_homer_type_info = {
-    .name          = TYPE_PNV_HOMER,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvHomer),
-    .is_abstract   = true,
-    .class_size    = sizeof(PnvHomerClass),
-    .class_init    = pnv_homer_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(PnvHomer, PnvHomerClass,
+                               TYPE_PNV_HOMER, TYPE_DEVICE)
 
-static void pnv_homer_register_types(void)
+__attribute__((constructor))
+static void pnv_homer_register_concrete_types(void)
 {
-    type_register_static(&pnv_homer_type_info);
     type_register_static(&pnv_homer_power8_type_info);
     type_register_static(&pnv_homer_power9_type_info);
     type_register_static(&pnv_homer_power10_type_info);
 }
-
-type_init(pnv_homer_register_types);

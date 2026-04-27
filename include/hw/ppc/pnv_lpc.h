@@ -107,6 +107,10 @@ struct PnvLpcClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
