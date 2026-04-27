@@ -5,9 +5,10 @@
 QEMU++ is replacing QEMU's C-based Object Model (QOM) with native C++ classes,
 virtual methods, and compile-time type checking. This document tracks progress.
 
-**Branch:** `cpp-native` (531 commits ahead of master)
-**Build:** All 5 target ISAs building clean
+**Branch:** `cpp-native`
+**Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures)
+**As of:** 2026-04-27
 
 ## What is QOM?
 
@@ -32,17 +33,36 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE Macro — 321 devices
+### REGISTER_QEMU_DEVICE Macro Family — 688+ devices
 
-The `REGISTER_QEMU_DEVICE` macro auto-generates TypeInfo, trampolines, and
-type registration via SFINAE detection of `init()`, `realize(Error**)`,
-`reset()`, and `static classInit(DeviceClass*)` methods.
+The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
+and type registration via SFINAE detection of `init()`, `finalize()`,
+`realize(Error**)`, `reset()`, and `static classInit(DeviceClass*)` methods.
+
+**Macro variants (all auto-wire lifecycle methods via SFINAE):**
+
+| Macro | Use case |
+|---|---|
+| `REGISTER_QEMU_DEVICE` | Plain concrete device, no class struct, no interfaces |
+| `REGISTER_QEMU_DEVICE_IFACES` | Concrete device that implements QOM interfaces |
+| `REGISTER_QEMU_DEVICE_CLASS_SIZE` | Concrete device with custom class struct |
+| `REGISTER_QEMU_DEVICE_CLASS_SIZE_IFACES` | Concrete device with class struct + interfaces |
+| `REGISTER_QEMU_DEVICE_ABSTRACT` | Abstract base class with custom class struct |
+| `REGISTER_QEMU_DEVICE_ABSTRACT_IFACES` | Abstract base with class struct + interfaces |
 
 Each conversion:
-- Replaces ~15-20 lines of boilerplate per device
+- Replaces ~15-20 lines of TypeInfo / register_types / type_init boilerplate
 - Converts free functions to C++ member functions (`this` instead of casts)
 - Eliminates static trampoline functions
-- One-line macro replaces TypeInfo + type_register_static + type_init
+- Auto-wires lifecycle methods that exist; quietly skips ones that don't
+
+**Recent macro improvements:**
+- `extract_vtable<T>()` falls back to `nullptr` for non-default-constructible
+  types (unblocks SDHCIState-embedding SoCs: fsl-imx*, xlnx-zynqmp, raspi4b,
+  bcm2838, etc.)
+- New `_CLASS_SIZE` and `_ABSTRACT` variants unblock dozens of devices that
+  have custom class structs (GIC family, Aspeed multi-variant timers/SCU/SDMC,
+  PIT/PIC, ICP, mos6522, scsi-bus, scsi-disk, virtio-blk, virtio-mem, etc.)
 
 ### Deep Method Conversion — 183 devices
 
@@ -144,10 +164,16 @@ have size 0 in C but size 1 in C++, causing field offset mismatches. Fixed with
 `QEMU_STRUCT_MARKER()` macro using `char name[0]` in C++. Applied to all 11
 target CPU headers. Fixed 3 ARM/aarch64 boot failures.
 
-### SDHCIState Deleted Destructor
-`SDHCIState` contains a union of `PCIDevice` and `SysBusDevice`, which makes
-the destructor deleted in C++. This blocks SoC files that embed SDHCIState
-(fsl-imx25, fsl-imx6, fsl-imx6ul, fsl-imx7) from using REGISTER_QEMU_DEVICE.
+### SDHCIState Deleted Destructor — RESOLVED
+`SDHCIState` contains a union of `PCIDevice` and `SysBusDevice`, neither
+default-constructible, which previously broke `extract_vtable<T>()`'s
+default-construct-into-buffer trick — blocking REGISTER_QEMU_DEVICE for
+SoCs that embed SDHCIState. Fixed by SFINAE-dispatching extract_vtable on
+`std::is_default_constructible_v<T>` and returning `nullptr` for the
+non-constructible case. Such types lose the C++ vtable hookup but
+init/finalize/realize/reset/classInit trampolines still work.
+
+Files now converted: fsl-imx25/6/6ul/7, xlnx-zynqmp, xlnx-zcu102, raspi4b.
 
 ## Design Decisions
 
@@ -177,8 +203,14 @@ the destructor deleted in C++. This blocks SoC files that embed SDHCIState
 
 ## What's Next
 
-1. **Extend REGISTER_QEMU_DEVICE** for ResettableClass, interfaces, abstract types
-2. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB)
-3. **Implement virtual-methods-plan.md Phase A** — vtable pointer in Object
-4. **Phase B/C** — virtual realize()/reset() with `override` on pilot devices
-5. **Phase E** — mass `override` addition to existing 321 devices
+1. **Convert remaining device files** — about 70-80 candidates remain that
+   require additional macro variants for parent_realize chaining (KVM GIC
+   variants, SPAPR XIVE, PnvXIVE, etc.) or for class_init functions that
+   take `data` as a per-variant configuration parameter (e1000 variants,
+   eepro100, megasas variants, m48t59, m25p80).
+2. **Add a parent_realize variant** — a `REGISTER_QEMU_DEVICE_PARENT_REALIZE`
+   macro that wraps `device_class_set_parent_realize` for the common case.
+3. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB).
+4. **Implement virtual-methods-plan.md Phase A** — vtable pointer in Object.
+5. **Phase B/C** — virtual realize()/reset() with `override` on pilot devices.
+6. **Phase E** — mass `override` addition to existing converted devices.
