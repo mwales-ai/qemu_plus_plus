@@ -749,46 +749,40 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void pmu_init(Object *obj)
+void PMUState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    PMUState *s = VIA_PMU(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *d = SYS_BUS_DEVICE(this);
 
     object_property_add_link(obj, "gpio", TYPE_MACIO_GPIO,
-                             (Object **) &s->gpio,
+                             (Object **) &gpio,
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 
-    object_initialize_child(obj, "mos6522-pmu", &s->mos6522_pmu,
+    object_initialize_child(obj, "mos6522-pmu", &mos6522_pmu,
                             TYPE_MOS6522_PMU);
 
-    memory_region_init_io(&s->mem, obj, &mos6522_pmu_ops, s, "via-pmu",
+    memory_region_init_io(&mem, obj, &mos6522_pmu_ops, this, "via-pmu",
                           0x2000);
-    sysbus_init_mmio(d, &s->mem);
+    sysbus_init_mmio(d, &mem);
 }
 
 static const Property pmu_properties[] = {
     DEFINE_PROP_BOOL("has-adb", PMUState, has_adb, true),
 };
 
-static void pmu_class_init(ObjectClass *oc, const void *data)
+void PMUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = pmu_realize;
-    device_class_set_legacy_reset(dc, pmu_reset);
     dc->vmsd = &vmstate_pmu;
     device_class_set_props(dc, pmu_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    device_class_set_legacy_reset(dc, pmu_reset);
 }
 
-static const TypeInfo pmu_type_info = {
-    .name = TYPE_VIA_PMU,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PMUState),
-    .instance_init = pmu_init,
-    .class_init = pmu_class_init,
-};
 
 /*
  * MOS6522PMUDeviceClass — PMU-specific overrides for MOS6522.
@@ -841,10 +835,9 @@ static const TypeInfo mos6522_pmu_type_info = {
     .class_init = mos6522_pmu_class_init,
 };
 
-static void pmu_register_types(void)
+static void __attribute__((constructor)) pmu_register_mos6522_pmu(void)
 {
-    type_register_static(&pmu_type_info);
     type_register_static(&mos6522_pmu_type_info);
 }
 
-type_init(pmu_register_types)
+REGISTER_QEMU_DEVICE(PMUState, TYPE_VIA_PMU, TYPE_SYS_BUS_DEVICE)

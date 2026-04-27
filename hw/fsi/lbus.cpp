@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/fsi/lbus.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "trace.h"
@@ -91,27 +92,20 @@ static void fsi_scratchpad_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 }
 
-static void fsi_scratchpad_class_init(ObjectClass *klass, const void *data)
+void FSIScratchPad::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->bus_type = TYPE_FSI_LBUS;
     dc->realize = fsi_scratchpad_realize;
     device_class_set_legacy_reset(dc, fsi_scratchpad_reset);
 }
 
-static const TypeInfo fsi_scratchpad_info = {
-    .name = TYPE_FSI_SCRATCHPAD,
-    .parent = TYPE_FSI_LBUS_DEVICE,
-    .instance_size = sizeof(FSIScratchPad),
-    .class_init = fsi_scratchpad_class_init,
-};
-
-static void fsi_lbus_register_types(void)
+static void __attribute__((constructor)) fsi_lbus_register_base_types(void)
 {
     type_register_static(&fsi_lbus_info);
     type_register_static(&fsi_lbus_device_type_info);
-    type_register_static(&fsi_scratchpad_info);
 }
 
-type_init(fsi_lbus_register_types);
+REGISTER_QEMU_DEVICE(FSIScratchPad, TYPE_FSI_SCRATCHPAD, TYPE_FSI_LBUS_DEVICE)

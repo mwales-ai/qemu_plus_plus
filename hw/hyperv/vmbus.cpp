@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "exec/target_page.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 enum {
     VMGPADL_INIT,
@@ -2678,33 +2679,25 @@ static const Property vmbus_bridge_props[] = {
     DEFINE_PROP_UINT8("irq", VMBusBridge, irq, 7),
 };
 
-static void vmbus_bridge_class_init(ObjectClass *klass, const void *data)
+void VMBusBridge::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SysBusDeviceClass *sk = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->realize = vmbus_bridge_realize;
-    k->fw_name = "vmbus";
+    dc->realize = vmbus_bridge_realize;
+    dc->fw_name = "vmbus";
     sk->explicit_ofw_unit_address = vmbus_bridge_ofw_unit_address;
-    set_bit(DEVICE_CATEGORY_BRIDGE, k->categories);
-    k->vmsd = &vmstate_vmbus_bridge;
-    device_class_set_props(k, vmbus_bridge_props);
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->vmsd = &vmstate_vmbus_bridge;
+    device_class_set_props(dc, vmbus_bridge_props);
     /* override SysBusDevice's default */
-    k->user_creatable = true;
+    dc->user_creatable = true;
 }
 
-static const TypeInfo vmbus_bridge_type_info = {
-    .name = TYPE_VMBUS_BRIDGE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VMBusBridge),
-    .class_init = vmbus_bridge_class_init,
-};
-
-static void vmbus_register_types(void)
+static void __attribute__((constructor)) vmbus_register_non_cpp_types(void)
 {
-    type_register_static(&vmbus_bridge_type_info);
     type_register_static(&vmbus_dev_type_info);
     type_register_static(&vmbus_type_info);
 }
 
-type_init(vmbus_register_types)
+REGISTER_QEMU_DEVICE(VMBusBridge, TYPE_VMBUS_BRIDGE, TYPE_SYS_BUS_DEVICE)

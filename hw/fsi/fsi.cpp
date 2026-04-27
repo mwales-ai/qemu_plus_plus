@@ -10,6 +10,7 @@
 #include "trace.h"
 
 #include "hw/fsi/fsi.h"
+#include "qom/cpp/object.h"
 
 #define TO_REG(x)                               ((x) >> 2)
 
@@ -68,35 +69,25 @@ static void fsi_slave_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 }
 
-static void fsi_slave_init(Object *o)
+void FSISlaveState::init()
 {
-    FSISlaveState *s = FSI_SLAVE(o);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &fsi_slave_ops,
-                          s, TYPE_FSI_SLAVE, 0x400);
+    memory_region_init_io(&iomem, OBJECT(this), &fsi_slave_ops,
+                          this, TYPE_FSI_SLAVE, 0x400);
 }
 
-static void fsi_slave_class_init(ObjectClass *klass, const void *data)
+void FSISlaveState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->bus_type = TYPE_FSI_BUS;
     dc->desc = "FSI Slave";
     device_class_set_legacy_reset(dc, fsi_slave_reset);
 }
 
-static const TypeInfo fsi_slave_info = {
-    .name = TYPE_FSI_SLAVE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FSISlaveState),
-    .instance_init = fsi_slave_init,
-    .class_init = fsi_slave_class_init,
-};
-
-static void fsi_register_types(void)
+static void __attribute__((constructor)) fsi_bus_register(void)
 {
     type_register_static(&fsi_bus_info);
-    type_register_static(&fsi_slave_info);
 }
 
-type_init(fsi_register_types);
+REGISTER_QEMU_DEVICE(FSISlaveState, TYPE_FSI_SLAVE, TYPE_DEVICE)

@@ -227,6 +227,11 @@ struct PMUState {
 
     /* GPIO */
     MacIOGPIOState *gpio;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_VIA_PMU "via-pmu"

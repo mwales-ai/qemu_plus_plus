@@ -215,6 +215,11 @@ struct XlnxVersalCFUAPB {
     struct {
         XlnxCfiIf *cframe[15];
     } cfg;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 
@@ -223,6 +228,12 @@ struct XlnxVersalCFUFDRO {
     MemoryRegion iomem_fdro;
 
     Fifo32 fdro_data;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct XlnxVersalCFUSFR {
@@ -235,6 +246,11 @@ struct XlnxVersalCFUSFR {
     struct {
         XlnxVersalCFUAPB *cfu;
     } cfg;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

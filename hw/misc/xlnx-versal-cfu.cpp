@@ -21,6 +21,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/misc/xlnx-versal-cfu.h"
+#include "qom/cpp/object.h"
 
 #ifndef XLNX_VERSAL_CFU_APB_ERR_DEBUG
 #define XLNX_VERSAL_CFU_APB_ERR_DEBUG 0
@@ -337,45 +338,45 @@ static const MemoryRegionOps cfu_fdro_ops = {
     },
 };
 
-static void cfu_apb_init(Object *obj)
+void XlnxVersalCFUAPB::init()
 {
-    XlnxVersalCFUAPB *s = XLNX_VERSAL_CFU_APB(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
     unsigned int i;
     char *name;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_VERSAL_CFU_APB, R_MAX * 4);
+    memory_region_init(&iomem, obj, TYPE_XLNX_VERSAL_CFU_APB, R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), cfu_apb_regs_info,
+        register_init_block32(DEVICE(this), cfu_apb_regs_info,
                               ARRAY_SIZE(cfu_apb_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &cfu_apb_ops,
                               XLNX_VERSAL_CFU_APB_ERR_DEBUG,
                               R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
     for (i = 0; i < NUM_STREAM; i++) {
         name = g_strdup_printf(TYPE_XLNX_VERSAL_CFU_APB "-stream%d", i);
-        memory_region_init_io(&s->iomem_stream[i], obj, &cfu_stream_ops, s,
+        memory_region_init_io(&iomem_stream[i], obj, &cfu_stream_ops, this,
                           name, i == 0 ? KEYHOLE_STREAM_4K :
                                          KEYHOLE_STREAM_256K);
-        sysbus_init_mmio(sbd, &s->iomem_stream[i]);
+        sysbus_init_mmio(sbd, &iomem_stream[i]);
         g_free(name);
     }
-    sysbus_init_irq(sbd, &s->irq_cfu_imr);
+    sysbus_init_irq(sbd, &irq_cfu_imr);
 }
 
-static void __attribute__((used)) cfu_sfr_init(Object *obj)
+void XlnxVersalCFUSFR::init()
 {
-    XlnxVersalCFUSFR *s = XLNX_VERSAL_CFU_SFR(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem_sfr, obj, &cfu_sfr_ops, s,
+    memory_region_init_io(&iomem_sfr, obj, &cfu_sfr_ops, this,
                           TYPE_XLNX_VERSAL_CFU_SFR, KEYHOLE_STREAM_4K);
-    sysbus_init_mmio(sbd, &s->iomem_sfr);
+    sysbus_init_mmio(sbd, &iomem_sfr);
 }
 
 static void cfu_sfr_reset_enter(Object *obj, ResetType type)
@@ -385,22 +386,20 @@ static void cfu_sfr_reset_enter(Object *obj, ResetType type)
     memset(s->wfifo, 0, WFIFO_SZ * sizeof(uint32_t));
 }
 
-static void cfu_fdro_init(Object *obj)
+void XlnxVersalCFUFDRO::init()
 {
-    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem_fdro, obj, &cfu_fdro_ops, s,
+    memory_region_init_io(&iomem_fdro, obj, &cfu_fdro_ops, this,
                           TYPE_XLNX_VERSAL_CFU_FDRO, KEYHOLE_STREAM_4K);
-    sysbus_init_mmio(sbd, &s->iomem_fdro);
-    fifo32_create(&s->fdro_data, 8 * KiB / sizeof(uint32_t));
+    sysbus_init_mmio(sbd, &iomem_fdro);
+    fifo32_create(&fdro_data, 8 * KiB / sizeof(uint32_t));
 }
 
-static void cfu_fdro_finalize(Object *obj)
+void XlnxVersalCFUFDRO::finalize()
 {
-    XlnxVersalCFUFDRO *s = XLNX_VERSAL_CFU_FDRO(obj);
-
-    fifo32_destroy(&s->fdro_data);
+    fifo32_destroy(&fdro_data);
 }
 
 static void cfu_fdro_reset_enter(Object *obj, ResetType type)
@@ -501,18 +500,19 @@ static const VMStateDescription vmstate_cfu_sfr = {
     .fields = vmstate_cfu_sfr_fields,
 };
 
-static void cfu_apb_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCFUAPB::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_legacy_reset(dc, cfu_apb_reset);
     dc->vmsd = &vmstate_cfu_apb;
     device_class_set_props(dc, cfu_props);
 }
 
-static void cfu_fdro_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCFUFDRO::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     XlnxCfiIfClass *xcic = XLNX_CFI_IF_CLASS(klass);
 
@@ -521,9 +521,9 @@ static void cfu_fdro_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = cfu_fdro_reset_enter;
 }
 
-static void cfu_sfr_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCFUSFR::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(dc, cfu_sfr_props);
@@ -536,43 +536,32 @@ static const InterfaceInfo cfu_apb_interfaces[] = {
     { }
 };
 
-static const TypeInfo cfu_apb_info = {
-    .name          = TYPE_XLNX_VERSAL_CFU_APB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCFUAPB),
-    .instance_init = cfu_apb_init,
-    .class_init    = cfu_apb_class_init,
-    .interfaces = cfu_apb_interfaces,
-};
-
 static const InterfaceInfo cfu_fdro_interfaces[] = {
     { TYPE_XLNX_CFI_IF },
     { }
 };
 
-static const TypeInfo cfu_fdro_info = {
-    .name          = TYPE_XLNX_VERSAL_CFU_FDRO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCFUFDRO),
-    .instance_init = cfu_fdro_init,
-    .instance_finalize = cfu_fdro_finalize,
-    .class_init    = cfu_fdro_class_init,
-    .interfaces = cfu_fdro_interfaces,
-};
-
-static const TypeInfo cfu_sfr_info = {
-    .name          = TYPE_XLNX_VERSAL_CFU_SFR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCFUSFR),
-    .instance_init = cfu_sfr_init,
-    .class_init    = cfu_sfr_class_init,
-};
-
-static void cfu_apb_register_types(void)
+static void __attribute__((constructor)) cfu_fdro_sfr_register(void)
 {
-    type_register_static(&cfu_apb_info);
+    static TypeInfo cfu_fdro_info = {
+        .name          = TYPE_XLNX_VERSAL_CFU_FDRO,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(XlnxVersalCFUFDRO),
+        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFUFDRO>(),
+        .instance_finalize = qemu_device_detail::get_instance_finalize<XlnxVersalCFUFDRO>(),
+        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFUFDRO>,
+        .interfaces    = cfu_fdro_interfaces,
+    };
+    static TypeInfo cfu_sfr_info = {
+        .name          = TYPE_XLNX_VERSAL_CFU_SFR,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(XlnxVersalCFUSFR),
+        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFUSFR>(),
+        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFUSFR>,
+    };
     type_register_static(&cfu_fdro_info);
     type_register_static(&cfu_sfr_info);
 }
 
-type_init(cfu_apb_register_types)
+REGISTER_QEMU_DEVICE_IFACES(XlnxVersalCFUAPB, TYPE_XLNX_VERSAL_CFU_APB,
+                             TYPE_SYS_BUS_DEVICE, cfu_apb_interfaces)

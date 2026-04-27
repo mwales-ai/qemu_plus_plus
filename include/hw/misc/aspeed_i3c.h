@@ -21,7 +21,7 @@ OBJECT_DECLARE_TYPE(AspeedI3CState, AspeedI3CClass, ASPEED_I3C)
 #define ASPEED_I3C_NR_DEVICES 6
 
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedI3CDevice, ASPEED_I3C_DEVICE)
-typedef struct AspeedI3CDevice {
+struct AspeedI3CDevice {
     /* <private> */
     SysBusDevice parent;
 
@@ -31,9 +31,13 @@ typedef struct AspeedI3CDevice {
 
     uint8_t id;
     uint32_t regs[ASPEED_I3C_DEVICE_NR_REGS];
-} AspeedI3CDevice;
 
-typedef struct AspeedI3CState {
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
+
+struct AspeedI3CState {
     /* <private> */
     SysBusDevice parent;
 
@@ -44,5 +48,10 @@ typedef struct AspeedI3CState {
 
     uint32_t regs[ASPEED_I3C_NR_REGS];
     AspeedI3CDevice devices[ASPEED_I3C_NR_DEVICES];
-} AspeedI3CState;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
+};
 #endif /* ASPEED_I3C_H */

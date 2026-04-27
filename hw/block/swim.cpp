@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "system/block-backend.h"
@@ -149,7 +150,7 @@ static void fd_recalibrate(FDrive *drive)
 
 static void swim_change_cb(void *opaque, bool load, Error **errp)
 {
-    FDrive *drive = opaque;
+    FDrive *drive = static_cast<FDrive *>(opaque);
 
     if (!load) {
         blk_set_perm(drive->blk, 0, BLK_PERM_ALL, &error_abort);
@@ -253,22 +254,16 @@ static void swim_drive_realize(DeviceState *qdev, Error **errp)
     blk_set_dev_ops(drive->blk, &swim_block_ops, drive);
 }
 
-static void swim_drive_class_init(ObjectClass *klass, const void *data)
+void SWIMDrive::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
-    k->realize = swim_drive_realize;
-    set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
-    k->bus_type = TYPE_SWIM_BUS;
-    device_class_set_props(k, swim_drive_properties);
-    k->desc = "virtual SWIM drive";
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
+    dc->realize = swim_drive_realize;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    dc->bus_type = TYPE_SWIM_BUS;
+    device_class_set_props(dc, swim_drive_properties);
+    dc->desc = "virtual SWIM drive";
 }
-
-static const TypeInfo swim_drive_info = {
-    .name = TYPE_SWIM_DRIVE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SWIMDrive),
-    .class_init = swim_drive_class_init,
-};
 
 static const TypeInfo swim_bus_info = {
     .name = TYPE_SWIM_BUS,
@@ -279,7 +274,7 @@ static const TypeInfo swim_bus_info = {
 static void iwmctrl_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
 {
-    SWIMCtrl *swimctrl = opaque;
+    SWIMCtrl *swimctrl = static_cast<SWIMCtrl *>(opaque);
     uint8_t latch, reg, ism_bit;
 
     addr >>= REG_SHIFT;
@@ -343,7 +338,7 @@ static void iwmctrl_write(void *opaque, hwaddr addr, uint64_t value,
 
 static uint64_t iwmctrl_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SWIMCtrl *swimctrl = opaque;
+    SWIMCtrl *swimctrl = static_cast<SWIMCtrl *>(opaque);
     uint8_t latch, reg, value;
 
     addr >>= REG_SHIFT;
@@ -373,15 +368,15 @@ static uint64_t iwmctrl_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static const MemoryRegionOps swimctrl_iwm_ops = {
-    .write = iwmctrl_write,
     .read = iwmctrl_read,
+    .write = iwmctrl_write,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void ismctrl_write(void *opaque, hwaddr reg, uint64_t value,
                           unsigned size)
 {
-    SWIMCtrl *swimctrl = opaque;
+    SWIMCtrl *swimctrl = static_cast<SWIMCtrl *>(opaque);
 
     reg >>= REG_SHIFT;
 
@@ -425,7 +420,7 @@ static void ismctrl_write(void *opaque, hwaddr reg, uint64_t value,
 
 static uint64_t ismctrl_read(void *opaque, hwaddr reg, unsigned size)
 {
-    SWIMCtrl *swimctrl = opaque;
+    SWIMCtrl *swimctrl = static_cast<SWIMCtrl *>(opaque);
     uint32_t value = 0;
 
     reg >>= REG_SHIFT;
@@ -462,8 +457,8 @@ static uint64_t ismctrl_read(void *opaque, hwaddr reg, unsigned size)
 }
 
 static const MemoryRegionOps swimctrl_ism_ops = {
-    .write = ismctrl_write,
     .read = ismctrl_read,
+    .write = ismctrl_write,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -485,17 +480,16 @@ static void sysbus_swim_reset(DeviceState *d)
     }
 }
 
-static void sysbus_swim_init(Object *obj)
+void Swim::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    Swim *sbs = SWIM(obj);
-    SWIMCtrl *swimctrl = &sbs->ctrl;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SWIMCtrl *swimctrl = &ctrl;
 
-    memory_region_init(&swimctrl->swim, obj, "swim", 0x2000);
-    memory_region_init_io(&swimctrl->iwm, obj, &swimctrl_iwm_ops, swimctrl,
-                          "iwm", 0x2000);
-    memory_region_init_io(&swimctrl->ism, obj, &swimctrl_ism_ops, swimctrl,
-                          "ism", 0x2000);
+    memory_region_init(&swimctrl->swim, OBJECT(this), "swim", 0x2000);
+    memory_region_init_io(&swimctrl->iwm, OBJECT(this), &swimctrl_iwm_ops,
+                          swimctrl, "iwm", 0x2000);
+    memory_region_init_io(&swimctrl->ism, OBJECT(this), &swimctrl_ism_ops,
+                          swimctrl, "ism", 0x2000);
     sysbus_init_mmio(sbd, &swimctrl->swim);
 }
 
@@ -511,67 +505,77 @@ static void sysbus_swim_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&swimctrl->swim, 0x0, &swimctrl->iwm);
 }
 
+static const VMStateField vmstate_fdrive_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_fdrive = {
     .name = "fdrive",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_fdrive_fields,
+};
+
+static const VMStateField vmstate_swim_fields[] = {
+    VMSTATE_INT32(mode, SWIMCtrl),
+    /* IWM mode */
+    VMSTATE_INT32(iwm_switch, SWIMCtrl),
+    VMSTATE_UINT8(iwm_latches, SWIMCtrl),
+    VMSTATE_UINT8_ARRAY(iwmregs, SWIMCtrl, 8),
+    /* SWIM mode */
+    VMSTATE_UINT8_ARRAY(ismregs, SWIMCtrl, 16),
+    VMSTATE_UINT8(swim_phase, SWIMCtrl),
+    VMSTATE_UINT8(swim_mode, SWIMCtrl),
+    /* Drives */
+    VMSTATE_STRUCT_ARRAY(drives, SWIMCtrl, SWIM_MAX_FD, 1,
+                         vmstate_fdrive, FDrive),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_swim = {
     .name = "swim",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(mode, SWIMCtrl),
-        /* IWM mode */
-        VMSTATE_INT32(iwm_switch, SWIMCtrl),
-        VMSTATE_UINT8(iwm_latches, SWIMCtrl),
-        VMSTATE_UINT8_ARRAY(iwmregs, SWIMCtrl, 8),
-        /* SWIM mode */
-        VMSTATE_UINT8_ARRAY(ismregs, SWIMCtrl, 16),
-        VMSTATE_UINT8(swim_phase, SWIMCtrl),
-        VMSTATE_UINT8(swim_mode, SWIMCtrl),
-        /* Drives */
-        VMSTATE_STRUCT_ARRAY(drives, SWIMCtrl, SWIM_MAX_FD, 1,
-                             vmstate_fdrive, FDrive),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_swim_fields,
+};
+
+static const VMStateField vmstate_sysbus_swim_fields[] = {
+    VMSTATE_STRUCT(ctrl, Swim, 0, vmstate_swim, SWIMCtrl),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_sysbus_swim = {
     .name = "SWIM",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(ctrl, Swim, 0, vmstate_swim, SWIMCtrl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sysbus_swim_fields,
 };
 
-static void sysbus_swim_class_init(ObjectClass *oc, const void *data)
+void Swim::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = sysbus_swim_realize;
     device_class_set_legacy_reset(dc, sysbus_swim_reset);
     dc->vmsd = &vmstate_sysbus_swim;
 }
 
-static const TypeInfo sysbus_swim_info = {
-    .name          = TYPE_SWIM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Swim),
-    .instance_init = sysbus_swim_init,
-    .class_init    = sysbus_swim_class_init,
-};
-
-static void swim_register_types(void)
+static void __attribute__((constructor)) swim_register_bus_and_drive_types(void)
 {
-    type_register_static(&sysbus_swim_info);
+    static const TypeInfo swim_bus_info = {
+        .name = TYPE_SWIM_BUS,
+        .parent = TYPE_BUS,
+        .instance_size = sizeof(SWIMBus),
+    };
     type_register_static(&swim_bus_info);
+
+    static const TypeInfo swim_drive_info = {
+        .name = TYPE_SWIM_DRIVE,
+        .parent = TYPE_DEVICE,
+        .instance_size = sizeof(SWIMDrive),
+        .class_init = qemu_device_detail::trampoline_class_init<SWIMDrive>,
+    };
     type_register_static(&swim_drive_info);
 }
 
-type_init(swim_register_types)
+REGISTER_QEMU_DEVICE(Swim, TYPE_SWIM, TYPE_SYS_BUS_DEVICE)

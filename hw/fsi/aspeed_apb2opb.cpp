@@ -10,6 +10,7 @@
 #include "qom/object.h"
 #include "qapi/error.h"
 #include "hw/fsi/aspeed_apb2opb.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-core.h"
 
 extern "C" {
@@ -275,13 +276,13 @@ static void __attribute__((constructor)) init_aspeed_apb2opb_ops(void)
     aspeed_apb2opb_ops.endianness = DEVICE_LITTLE_ENDIAN;
 }
 
-static void fsi_aspeed_apb2opb_init(Object *o)
+void AspeedAPB2OPBState::init()
 {
-    AspeedAPB2OPBState *s = ASPEED_APB2OPB(o);
+    Object *o = OBJECT(this);
     int i;
 
     for (i = 0; i < ASPEED_FSI_NUM; i++) {
-        object_initialize_child(o, "fsi-master[*]", &s->fsi[i],
+        object_initialize_child(o, "fsi-master[*]", &fsi[i],
                                 TYPE_FSI_MASTER);
     }
 }
@@ -330,29 +331,17 @@ static void fsi_aspeed_apb2opb_reset(DeviceState *dev)
     memcpy(s->regs, aspeed_apb2opb_reset_vals, ASPEED_APB2OPB_NR_REGS);
 }
 
-static void fsi_aspeed_apb2opb_class_init(ObjectClass *klass, const void *data)
+void AspeedAPB2OPBState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->desc = "ASPEED APB2OPB Bridge";
     dc->realize = fsi_aspeed_apb2opb_realize;
     device_class_set_legacy_reset(dc, fsi_aspeed_apb2opb_reset);
 }
 
-static const TypeInfo aspeed_apb2opb_info = {
-    .name = TYPE_ASPEED_APB2OPB,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedAPB2OPBState),
-    .instance_init = fsi_aspeed_apb2opb_init,
-    .class_init = fsi_aspeed_apb2opb_class_init,
-};
-
-static void aspeed_apb2opb_register_types(void)
-{
-    type_register_static(&aspeed_apb2opb_info);
-}
-
-type_init(aspeed_apb2opb_register_types);
+REGISTER_QEMU_DEVICE(AspeedAPB2OPBState, TYPE_ASPEED_APB2OPB, TYPE_SYS_BUS_DEVICE)
 
 static void fsi_opb_init(Object *o)
 {

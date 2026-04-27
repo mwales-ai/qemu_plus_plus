@@ -20,6 +20,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/misc/xlnx-versal-cframe-reg.h"
+#include "qom/cpp/object.h"
 
 #ifndef XLNX_VERSAL_CFRAME_REG_ERR_DEBUG
 #define XLNX_VERSAL_CFRAME_REG_ERR_DEBUG 0
@@ -662,42 +663,40 @@ static void cframe_reg_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void cframe_reg_init(Object *obj)
+void XlnxVersalCFrameReg::init()
 {
-    XlnxVersalCFrameReg *s = XLNX_VERSAL_CFRAME_REG(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_VERSAL_CFRAME_REG,
+    memory_region_init(&iomem, obj, TYPE_XLNX_VERSAL_CFRAME_REG,
                        CFRAME_REG_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), cframe_reg_regs_info,
+        register_init_block32(DEVICE(this), cframe_reg_regs_info,
                               ARRAY_SIZE(cframe_reg_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &cframe_reg_ops,
                               XLNX_VERSAL_CFRAME_REG_ERR_DEBUG,
                               CFRAME_REG_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    memory_region_init_io(&s->iomem_fdri, obj, &cframe_reg_fdri_ops, s,
+    sysbus_init_mmio(sbd, &iomem);
+    memory_region_init_io(&iomem_fdri, obj, &cframe_reg_fdri_ops, this,
                           TYPE_XLNX_VERSAL_CFRAME_REG "-fdri",
                           KEYHOLE_STREAM_4K);
-    sysbus_init_mmio(sbd, &s->iomem_fdri);
-    sysbus_init_irq(sbd, &s->irq_cfrm_imr);
+    sysbus_init_mmio(sbd, &iomem_fdri);
+    sysbus_init_irq(sbd, &irq_cfrm_imr);
 
-    s->cframes = g_tree_new_full((GCompareDataFunc)int_cmp, NULL,
-                                  NULL, (GDestroyNotify)g_free);
-    fifo32_create(&s->new_f_data, FRAME_NUM_WORDS);
+    cframes = g_tree_new_full((GCompareDataFunc)int_cmp, NULL,
+                               NULL, (GDestroyNotify)g_free);
+    fifo32_create(&new_f_data, FRAME_NUM_WORDS);
 }
 
-static void cframe_reg_finalize(Object *obj)
+void XlnxVersalCFrameReg::finalize()
 {
-    XlnxVersalCFrameReg *s = XLNX_VERSAL_CFRAME_REG(obj);
-
-    fifo32_destroy(&s->new_f_data);
-    g_tree_destroy(s->cframes);
+    fifo32_destroy(&new_f_data);
+    g_tree_destroy(cframes);
 }
 
 static const VMStateField vmstate_cframe_fields[] = {
@@ -750,18 +749,18 @@ static const Property cframe_regs_props[] = {
                        cfg.blktype_num_frames[6], 0),
 };
 
-static void __attribute__((used)) cframe_bcast_reg_init(Object *obj)
+void XlnxVersalCFrameBcastReg::init()
 {
-    XlnxVersalCFrameBcastReg *s = XLNX_VERSAL_CFRAME_BCAST_REG(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem_reg, obj, &cframes_bcast_reg_reg_ops, s,
+    memory_region_init_io(&iomem_reg, obj, &cframes_bcast_reg_reg_ops, this,
                           TYPE_XLNX_VERSAL_CFRAME_BCAST_REG, KEYHOLE_STREAM_4K);
-    memory_region_init_io(&s->iomem_fdri, obj, &cframes_bcast_reg_fdri_ops, s,
+    memory_region_init_io(&iomem_fdri, obj, &cframes_bcast_reg_fdri_ops, this,
                           TYPE_XLNX_VERSAL_CFRAME_BCAST_REG "-fdri",
                           KEYHOLE_STREAM_4K);
-    sysbus_init_mmio(sbd, &s->iomem_reg);
-    sysbus_init_mmio(sbd, &s->iomem_fdri);
+    sysbus_init_mmio(sbd, &iomem_reg);
+    sysbus_init_mmio(sbd, &iomem_fdri);
 }
 
 static void cframe_bcast_reg_reset_enter(Object *obj, ResetType type)
@@ -816,10 +815,10 @@ static const Property cframe_bcast_regs_props[] = {
                      TYPE_XLNX_CFI_IF, XlnxCfiIf *),
 };
 
-static void cframe_reg_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCFrameReg::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     XlnxCfiIfClass *xcic = XLNX_CFI_IF_CLASS(klass);
 
     dc->vmsd = &vmstate_cframe_reg;
@@ -830,9 +829,9 @@ static void cframe_reg_class_init(ObjectClass *klass, const void *data)
     xcic->cfi_transfer_packet = cframe_reg_cfi_transfer_packet;
 }
 
-static void cframe_bcast_reg_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCFrameBcastReg::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_cframe_bcast_reg;
@@ -845,28 +844,17 @@ static const InterfaceInfo cframe_reg_interfaces[] = {
     { }
 };
 
-static const TypeInfo cframe_reg_info = {
-    .name          = TYPE_XLNX_VERSAL_CFRAME_REG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCFrameReg),
-    .instance_init = cframe_reg_init,
-    .instance_finalize = cframe_reg_finalize,
-    .class_init    = cframe_reg_class_init,
-    .interfaces = cframe_reg_interfaces,
-};
-
-static const TypeInfo cframe_bcast_reg_info = {
-    .name          = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCFrameBcastReg),
-    .instance_init = cframe_bcast_reg_init,
-    .class_init    = cframe_bcast_reg_class_init,
-};
-
-static void cframe_reg_register_types(void)
+static void __attribute__((constructor)) cframe_bcast_reg_register(void)
 {
-    type_register_static(&cframe_reg_info);
+    static const TypeInfo cframe_bcast_reg_info = {
+        .name          = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(XlnxVersalCFrameBcastReg),
+        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFrameBcastReg>(),
+        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFrameBcastReg>,
+    };
     type_register_static(&cframe_bcast_reg_info);
 }
 
-type_init(cframe_reg_register_types)
+REGISTER_QEMU_DEVICE_IFACES(XlnxVersalCFrameReg, TYPE_XLNX_VERSAL_CFRAME_REG,
+                             TYPE_SYS_BUS_DEVICE, cframe_reg_interfaces)

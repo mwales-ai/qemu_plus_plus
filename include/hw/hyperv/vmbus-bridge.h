@@ -26,6 +26,10 @@ struct VMBusBridge {
     uint8_t irq;
 
     VMBus *bus;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(VMBusBridge, VMBUS_BRIDGE)

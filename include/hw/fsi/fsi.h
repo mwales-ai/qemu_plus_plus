@@ -36,6 +36,11 @@ typedef struct FSISlaveState {
 
     MemoryRegion iomem;
     uint32_t regs[FSI_SLAVE_CONTROL_NR_REGS];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } FSISlaveState;
 
 #ifdef __cplusplus

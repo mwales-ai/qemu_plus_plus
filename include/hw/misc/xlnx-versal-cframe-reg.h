@@ -285,6 +285,12 @@ struct XlnxVersalCFrameReg {
         uint32_t blktype_num_frames[7];
     } cfg;
     bool row_configured;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct XlnxVersalCFrameBcastReg {
@@ -298,6 +304,11 @@ struct XlnxVersalCFrameBcastReg {
     struct {
         XlnxCfiIf *cframe[15];
     } cfg;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

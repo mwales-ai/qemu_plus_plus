@@ -98,6 +98,11 @@ struct CUDAState {
     qemu_irq irq;
     uint8_t data_in[128];
     uint8_t data_out[16];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* CUDA_H */

@@ -557,43 +557,37 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     adb_register_autopoll_callback(adb_bus, cuda_adb_poll, s);
 }
 
-static void cuda_init(Object *obj)
+void CUDAState::init()
 {
-    CUDAState *s = CUDA(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    object_initialize_child(obj, "mos6522-cuda", &s->mos6522_cuda,
+    object_initialize_child(obj, "mos6522-cuda", &mos6522_cuda,
                             TYPE_MOS6522_CUDA);
 
-    memory_region_init_io(&s->mem, obj, &mos6522_cuda_ops, s, "cuda", 0x2000);
-    sysbus_init_mmio(sbd, &s->mem);
+    memory_region_init_io(&mem, obj, &mos6522_cuda_ops, this, "cuda", 0x2000);
+    sysbus_init_mmio(sbd, &mem);
 
-    qbus_init(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
-              DEVICE(obj), "adb.0");
+    qbus_init(&adb_bus, sizeof(adb_bus), TYPE_ADB_BUS,
+              DEVICE(this), "adb.0");
 }
 
 static const Property cuda_properties[] = {
     DEFINE_PROP_UINT64("timebase-frequency", CUDAState, tb_frequency, 0),
 };
 
-static void cuda_class_init(ObjectClass *oc, const void *data)
+void CUDAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = cuda_realize;
-    device_class_set_legacy_reset(dc, cuda_reset);
     dc->vmsd = &vmstate_cuda;
     device_class_set_props(dc, cuda_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    device_class_set_legacy_reset(dc, cuda_reset);
 }
 
-static const TypeInfo cuda_type_info = {
-    .name = TYPE_CUDA,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CUDAState),
-    .instance_init = cuda_init,
-    .class_init = cuda_class_init,
-};
 
 void MOS6522CudaDeviceClass::portB_write(MOS6522State *s)
 {
@@ -659,10 +653,9 @@ static const TypeInfo mos6522_cuda_type_info = {
     .class_init = mos6522_cuda_class_init,
 };
 
-static void cuda_register_types(void)
+static void __attribute__((constructor)) cuda_register_mos6522_cuda(void)
 {
     type_register_static(&mos6522_cuda_type_info);
-    type_register_static(&cuda_type_info);
 }
 
-type_init(cuda_register_types)
+REGISTER_QEMU_DEVICE(CUDAState, TYPE_CUDA, TYPE_SYS_BUS_DEVICE)

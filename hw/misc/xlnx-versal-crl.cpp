@@ -18,6 +18,7 @@
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/multiprocessing.h"
 #include "hw/misc/xlnx-versal-crl.h"
+#include "qom/cpp/object.h"
 
 #ifndef XLNX_VERSAL_CRL_ERR_DEBUG
 #define XLNX_VERSAL_CRL_ERR_DEBUG 0
@@ -629,123 +630,123 @@ static const MemoryRegionOps crl_ops = {
     },
 };
 
-static void versal_crl_init(Object *obj)
+void XlnxVersalCRL::init()
 {
-    XlnxVersalCRL *s = XLNX_VERSAL_CRL(obj);
-    XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
     int i;
 
-    reg_array = register_init_block32(DEVICE(obj), crl_regs_info,
+    reg_array = register_init_block32(DEVICE(this), crl_regs_info,
                                       ARRAY_SIZE(crl_regs_info),
-                                      s->regs_info, s->regs,
+                                      regs_info, regs,
                                       &crl_ops,
                                       XLNX_VERSAL_CRL_ERR_DEBUG,
                                       CRL_R_MAX * 4);
-    xvcb->regs = s->regs;
+    xvcb->regs = regs;
     sysbus_init_mmio(sbd, &reg_array->mem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.rpu); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.rpu); ++i) {
         object_property_add_link(obj, "rpu[*]", TYPE_ARM_CPU,
-                                 (Object **)&s->cfg.rpu[i],
+                                 (Object **)&cfg.rpu[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.adma); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.adma); ++i) {
         object_property_add_link(obj, "adma[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.adma[i],
+                                 (Object **)&cfg.adma[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.uart); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.uart); ++i) {
         object_property_add_link(obj, "uart[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.uart[i],
+                                 (Object **)&cfg.uart[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.gem); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.gem); ++i) {
         object_property_add_link(obj, "gem[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.gem[i],
+                                 (Object **)&cfg.gem[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.usb); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.usb); ++i) {
         object_property_add_link(obj, "usb[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.usb[i],
+                                 (Object **)&cfg.usb[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 }
 
-static void versal2_crl_init(Object *obj)
+void XlnxVersal2CRL::init()
 {
-    XlnxVersal2CRL *s = XLNX_VERSAL2_CRL(obj);
-    XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    XlnxVersalCRLBase *xvcb = XLNX_VERSAL_CRL_BASE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
     size_t i;
 
-    reg_array = register_init_block32(DEVICE(obj), versal2_crl_regs_info,
+    reg_array = register_init_block32(DEVICE(this), versal2_crl_regs_info,
                                       ARRAY_SIZE(versal2_crl_regs_info),
-                                      s->regs_info, s->regs,
+                                      regs_info, regs,
                                       &crl_ops,
                                       XLNX_VERSAL_CRL_ERR_DEBUG,
                                       VERSAL2_CRL_R_MAX * 4);
-    xvcb->regs = s->regs;
+    xvcb->regs = regs;
 
     sysbus_init_mmio(sbd, &reg_array->mem);
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.rpu); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.rpu); ++i) {
         object_property_add_link(obj, "rpu[*]", TYPE_ARM_CPU,
-                                 (Object **)&s->cfg.rpu[i],
+                                 (Object **)&cfg.rpu[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.adma); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.adma); ++i) {
         object_property_add_link(obj, "adma[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.adma[i],
+                                 (Object **)&cfg.adma[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.sdma); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.sdma); ++i) {
         object_property_add_link(obj, "sdma[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.sdma[i],
+                                 (Object **)&cfg.sdma[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.uart); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.uart); ++i) {
         object_property_add_link(obj, "uart[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.uart[i],
+                                 (Object **)&cfg.uart[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.gem); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.gem); ++i) {
         object_property_add_link(obj, "gem[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.gem[i],
+                                 (Object **)&cfg.gem[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.usb); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.usb); ++i) {
         object_property_add_link(obj, "usb[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.usb[i],
+                                 (Object **)&cfg.usb[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cfg.can); ++i) {
+    for (i = 0; i < ARRAY_SIZE(cfg.can); ++i) {
         object_property_add_link(obj, "can[*]", TYPE_DEVICE,
-                                 (Object **)&s->cfg.can[i],
+                                 (Object **)&cfg.can[i],
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG);
     }
@@ -775,9 +776,9 @@ static const VMStateDescription vmstate_versal2_crl = {
     .fields = vmstate_versal2_crl_fields,
 };
 
-static void versal_crl_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCRL::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XlnxVersalCRLBaseClass *xvcc = XLNX_VERSAL_CRL_BASE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -787,10 +788,10 @@ static void versal_crl_class_init(ObjectClass *klass, const void *data)
     xvcc->decode_periph_rst = versal_decode_periph_rst;
 }
 
-static void versal2_crl_class_init(ObjectClass *klass, const void *data)
+void XlnxVersal2CRL::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XlnxVersalCRLBaseClass *xvcc = XLNX_VERSAL_CRL_BASE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_versal2_crl;
@@ -806,27 +807,18 @@ static const TypeInfo crl_base_info = {
     .class_size    = sizeof(XlnxVersalCRLBaseClass),
 };
 
-static const TypeInfo versal_crl_info = {
-    .name          = TYPE_XLNX_VERSAL_CRL,
-    .parent        = TYPE_XLNX_VERSAL_CRL_BASE,
-    .instance_size = sizeof(XlnxVersalCRL),
-    .instance_init = versal_crl_init,
-    .class_init    = versal_crl_class_init,
-};
-
-static const TypeInfo versal2_crl_info = {
-    .name          = TYPE_XLNX_VERSAL2_CRL,
-    .parent        = TYPE_XLNX_VERSAL_CRL_BASE,
-    .instance_size = sizeof(XlnxVersal2CRL),
-    .instance_init = versal2_crl_init,
-    .class_init    = versal2_crl_class_init,
-};
-
-static void crl_register_types(void)
+static void __attribute__((constructor)) crl_register_base_and_versal2(void)
 {
     type_register_static(&crl_base_info);
-    type_register_static(&versal_crl_info);
+
+    static TypeInfo versal2_crl_info = {
+        .name          = TYPE_XLNX_VERSAL2_CRL,
+        .parent        = TYPE_XLNX_VERSAL_CRL_BASE,
+        .instance_size = sizeof(XlnxVersal2CRL),
+        .instance_init = qemu_device_detail::get_instance_init<XlnxVersal2CRL>(),
+        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersal2CRL>,
+    };
     type_register_static(&versal2_crl_info);
 }
 
-type_init(crl_register_types)
+REGISTER_QEMU_DEVICE(XlnxVersalCRL, TYPE_XLNX_VERSAL_CRL, TYPE_XLNX_VERSAL_CRL_BASE)

@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "qemu/units.h"
 #include "exec/cpu-interrupt.h"
 #include "qapi/error.h"
@@ -931,12 +932,6 @@ PCIBus *typhoon_init(MemoryRegion *ram, qemu_irq *p_isa_irq,
     return b;
 }
 
-static const TypeInfo typhoon_pcihost_info = {
-    .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(TyphoonState),
-};
-
 void TyphoonState::iommuMemoryRegionClassInit(ObjectClass *klass,
                                                const void *data)
 {
@@ -951,10 +946,10 @@ static const TypeInfo typhoon_iommu_memory_region_info = {
     .class_init = TyphoonState::iommuMemoryRegionClassInit,
 };
 
-static void typhoon_register_types(void)
+static void __attribute__((constructor)) typhoon_register_iommu_type(void)
 {
-    type_register_static(&typhoon_pcihost_info);
     type_register_static(&typhoon_iommu_memory_region_info);
 }
 
-type_init(typhoon_register_types)
+REGISTER_QEMU_DEVICE(TyphoonState, TYPE_TYPHOON_PCI_HOST_BRIDGE,
+                     TYPE_PCI_HOST_BRIDGE)

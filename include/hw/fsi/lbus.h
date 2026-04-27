@@ -42,6 +42,10 @@ typedef struct FSIScratchPad {
         FSILBusDevice parent;
 
         uint32_t regs[FSI_SCRATCHPAD_NR_REGS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } FSIScratchPad;
 
 #ifdef __cplusplus

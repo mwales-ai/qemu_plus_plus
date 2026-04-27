@@ -26,6 +26,10 @@ struct SWIMDrive {
     DeviceState qdev;
     int32_t     unit;
     BlockConf   conf;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_SWIM_BUS "swim-bus"
@@ -68,5 +72,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(Swim, SWIM)
 struct Swim {
     SysBusDevice parent_obj;
     SWIMCtrl     ctrl;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 #endif

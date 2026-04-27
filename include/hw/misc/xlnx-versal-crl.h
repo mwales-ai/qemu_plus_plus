@@ -556,6 +556,11 @@ struct XlnxVersalCRL {
 
     uint32_t regs[CRL_R_MAX];
     RegisterInfo regs_info[CRL_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct XlnxVersal2CRL {
@@ -573,6 +578,11 @@ struct XlnxVersal2CRL {
 
     RegisterInfo regs_info[VERSAL2_CRL_R_MAX];
     uint32_t regs[VERSAL2_CRL_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static inline const char *xlnx_versal_crl_class_name(VersalVersion ver)

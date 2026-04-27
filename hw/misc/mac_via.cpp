@@ -1263,21 +1263,21 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void mos6522_q800_via1_init(Object *obj)
+void MOS6522Q800VIA1State::init()
 {
-    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(v1s);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&v1s->via_mem, obj, &mos6522_q800_via1_ops, v1s,
+    memory_region_init_io(&via_mem, obj, &mos6522_q800_via1_ops, this,
                           "via1", VIA_SIZE);
-    sysbus_init_mmio(sbd, &v1s->via_mem);
+    sysbus_init_mmio(sbd, &via_mem);
 
     /* ADB */
-    qbus_init((BusState *)&v1s->adb_bus, sizeof(v1s->adb_bus),
-              TYPE_ADB_BUS, DEVICE(v1s), "adb.0");
+    qbus_init((BusState *)&adb_bus, sizeof(adb_bus),
+              TYPE_ADB_BUS, DEVICE(this), "adb.0");
 
     /* A/UX mode */
-    qdev_init_gpio_out(DEVICE(obj), &v1s->auxmode_irq, 1);
+    qdev_init_gpio_out(DEVICE(this), &auxmode_irq, 1);
 }
 
 static const VMStateField vmstate_q800_via1_fields[] = {
@@ -1323,11 +1323,11 @@ static const Property mos6522_q800_via1_properties[] = {
     DEFINE_PROP_DRIVE("drive", MOS6522Q800VIA1State, blk),
 };
 
-static void mos6522_q800_via1_class_init(ObjectClass *oc, const void *data)
+void MOS6522Q800VIA1State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ResettableClass *rc = RESETTABLE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(klass);
 
     dc->realize = mos6522_q800_via1_realize;
     resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via1_reset_hold,
@@ -1336,13 +1336,6 @@ static void mos6522_q800_via1_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, mos6522_q800_via1_properties);
 }
 
-static const TypeInfo mos6522_q800_via1_type_info = {
-    .name = TYPE_MOS6522_Q800_VIA1,
-    .parent = TYPE_MOS6522,
-    .instance_size = sizeof(MOS6522Q800VIA1State),
-    .instance_init = mos6522_q800_via1_init,
-    .class_init = mos6522_q800_via1_class_init,
-};
 
 /* VIA 2 */
 
@@ -1444,10 +1437,9 @@ static const TypeInfo mos6522_q800_via2_type_info = {
     .class_init = mos6522_q800_via2_class_init,
 };
 
-static void mac_via_register_types(void)
+static void __attribute__((constructor)) mac_via_register_via2(void)
 {
-    type_register_static(&mos6522_q800_via1_type_info);
     type_register_static(&mos6522_q800_via2_type_info);
 }
 
-type_init(mac_via_register_types);
+REGISTER_QEMU_DEVICE(MOS6522Q800VIA1State, TYPE_MOS6522_Q800_VIA1, TYPE_MOS6522)

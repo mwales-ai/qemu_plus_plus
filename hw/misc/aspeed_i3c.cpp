@@ -11,6 +11,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/misc/aspeed_i3c.h"
+#include "qom/cpp/object.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -273,13 +274,13 @@ static void aspeed_i3c_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 }
 
-static void aspeed_i3c_instance_init(Object *obj)
+void AspeedI3CState::init()
 {
-    AspeedI3CState *s = ASPEED_I3C(obj);
+    Object *obj = OBJECT(this);
     int i;
 
     for (i = 0; i < ASPEED_I3C_NR_DEVICES; ++i) {
-        object_initialize_child(obj, "device[*]", &s->devices[i],
+        object_initialize_child(obj, "device[*]", &devices[i],
                 TYPE_ASPEED_I3C_DEVICE);
     }
 }
@@ -332,22 +333,16 @@ static const Property aspeed_i3c_device_properties[] = {
     DEFINE_PROP_UINT8("device-id", AspeedI3CDevice, id, 0),
 };
 
-static void aspeed_i3c_device_class_init(ObjectClass *klass, const void *data)
+void AspeedI3CDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->desc = "Aspeed I3C Device";
     dc->realize = aspeed_i3c_device_realize;
     device_class_set_legacy_reset(dc, aspeed_i3c_device_reset);
     device_class_set_props(dc, aspeed_i3c_device_properties);
 }
-
-static const TypeInfo aspeed_i3c_device_info = {
-    .name = TYPE_ASPEED_I3C_DEVICE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedI3CDevice),
-    .class_init = aspeed_i3c_device_class_init,
-};
 
 static const VMStateField vmstate_aspeed_i3c_fields[] = {
     VMSTATE_UINT32_ARRAY(regs, AspeedI3CState, ASPEED_I3C_NR_REGS),
@@ -363,9 +358,10 @@ static const VMStateDescription vmstate_aspeed_i3c = {
     .fields = vmstate_aspeed_i3c_fields,
 };
 
-static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
+void AspeedI3CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     dc->realize = aspeed_i3c_realize;
     device_class_set_legacy_reset(dc, aspeed_i3c_reset);
@@ -373,18 +369,15 @@ static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_i3c;
 }
 
-static const TypeInfo aspeed_i3c_info = {
-    .name = TYPE_ASPEED_I3C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedI3CState),
-    .instance_init = aspeed_i3c_instance_init,
-    .class_init = aspeed_i3c_class_init,
-};
-
-static void aspeed_i3c_register_types(void)
+static void __attribute__((constructor)) aspeed_i3c_device_register(void)
 {
+    static const TypeInfo aspeed_i3c_device_info = {
+        .name = TYPE_ASPEED_I3C_DEVICE,
+        .parent = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(AspeedI3CDevice),
+        .class_init = qemu_device_detail::trampoline_class_init<AspeedI3CDevice>,
+    };
     type_register_static(&aspeed_i3c_device_info);
-    type_register_static(&aspeed_i3c_info);
 }
 
-type_init(aspeed_i3c_register_types);
+REGISTER_QEMU_DEVICE(AspeedI3CState, TYPE_ASPEED_I3C, TYPE_SYS_BUS_DEVICE)

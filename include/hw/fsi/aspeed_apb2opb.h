@@ -45,6 +45,11 @@ typedef struct AspeedAPB2OPBState {
 
     OPBus opb[ASPEED_FSI_NUM];
     FSIMasterState fsi[ASPEED_FSI_NUM];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } AspeedAPB2OPBState;
 
 #ifdef __cplusplus
