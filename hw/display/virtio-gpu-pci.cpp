@@ -61,9 +61,9 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     }
 }
 
-static void virtio_gpu_pci_base_class_init(ObjectClass *klass, const void *data)
+void VirtIOGPUPCIBase::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
@@ -73,14 +73,6 @@ static void virtio_gpu_pci_base_class_init(ObjectClass *klass, const void *data)
     k->realize = virtio_gpu_pci_base_realize;
     pcidev_k->class_id = PCI_CLASS_DISPLAY_OTHER;
 }
-
-static const TypeInfo virtio_gpu_pci_base_info = {
-    .name = TYPE_VIRTIO_GPU_PCI_BASE,
-    .parent = TYPE_VIRTIO_PCI,
-    .instance_size = sizeof(VirtIOGPUPCIBase),
-    .is_abstract = true,
-    .class_init = virtio_gpu_pci_base_class_init,
-};
 module_obj(TYPE_VIRTIO_GPU_PCI_BASE);
 module_kconfig(VIRTIO_PCI);
 
@@ -113,8 +105,13 @@ module_obj(TYPE_VIRTIO_GPU_PCI);
 
 static void virtio_gpu_pci_register_types(void)
 {
-    type_register_static(&virtio_gpu_pci_base_info);
     virtio_pci_types_register(&virtio_gpu_pci_info);
 }
 
 type_init(virtio_gpu_pci_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(VirtIOGPUPCIBase,
+                                    TYPE_VIRTIO_GPU_PCI_BASE,
+                                    TYPE_VIRTIO_PCI)

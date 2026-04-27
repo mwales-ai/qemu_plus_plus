@@ -169,6 +169,11 @@ struct IDEDevice {
      */
     uint16_t rotation_rate;
     bool win2k_install_hack;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct IDEDrive {

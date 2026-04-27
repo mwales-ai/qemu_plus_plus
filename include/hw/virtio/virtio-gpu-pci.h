@@ -32,6 +32,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUPCIBase, VIRTIO_GPU_PCI_BASE)
 struct VirtIOGPUPCIBase {
     VirtIOPCIProxy parent_obj;
     VirtIOGPUBase *vgpu;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /* to share between PCI and VGA */

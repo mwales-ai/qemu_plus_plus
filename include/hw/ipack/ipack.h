@@ -65,6 +65,10 @@ struct IPackDevice {
     int32_t slot;
     /* IRQ objects for the IndustryPack INT0# and INT1# */
     IRQState irq[2];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 extern const VMStateDescription vmstate_ipack_device;

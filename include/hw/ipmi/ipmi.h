@@ -210,6 +210,10 @@ struct IPMIBmc {
     uint8_t slave_addr;
 
     IPMIInterface *intf;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct IPMIBmcClass {

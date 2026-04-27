@@ -173,12 +173,12 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void ide_dev_instance_init(Object *obj)
+void IDEDevice::init()
 {
-    object_property_add(obj, "bootindex", "int32",
+    object_property_add(OBJECT(this), "bootindex", "int32",
                         ide_dev_get_bootindex,
                         ide_dev_set_bootindex, NULL, NULL);
-    object_property_set_int(obj, "bootindex", -1, NULL);
+    object_property_set_int(OBJECT(this), "bootindex", -1, NULL);
 }
 
 static void ide_hd_realize(IDEDevice *dev, Error **errp)
@@ -239,30 +239,23 @@ static const TypeInfo ide_cd_info = {
     .class_init    = ide_cd_class_init,
 };
 
-static void ide_device_class_init(ObjectClass *klass, const void *data)
+void IDEDevice::classInit(DeviceClass *k)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = ide_qdev_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_IDE_BUS;
     device_class_set_props(k, ide_props);
 }
 
-static const TypeInfo ide_device_type_info = {
-    .name = TYPE_IDE_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(IDEDevice),
-    .instance_init = ide_dev_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(IDEDeviceClass),
-    .class_init = ide_device_class_init,
-};
-
 static void ide_register_types(void)
 {
     type_register_static(&ide_hd_info);
     type_register_static(&ide_cd_info);
-    type_register_static(&ide_device_type_info);
 }
 
 type_init(ide_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT(IDEDevice, IDEDeviceClass,
+                               TYPE_IDE_DEVICE, TYPE_DEVICE)

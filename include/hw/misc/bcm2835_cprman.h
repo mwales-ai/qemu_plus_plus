@@ -132,6 +132,12 @@ typedef struct CprmanPllState {
 
     Clock *xosc_in;
     Clock *out;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } CprmanPllState;
 
 typedef struct CprmanPllChannelState {
@@ -150,6 +156,12 @@ typedef struct CprmanPllChannelState {
 
     Clock *pll_in;
     Clock *out;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } CprmanPllChannelState;
 
 typedef struct CprmanClockMuxState {
@@ -172,6 +184,12 @@ typedef struct CprmanClockMuxState {
      * source number.
      */
     struct CprmanClockMuxState *backref[CPRMAN_NUM_CLOCK_MUX_SRC];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } CprmanClockMuxState;
 
 typedef struct CprmanDsi0HsckMuxState {
@@ -186,6 +204,11 @@ typedef struct CprmanDsi0HsckMuxState {
     Clock *plla_in;
     Clock *plld_in;
     Clock *out;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } CprmanDsi0HsckMuxState;
 
 struct BCM2835CprmanState {
@@ -205,6 +228,13 @@ struct BCM2835CprmanState {
 
     Clock *xosc;
     Clock *gnd;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

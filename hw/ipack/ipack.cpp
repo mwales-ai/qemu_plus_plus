@@ -79,10 +79,8 @@ static const Property ipack_device_props[] = {
     DEFINE_PROP_INT32("slot", IPackDevice, slot, -1),
 };
 
-static void ipack_device_class_init(ObjectClass *klass, const void *data)
+void IPackDevice::classInit(DeviceClass *k)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_INPUT, k->categories);
     k->bus_type = TYPE_IPACK_BUS;
     k->realize = ipack_device_realize;
@@ -103,15 +101,6 @@ const VMStateDescription vmstate_ipack_device = {
     .fields = vmstate_ipack_device_fields,
 };
 
-static const TypeInfo ipack_device_info = {
-    .name          = TYPE_IPACK_DEVICE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(IPackDevice),
-    .is_abstract   = true,
-    .class_size    = sizeof(IPackDeviceClass),
-    .class_init    = ipack_device_class_init,
-};
-
 static const TypeInfo ipack_bus_info = {
     .name = TYPE_IPACK_BUS,
     .parent = TYPE_BUS,
@@ -120,8 +109,12 @@ static const TypeInfo ipack_bus_info = {
 
 static void ipack_register_types(void)
 {
-    type_register_static(&ipack_device_info);
     type_register_static(&ipack_bus_info);
 }
 
 type_init(ipack_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT(IPackDevice, IPackDeviceClass,
+                               TYPE_IPACK_DEVICE, TYPE_DEVICE)

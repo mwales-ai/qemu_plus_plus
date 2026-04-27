@@ -114,26 +114,19 @@ static const Property ipmi_bmc_properties[] = {
     DEFINE_PROP_UINT8("slave_addr",  IPMIBmc, slave_addr, 0x20),
 };
 
-static void bmc_class_init(ObjectClass *oc, const void *data)
+void IPMIBmc::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, ipmi_bmc_properties);
 }
-
-static const TypeInfo ipmi_bmc_type_info = {
-    .name = TYPE_IPMI_BMC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(IPMIBmc),
-    .is_abstract = true,
-    .class_size = sizeof(IPMIBmcClass),
-    .class_init = bmc_class_init,
-};
 
 static void ipmi_register_types(void)
 {
     type_register_static(&ipmi_interface_type_info);
-    type_register_static(&ipmi_bmc_type_info);
 }
 
 type_init(ipmi_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT(IPMIBmc, IPMIBmcClass,
+                               TYPE_IPMI_BMC, TYPE_DEVICE)

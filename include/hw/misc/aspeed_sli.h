@@ -26,6 +26,11 @@ struct AspeedSLIState {
     MemoryRegion iomem;
 
     uint32_t regs[ASPEED_SLI_NR_REGS];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

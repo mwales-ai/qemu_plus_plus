@@ -104,14 +104,13 @@ static const MemoryRegionOps aspeed_sliio_ops = {
     },
 };
 
-static void aspeed_sli_realize(DeviceState *dev, Error **errp)
+void AspeedSLIState::realize(Error **errp)
 {
-    AspeedSLIState *s = ASPEED_SLI(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sli_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &aspeed_sli_ops, this,
                           TYPE_ASPEED_SLI, SLI_REGION_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static void aspeed_sliio_realize(DeviceState *dev, Error **errp)
@@ -124,21 +123,11 @@ static void aspeed_sliio_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void aspeed_sli_class_init(ObjectClass *klass, const void *data)
+
+void AspeedSLIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Aspeed SLI Controller";
-    dc->realize = aspeed_sli_realize;
 }
-
-static const TypeInfo aspeed_sli_info = {
-    .name          = TYPE_ASPEED_SLI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedSLIState),
-    .is_abstract   = true,
-    .class_init    = aspeed_sli_class_init,
-};
 
 static void aspeed_2700_sli_class_init(ObjectClass *klass, const void *data)
 {
@@ -169,9 +158,12 @@ static const TypeInfo aspeed_2700_sliio_info = {
 
 static void aspeed_sli_register_types(void)
 {
-    type_register_static(&aspeed_sli_info);
     type_register_static(&aspeed_2700_sli_info);
     type_register_static(&aspeed_2700_sliio_info);
 }
 
-type_init(aspeed_sli_register_types);
+type_init(aspeed_sli_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(AspeedSLIState, TYPE_ASPEED_SLI, TYPE_SYS_BUS_DEVICE)
