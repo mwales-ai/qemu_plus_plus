@@ -107,6 +107,12 @@ struct SpaprVioVlan {
     QEMUTimer *rxp_timer;
     uint32_t compat_flags;             /* Compatibility flags for migration */
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static bool spapr_vlan_can_receive(NetClientState *nc)
@@ -333,37 +339,35 @@ static void spapr_vlan_realize(SpaprVioDevice *sdev, Error **errp)
                                   dev);
 }
 
-static void spapr_vlan_instance_init(Object *obj)
+void SpaprVioVlan::init()
 {
-    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(obj);
     int i;
 
-    device_add_bootindex_property(obj, &dev->nicconf.bootindex,
+    device_add_bootindex_property(OBJECT(this), &nicconf.bootindex,
                                   "bootindex", "",
-                                  DEVICE(dev));
+                                  DEVICE(this));
 
-    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+    if (compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
         for (i = 0; i < RX_MAX_POOLS; i++) {
-            dev->rx_pool[i] = g_new(RxBufPool, 1);
-            spapr_vlan_reset_rx_pool(dev->rx_pool[i]);
+            rx_pool[i] = g_new(RxBufPool, 1);
+            spapr_vlan_reset_rx_pool(rx_pool[i]);
         }
     }
 }
 
-static void spapr_vlan_instance_finalize(Object *obj)
+void SpaprVioVlan::finalize()
 {
-    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(obj);
     int i;
 
-    if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
+    if (compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
         for (i = 0; i < RX_MAX_POOLS; i++) {
-            g_free(dev->rx_pool[i]);
-            dev->rx_pool[i] = NULL;
+            g_free(rx_pool[i]);
+            rx_pool[i] = NULL;
         }
     }
 
-    if (dev->rxp_timer) {
-        timer_free(dev->rxp_timer);
+    if (rxp_timer) {
+        timer_free(rxp_timer);
     }
 }
 
@@ -855,9 +859,9 @@ static const VMStateDescription vmstate_spapr_llan = {
     .subsections = vmstate_spapr_llan_subsections,
 };
 
-static void spapr_vlan_class_init(ObjectClass *klass, const void *data)
+void SpaprVioVlan::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->realize = spapr_vlan_realize;
@@ -873,16 +877,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_spapr_llan;
 }
 
-static const TypeInfo spapr_vlan_info = {
-    .name              = TYPE_VIO_SPAPR_VLAN_DEVICE,
-    .parent            = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size     = sizeof(SpaprVioVlan),
-    .instance_init     = spapr_vlan_instance_init,
-    .instance_finalize = spapr_vlan_instance_finalize,
-    .class_init        = spapr_vlan_class_init,
-};
-
-static void spapr_vlan_register_types(void)
+static void __attribute__((constructor)) register_spapr_vlan_hypercalls(void)
 {
     spapr_register_hypercall(H_REGISTER_LOGICAL_LAN, h_register_logical_lan);
     spapr_register_hypercall(H_FREE_LOGICAL_LAN, h_free_logical_lan);
@@ -892,7 +887,8 @@ static void spapr_vlan_register_types(void)
     spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
     spapr_register_hypercall(H_CHANGE_LOGICAL_LAN_MAC,
                              h_change_logical_lan_mac);
-    type_register_static(&spapr_vlan_info);
 }
 
-type_init(spapr_vlan_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprVioVlan, TYPE_VIO_SPAPR_VLAN_DEVICE,
+                     TYPE_VIO_SPAPR_DEVICE)

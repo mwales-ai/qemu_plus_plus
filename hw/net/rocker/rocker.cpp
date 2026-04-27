@@ -72,6 +72,10 @@ struct rocker {
     World *world_dflt;
 
     QLIST_ENTRY(rocker) next;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static QLIST_HEAD(, rocker) rockers;
@@ -1475,9 +1479,9 @@ static const VMStateDescription rocker_vmsd = {
     .unmigratable = 1,
 };
 
-static void rocker_class_init(ObjectClass *klass, const void *data)
+void Rocker::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_rocker_realize;
@@ -1493,20 +1497,10 @@ static void rocker_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &rocker_vmsd;
 }
 
-static const TypeInfo rocker_info = {
-    .name          = TYPE_ROCKER,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(Rocker),
-    .class_init    = rocker_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo rocker_ifaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void rocker_register_types(void)
-{
-    type_register_static(&rocker_info);
-}
-
-type_init(rocker_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(Rocker, TYPE_ROCKER, TYPE_PCI_DEVICE, rocker_ifaces)

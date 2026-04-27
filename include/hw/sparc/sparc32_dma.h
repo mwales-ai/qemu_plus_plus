@@ -29,6 +29,11 @@ struct ESPDMADeviceState {
     DMADeviceState parent_obj;
 
     SysBusESPState esp;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
@@ -38,6 +43,11 @@ struct LEDMADeviceState {
     DMADeviceState parent_obj;
 
     SysBusPCNetState lance;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #define TYPE_SPARC32_DMA "sparc32-dma"
@@ -50,6 +60,11 @@ struct SPARC32DMAState {
     MemoryRegion ledma_alias;
     ESPDMADeviceState espdma;
     LEDMADeviceState ledma;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 /* sparc32_dma.c */

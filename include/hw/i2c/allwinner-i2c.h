@@ -56,6 +56,11 @@ struct AWI2CState {
     uint8_t lcr;
 
     bool irq_clear_inverted;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* ALLWINNER_I2C_H */

@@ -60,6 +60,10 @@ struct XenNetDev {
     netif_rx_back_ring_t  rx_ring;
     NICConf               conf;
     NICState              *nic;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_XEN_NET_DEVICE "xen-net-device"
@@ -560,9 +564,9 @@ static const Property xen_netdev_properties[] = {
     DEFINE_PROP_INT32("idx", XenNetDev, dev, -1),
 };
 
-static void xen_netdev_class_init(ObjectClass *klass, const void *data)
+void XenNetDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "qnic";
@@ -571,25 +575,14 @@ static void xen_netdev_class_init(ObjectClass *klass, const void *data)
     xendev_class->realize = xen_netdev_realize;
     xendev_class->frontend_changed = xen_netdev_frontend_changed;
     xendev_class->unrealize = xen_netdev_unrealize;
-    set_bit(DEVICE_CATEGORY_NETWORK, dev_class->categories);
-    dev_class->user_creatable = true;
+    set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+    dc->user_creatable = true;
 
-    device_class_set_props(dev_class, xen_netdev_properties);
+    device_class_set_props(dc, xen_netdev_properties);
 }
 
-static const TypeInfo xen_net_type_info = {
-    .name = TYPE_XEN_NET_DEVICE,
-    .parent = TYPE_XEN_DEVICE,
-    .instance_size = sizeof(XenNetDev),
-    .class_init = xen_netdev_class_init,
-};
-
-static void xen_net_register_types(void)
-{
-    type_register_static(&xen_net_type_info);
-}
-
-type_init(xen_net_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenNetDev, TYPE_XEN_NET_DEVICE, TYPE_XEN_DEVICE)
 
 /* Called to instantiate a XenNetDev when the backend is detected. */
 static void xen_net_device_create(XenBackendInstance *backend,

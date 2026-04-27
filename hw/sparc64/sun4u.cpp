@@ -99,7 +99,7 @@ struct EbusState {
     /* Callbacks */
     static void isaIrqHandler(void *opaque, int n, int level);
     static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_EBUS "ebus"
@@ -240,13 +240,12 @@ struct PowerDevice {
     MemoryRegion power_mmio;
 
     /* Methods */
-    void realizeDevice(Error **errp);
+    void realize(Error **errp);
 
     /* Callbacks */
     static uint64_t readOp(void *opaque, hwaddr addr, unsigned size);
     static void writeOp(void *opaque, hwaddr addr, uint64_t val, unsigned size);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* Power */
@@ -274,13 +273,7 @@ static const MemoryRegionOps power_mem_ops = {
     },
 };
 
-void PowerDevice::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    PowerDevice *d = reinterpret_cast<PowerDevice *>(dev);
-    d->realizeDevice(errp);
-}
-
-void PowerDevice::realizeDevice(Error **errp)
+void PowerDevice::realize(Error **errp)
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
@@ -290,19 +283,10 @@ void PowerDevice::realizeDevice(Error **errp)
     sysbus_init_mmio(sbd, &power_mmio);
 }
 
-void PowerDevice::classInit(ObjectClass *klass, const void *data)
+void PowerDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PowerDevice::realizeWrapper;
+    (void)dc;
 }
-
-static const TypeInfo power_info = {
-    .name          = TYPE_SUN4U_POWER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PowerDevice),
-    .class_init    = PowerDevice::classInit,
-};
 
 void EbusState::isaIrqHandler(void *opaque, int n, int level)
 {
@@ -403,10 +387,10 @@ static const Property ebus_properties[] = {
                        console_serial_base, 0),
 };
 
-void EbusState::classInit(ObjectClass *klass, const void *data)
+void EbusState::classInit(DeviceClass *dc)
 {
-    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = EbusState::realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_SUN;
@@ -416,15 +400,9 @@ void EbusState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, ebus_properties);
 }
 
-static const TypeInfo ebus_info = {
-    .name          = TYPE_EBUS,
-    .parent        = TYPE_PCI_DEVICE,
-    .class_init    = EbusState::classInit,
-    .instance_size = sizeof(EbusState),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo ebus_ifaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
 #define TYPE_OPENPROM "openprom"
@@ -438,11 +416,10 @@ struct PROMState {
     MemoryRegion prom;
 
     /* Methods */
-    void realizeDevice(Error **errp);
+    void realize(Error **errp);
 
     /* Callbacks */
-    static void realizeWrapper(DeviceState *ds, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
@@ -486,13 +463,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
 }
 
-void PROMState::realizeWrapper(DeviceState *ds, Error **errp)
-{
-    PROMState *s = reinterpret_cast<PROMState *>(ds);
-    s->realizeDevice(errp);
-}
-
-void PROMState::realizeDevice(Error **errp)
+void PROMState::realize(Error **errp)
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
@@ -506,19 +477,10 @@ void PROMState::realizeDevice(Error **errp)
     sysbus_init_mmio(dev, &prom);
 }
 
-void PROMState::classInit(ObjectClass *klass, const void *data)
+void PROMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PROMState::realizeWrapper;
+    (void)dc;
 }
-
-static const TypeInfo prom_info = {
-    .name          = TYPE_OPENPROM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PROMState),
-    .class_init    = PROMState::classInit,
-};
 
 
 #define TYPE_SUN4U_MEMORY "memory"
@@ -533,21 +495,14 @@ struct RamDevice {
     uint64_t size;
 
     /* Methods */
-    void realizeDevice(Error **errp);
+    void realize(Error **errp);
 
     /* Callbacks */
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* System RAM */
-void RamDevice::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    RamDevice *d = reinterpret_cast<RamDevice *>(dev);
-    d->realizeDevice(errp);
-}
-
-void RamDevice::realizeDevice(Error **errp)
+void RamDevice::realize(Error **errp)
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
@@ -578,20 +533,10 @@ static const Property ram_properties[] = {
     DEFINE_PROP_UINT64("size", RamDevice, size, 0),
 };
 
-void RamDevice::classInit(ObjectClass *klass, const void *data)
+void RamDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = RamDevice::realizeWrapper;
     device_class_set_props(dc, ram_properties);
 }
-
-static const TypeInfo ram_info = {
-    .name          = TYPE_SUN4U_MEMORY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RamDevice),
-    .class_init    = RamDevice::classInit,
-};
 
 static void sun4uv_init(MemoryRegion *address_space_mem,
                         MachineState *machine,
@@ -902,13 +847,14 @@ static const TypeInfo sun4v_type = {
 
 static void sun4u_register_types(void)
 {
-    type_register_static(&power_info);
-    type_register_static(&ebus_info);
-    type_register_static(&prom_info);
-    type_register_static(&ram_info);
-
     type_register_static(&sun4u_type);
     type_register_static(&sun4v_type);
 }
 
 type_init(sun4u_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PowerDevice, TYPE_SUN4U_POWER, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE_IFACES(EbusState, TYPE_EBUS, TYPE_PCI_DEVICE, ebus_ifaces)
+REGISTER_QEMU_DEVICE(PROMState, TYPE_OPENPROM, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(RamDevice, TYPE_SUN4U_MEMORY, TYPE_SYS_BUS_DEVICE)

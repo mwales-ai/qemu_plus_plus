@@ -276,6 +276,11 @@ struct IMXFECState {
 
     /* Buffer used to assemble a Tx frame */
     uint8_t frame[ENET_MAX_FRAME_SIZE];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

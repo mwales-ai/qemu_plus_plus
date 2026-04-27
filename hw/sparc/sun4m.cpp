@@ -596,8 +596,7 @@ struct IDRegState {
 
     /* Methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *ds, Error **errp);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void IDRegState::realize(Error **errp)
@@ -616,25 +615,10 @@ void IDRegState::realize(Error **errp)
     sysbus_init_mmio(dev, &s->mem);
 }
 
-void IDRegState::realizeWrapper(DeviceState *ds, Error **errp)
+void IDRegState::classInit(DeviceClass *dc)
 {
-    IDRegState *s = reinterpret_cast<IDRegState *>(ds);
-    s->realize(errp);
+    (void)dc;
 }
-
-void IDRegState::classInit(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = IDRegState::realizeWrapper;
-}
-
-static const TypeInfo idreg_info = {
-    .name          = TYPE_MACIO_ID_REGISTER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IDRegState),
-    .class_init    = IDRegState::classInit,
-};
 
 #define TYPE_TCX_AFX "tcx_afx"
 OBJECT_DECLARE_SIMPLE_TYPE(AFXState, TCX_AFX)
@@ -646,8 +630,7 @@ struct AFXState {
 
     /* Methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *ds, Error **errp);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* SS-5 TCX AFX register */
@@ -678,25 +661,10 @@ void AFXState::realize(Error **errp)
     sysbus_init_mmio(dev, &s->mem);
 }
 
-void AFXState::realizeWrapper(DeviceState *ds, Error **errp)
+void AFXState::classInit(DeviceClass *dc)
 {
-    AFXState *s = reinterpret_cast<AFXState *>(ds);
-    s->realize(errp);
+    (void)dc;
 }
-
-void AFXState::classInit(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = AFXState::realizeWrapper;
-}
-
-static const TypeInfo afx_info = {
-    .name          = TYPE_TCX_AFX,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AFXState),
-    .class_init    = AFXState::classInit,
-};
 
 #define TYPE_OPENPROM "openprom"
 typedef struct PROMState PROMState;
@@ -710,8 +678,7 @@ struct PROMState {
 
     /* Methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *ds, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* Boot PROM (OpenBIOS) */
@@ -772,25 +739,10 @@ void PROMState::realize(Error **errp)
     sysbus_init_mmio(dev, &s->prom);
 }
 
-void PROMState::realizeWrapper(DeviceState *ds, Error **errp)
+void PROMState::classInit(DeviceClass *dc)
 {
-    PROMState *s = reinterpret_cast<PROMState *>(ds);
-    s->realize(errp);
+    (void)dc;
 }
-
-void PROMState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PROMState::realizeWrapper;
-}
-
-static const TypeInfo prom_info = {
-    .name          = TYPE_OPENPROM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PROMState),
-    .class_init    = PROMState::classInit,
-};
 
 #define TYPE_SUN4M_MEMORY "memory"
 typedef struct RamDevice RamDevice;
@@ -803,10 +755,8 @@ struct RamDevice {
 
     /* Methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 /* System RAM */
@@ -819,44 +769,21 @@ void RamDevice::realize(Error **errp)
     sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), ram);
 }
 
-void RamDevice::instanceInit()
+void RamDevice::init()
 {
-    RamDevice *d = this;
     Object *obj = reinterpret_cast<Object *>(this);
     object_property_add_link(obj, "memdev", TYPE_MEMORY_BACKEND,
-                             (Object **)&d->memdev,
+                             (Object **)&memdev,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
     object_property_set_description(obj, "memdev", "Set RAM backend"
                                     "Valid value is ID of a hostmem backend");
 }
 
-void RamDevice::instanceInitWrapper(Object *obj)
+void RamDevice::classInit(DeviceClass *dc)
 {
-    RamDevice *d = reinterpret_cast<RamDevice *>(obj);
-    d->instanceInit();
+    (void)dc;
 }
-
-void RamDevice::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    RamDevice *d = reinterpret_cast<RamDevice *>(dev);
-    d->realize(errp);
-}
-
-void RamDevice::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = RamDevice::realizeWrapper;
-}
-
-static const TypeInfo ram_info = {
-    .name          = TYPE_SUN4M_MEMORY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RamDevice),
-    .instance_init = RamDevice::instanceInitWrapper,
-    .class_init    = RamDevice::classInit,
-};
 
 static void cpu_devinit(const char *cpu_type, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
@@ -1547,12 +1474,8 @@ static const TypeInfo sun4m_machine_types[] = {
 
 DEFINE_TYPES(sun4m_machine_types)
 
-static void sun4m_register_types(void)
-{
-    type_register_static(&idreg_info);
-    type_register_static(&afx_info);
-    type_register_static(&prom_info);
-    type_register_static(&ram_info);
-}
-
-type_init(sun4m_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IDRegState, TYPE_MACIO_ID_REGISTER, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(AFXState, TYPE_TCX_AFX, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(PROMState, TYPE_OPENPROM, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(RamDevice, TYPE_SUN4M_MEMORY, TYPE_SYS_BUS_DEVICE)

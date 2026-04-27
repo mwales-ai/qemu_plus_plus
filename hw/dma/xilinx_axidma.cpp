@@ -144,6 +144,11 @@ struct XilinxAXIDMA {
 
     StreamCanPushNotifyFn notify;
     void *notify_opaque;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*
@@ -595,23 +600,23 @@ static void xilinx_axidma_realize(DeviceState *dev, Error **errp)
                        s->dma_mr ? s->dma_mr : get_system_memory(), "dma");
 }
 
-static void xilinx_axidma_init(Object *obj)
+void XilinxAXIDMA::init()
 {
-    XilinxAXIDMA *s = XILINX_AXI_DMA(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    Object *obj = OBJECT(this);
 
-    object_initialize_child(OBJECT(s), "axistream-connected-target",
-                            &s->rx_data_dev, TYPE_XILINX_AXI_DMA_DATA_STREAM);
-    object_initialize_child(OBJECT(s), "axistream-control-connected-target",
-                            &s->rx_control_dev,
+    object_initialize_child(obj, "axistream-connected-target",
+                            &rx_data_dev, TYPE_XILINX_AXI_DMA_DATA_STREAM);
+    object_initialize_child(obj, "axistream-control-connected-target",
+                            &rx_control_dev,
                             TYPE_XILINX_AXI_DMA_CONTROL_STREAM);
 
-    sysbus_init_irq(sbd, &s->streams[0].irq);
-    sysbus_init_irq(sbd, &s->streams[1].irq);
+    sysbus_init_irq(sbd, &streams[0].irq);
+    sysbus_init_irq(sbd, &streams[1].irq);
 
-    memory_region_init_io(&s->iomem, obj, &axidma_ops, s,
+    memory_region_init_io(&iomem, obj, &axidma_ops, this,
                           "xlnx.axi-dma", R_MAX * 4 * 2);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static const Property axidma_properties[] = {
@@ -624,10 +629,8 @@ static const Property axidma_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void axidma_class_init(ObjectClass *klass, const void *data)
+void XilinxAXIDMA::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = xilinx_axidma_realize;
     device_class_set_legacy_reset(dc, xilinx_axidma_reset);
     device_class_set_props(dc, axidma_properties);
@@ -651,42 +654,32 @@ static void xilinx_axidma_stream_class_init(ObjectClass *klass,
     ssc->can_push = static_cast<const StreamSinkClass *>(data)->can_push;
 }
 
-static const TypeInfo axidma_info = {
-    .name          = TYPE_XILINX_AXI_DMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XilinxAXIDMA),
-    .instance_init = xilinx_axidma_init,
-    .class_init    = axidma_class_init,
-};
-
 static const InterfaceInfo xilinx_axidma_stream_interfaces[] = {
     { TYPE_STREAM_SINK },
     { }
 };
 
-static const TypeInfo xilinx_axidma_data_stream_info = {
-    .name          = TYPE_XILINX_AXI_DMA_DATA_STREAM,
-    .parent        = TYPE_OBJECT,
-    .instance_size = sizeof(XilinxAXIDMAStreamSink),
-    .class_init    = xilinx_axidma_stream_class_init,
-    .class_data    = &xilinx_axidma_data_stream_class,
-    .interfaces    = xilinx_axidma_stream_interfaces,
-};
-
-static const TypeInfo xilinx_axidma_control_stream_info = {
-    .name          = TYPE_XILINX_AXI_DMA_CONTROL_STREAM,
-    .parent        = TYPE_OBJECT,
-    .instance_size = sizeof(XilinxAXIDMAStreamSink),
-    .class_init    = xilinx_axidma_stream_class_init,
-    .class_data    = &xilinx_axidma_control_stream_class,
-    .interfaces    = xilinx_axidma_stream_interfaces,
-};
-
-static void xilinx_axidma_register_types(void)
+static void __attribute__((constructor)) register_xilinx_axidma_streams(void)
 {
-    type_register_static(&axidma_info);
-    type_register_static(&xilinx_axidma_data_stream_info);
-    type_register_static(&xilinx_axidma_control_stream_info);
+    static const TypeInfo data_stream_info = {
+        .name          = TYPE_XILINX_AXI_DMA_DATA_STREAM,
+        .parent        = TYPE_OBJECT,
+        .instance_size = sizeof(XilinxAXIDMAStreamSink),
+        .class_init    = xilinx_axidma_stream_class_init,
+        .class_data    = &xilinx_axidma_data_stream_class,
+        .interfaces    = xilinx_axidma_stream_interfaces,
+    };
+    static const TypeInfo control_stream_info = {
+        .name          = TYPE_XILINX_AXI_DMA_CONTROL_STREAM,
+        .parent        = TYPE_OBJECT,
+        .instance_size = sizeof(XilinxAXIDMAStreamSink),
+        .class_init    = xilinx_axidma_stream_class_init,
+        .class_data    = &xilinx_axidma_control_stream_class,
+        .interfaces    = xilinx_axidma_stream_interfaces,
+    };
+    type_register_static(&data_stream_info);
+    type_register_static(&control_stream_info);
 }
 
-type_init(xilinx_axidma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XilinxAXIDMA, TYPE_XILINX_AXI_DMA, TYPE_SYS_BUS_DEVICE)

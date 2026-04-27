@@ -428,52 +428,42 @@ static const VMStateDescription allwinner_i2c_vmstate = {
     .fields = allwinner_i2c_vmstate_fields,
 };
 
-static void allwinner_i2c_realize(DeviceState *dev, Error **errp)
+void AWI2CState::realize(Error **errp)
 {
-    AWI2CState *s = AW_I2C(dev);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_i2c_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_i2c_ops, this,
                           TYPE_AW_I2C, AW_I2C_MEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
-    s->bus = i2c_init_bus(dev, "i2c");
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    bus = i2c_init_bus(dev, "i2c");
 }
 
-static void allwinner_i2c_class_init(ObjectClass *klass, const void *data)
+void AWI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     rc->phases.hold = allwinner_i2c_reset_hold;
     dc->vmsd = &allwinner_i2c_vmstate;
-    dc->realize = allwinner_i2c_realize;
     dc->desc = "Allwinner I2C Controller";
 }
 
-static const TypeInfo allwinner_i2c_type_info = {
-    .name = TYPE_AW_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AWI2CState),
-    .class_init = allwinner_i2c_class_init,
-};
-
-static void allwinner_i2c_sun6i_init(Object *obj)
+static void allwinner_i2c_sun6i_instance_init(Object *obj)
 {
     AWI2CState *s = AW_I2C(obj);
-
     s->irq_clear_inverted = true;
 }
 
-static const TypeInfo allwinner_i2c_sun6i_type_info = {
-    .name = TYPE_AW_I2C_SUN6I,
-    .parent = TYPE_AW_I2C,
-    .instance_init = allwinner_i2c_sun6i_init,
-};
-
-static void allwinner_i2c_register_types(void)
+static void __attribute__((constructor)) register_allwinner_i2c_sun6i(void)
 {
-    type_register_static(&allwinner_i2c_type_info);
-    type_register_static(&allwinner_i2c_sun6i_type_info);
+    static const TypeInfo sun6i_info = {
+        .name          = TYPE_AW_I2C_SUN6I,
+        .parent        = TYPE_AW_I2C,
+        .instance_init = allwinner_i2c_sun6i_instance_init,
+    };
+    type_register_static(&sun6i_info);
 }
 
-type_init(allwinner_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AWI2CState, TYPE_AW_I2C, TYPE_SYS_BUS_DEVICE)

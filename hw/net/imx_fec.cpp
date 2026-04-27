@@ -1229,10 +1229,13 @@ static const Property imx_eth_properties[] = {
                      IMXFECState *),
 };
 
-static void imx_eth_class_init(ObjectClass *klass, const void *data)
+void IMXFECState::init()
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    is_fec = true;
+}
 
+void IMXFECState::classInit(DeviceClass *dc)
+{
     dc->vmsd    = &vmstate_imx_eth;
     device_class_set_legacy_reset(dc, imx_eth_reset);
     device_class_set_props(dc, imx_eth_properties);
@@ -1240,38 +1243,21 @@ static void imx_eth_class_init(ObjectClass *klass, const void *data)
     dc->desc    = "i.MX FEC/ENET Ethernet Controller";
 }
 
-static void imx_fec_init(Object *obj)
+static void imx_enet_instance_init(Object *obj)
 {
     IMXFECState *s = IMX_FEC(obj);
-
-    s->is_fec = true;
-}
-
-static void imx_enet_init(Object *obj)
-{
-    IMXFECState *s = IMX_FEC(obj);
-
     s->is_fec = false;
 }
 
-static const TypeInfo imx_fec_info = {
-    .name          = TYPE_IMX_FEC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXFECState),
-    .instance_init = imx_fec_init,
-    .class_init    = imx_eth_class_init,
-};
-
-static const TypeInfo imx_enet_info = {
-    .name          = TYPE_IMX_ENET,
-    .parent        = TYPE_IMX_FEC,
-    .instance_init = imx_enet_init,
-};
-
-static void imx_eth_register_types(void)
+static void __attribute__((constructor)) register_imx_enet(void)
 {
-    type_register_static(&imx_fec_info);
+    static const TypeInfo imx_enet_info = {
+        .name          = TYPE_IMX_ENET,
+        .parent        = TYPE_IMX_FEC,
+        .instance_init = imx_enet_instance_init,
+    };
     type_register_static(&imx_enet_info);
 }
 
-type_init(imx_eth_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXFECState, TYPE_IMX_FEC, TYPE_SYS_BUS_DEVICE)
