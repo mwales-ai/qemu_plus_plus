@@ -122,7 +122,7 @@ struct PS2KbdState {
     static void keyboardEvent(DeviceState *dev, QemuConsole *src,
                               struct InputEvent *evt);
     static void kbdRealize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 
@@ -162,7 +162,7 @@ struct PS2MouseState {
                            struct InputEvent *evt);
     static void mouseSync(DeviceState *dev);
     static void mouseRealize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

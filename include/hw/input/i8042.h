@@ -96,6 +96,11 @@ struct ISAKBDState {
     MemoryRegion io[2];
     uint8_t kbd_irq;
     uint8_t mouse_irq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*
@@ -118,6 +123,11 @@ struct MMIOKBDState {
     KBDState kbd;
     uint32_t size;
     MemoryRegion region;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define I8042_A20_LINE "a20"

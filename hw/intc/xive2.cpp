@@ -2207,27 +2207,20 @@ static const Property xive2_end_source_properties[] = {
                      Xive2Router *),
 };
 
-static void xive2_end_source_class_init(ObjectClass *klass, const void *data)
+void Xive2EndSource::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc    = "XIVE END Source";
     device_class_set_props(dc, xive2_end_source_properties);
     dc->realize = xive2_end_source_realize;
     dc->user_creatable = false;
 }
 
-static const TypeInfo xive2_end_source_info = {
-    .name          = TYPE_XIVE2_END_SOURCE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(Xive2EndSource),
-    .class_init    = xive2_end_source_class_init,
-};
-
-static void xive2_register_types(void)
+static void xive2_router_register_type(void)
 {
     type_register_static(&xive2_router_info);
-    type_register_static(&xive2_end_source_info);
 }
 
-type_init(xive2_register_types)
+type_init(xive2_router_register_type)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Xive2EndSource, TYPE_XIVE2_END_SOURCE, TYPE_DEVICE)

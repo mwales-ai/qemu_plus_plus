@@ -1105,10 +1105,8 @@ static const Property xive_tctx_properties[] = {
                      XivePresenter *),
 };
 
-static void xive_tctx_class_init(ObjectClass *klass, const void *data)
+void XiveTCTX::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "XIVE Interrupt Thread Context";
     dc->realize = xive_tctx_realize;
     dc->vmsd = &vmstate_xive_tctx;
@@ -1119,13 +1117,6 @@ static void xive_tctx_class_init(ObjectClass *klass, const void *data)
      */
     dc->user_creatable = false;
 }
-
-static const TypeInfo xive_tctx_info = {
-    .name          = TYPE_XIVE_TCTX,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XiveTCTX),
-    .class_init    = xive_tctx_class_init,
-};
 
 Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
 {
@@ -1592,10 +1583,8 @@ static const Property xive_source_properties[] = {
                      XiveNotifier *),
 };
 
-static void xive_source_class_init(ObjectClass *klass, const void *data)
+void XiveSource::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc    = "XIVE Interrupt Source";
     device_class_set_props(dc, xive_source_properties);
     dc->realize = xive_source_realize;
@@ -1606,13 +1595,6 @@ static void xive_source_class_init(ObjectClass *klass, const void *data)
      */
     dc->user_creatable = false;
 }
-
-static const TypeInfo xive_source_info = {
-    .name          = TYPE_XIVE_SOURCE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XiveSource),
-    .class_init    = xive_source_class_init,
-};
 
 /*
  * XiveEND helpers
@@ -2421,10 +2403,8 @@ static const Property xive_end_source_properties[] = {
                      XiveRouter *),
 };
 
-static void xive_end_source_class_init(ObjectClass *klass, const void *data)
+void XiveENDSource::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc    = "XIVE END Source";
     device_class_set_props(dc, xive_end_source_properties);
     dc->realize = xive_end_source_realize;
@@ -2435,49 +2415,36 @@ static void xive_end_source_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo xive_end_source_info = {
-    .name          = TYPE_XIVE_END_SOURCE,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XiveENDSource),
-    .class_init    = xive_end_source_class_init,
-};
-
 /*
- * XIVE Notifier
+ * XIVE Notifier / Presenter / Fabric (interface types) and XiveRouter
+ * (abstract with class_size) — kept as plain TypeInfo registrations.
  */
-static const TypeInfo xive_notifier_info = {
-    .name = TYPE_XIVE_NOTIFIER,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(XiveNotifierClass),
-};
-
-/*
- * XIVE Presenter
- */
-static const TypeInfo xive_presenter_info = {
-    .name = TYPE_XIVE_PRESENTER,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(XivePresenterClass),
-};
-
-/*
- * XIVE Fabric
- */
-static const TypeInfo xive_fabric_info = {
-    .name = TYPE_XIVE_FABRIC,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(XiveFabricClass),
-};
-
-static void xive_register_types(void)
+static void xive_base_types_register(void)
 {
+    static const TypeInfo xive_notifier_info = {
+        .name = TYPE_XIVE_NOTIFIER,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(XiveNotifierClass),
+    };
+    static const TypeInfo xive_presenter_info = {
+        .name = TYPE_XIVE_PRESENTER,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(XivePresenterClass),
+    };
+    static const TypeInfo xive_fabric_info = {
+        .name = TYPE_XIVE_FABRIC,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(XiveFabricClass),
+    };
     type_register_static(&xive_fabric_info);
-    type_register_static(&xive_source_info);
     type_register_static(&xive_notifier_info);
     type_register_static(&xive_presenter_info);
     type_register_static(&xive_router_info);
-    type_register_static(&xive_end_source_info);
-    type_register_static(&xive_tctx_info);
 }
 
-type_init(xive_register_types)
+type_init(xive_base_types_register)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XiveTCTX, TYPE_XIVE_TCTX, TYPE_DEVICE)
+REGISTER_QEMU_DEVICE(XiveSource, TYPE_XIVE_SOURCE, TYPE_DEVICE)
+REGISTER_QEMU_DEVICE(XiveENDSource, TYPE_XIVE_END_SOURCE, TYPE_DEVICE)

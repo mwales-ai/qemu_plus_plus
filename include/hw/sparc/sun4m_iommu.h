@@ -41,8 +41,12 @@ struct IOMMUState {
     hwaddr iostart;
     qemu_irq irq;
     uint32_t version;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
-typedef struct IOMMUState IOMMUState;
 
 #define TYPE_SUN4M_IOMMU "sun4m-iommu"
 DECLARE_INSTANCE_CHECKER(IOMMUState, SUN4M_IOMMU,

@@ -40,8 +40,12 @@ struct IOMMUState {
 
     MemoryRegion iomem;
     uint64_t regs[IOMMU_NREGS];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
-typedef struct IOMMUState IOMMUState;
 
 #define TYPE_SUN4U_IOMMU "sun4u-iommu"
 DECLARE_INSTANCE_CHECKER(IOMMUState, SUN4U_IOMMU,

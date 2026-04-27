@@ -294,35 +294,24 @@ static void iommu_reset(DeviceState *d)
     memset(s->regs, 0, IOMMU_NREGS * sizeof(uint64_t));
 }
 
-static void iommu_init(Object *obj)
+void IOMMUState::init()
 {
-    IOMMUState *s = SUN4U_IOMMU(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
-                             TYPE_SUN4U_IOMMU_MEMORY_REGION, OBJECT(s),
+    memory_region_init_iommu(&iommu, sizeof(iommu),
+                             TYPE_SUN4U_IOMMU_MEMORY_REGION, OBJECT(this),
                              "iommu-sun4u", UINT64_MAX);
-    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu), "iommu-as");
+    address_space_init(&iommu_as, MEMORY_REGION(&iommu), "iommu-as");
 
-    memory_region_init_io(&s->iomem, obj, &iommu_mem_ops, s, "iommu",
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &iommu_mem_ops, this, "iommu",
                           IOMMU_NREGS * sizeof(uint64_t));
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void iommu_class_init(ObjectClass *klass, const void *data)
+void IOMMUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, iommu_reset);
 }
-
-static const TypeInfo iommu_info = {
-    .name          = TYPE_SUN4U_IOMMU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IOMMUState),
-    .instance_init = iommu_init,
-    .class_init    = iommu_class_init,
-};
 
 static void sun4u_iommu_memory_region_class_init(ObjectClass *klass,
                                                  const void *data)
@@ -338,10 +327,12 @@ static const TypeInfo sun4u_iommu_memory_region_info = {
     .class_init = sun4u_iommu_memory_region_class_init,
 };
 
-static void iommu_register_types(void)
+static void sun4u_iommu_memory_region_register_types(void)
 {
-    type_register_static(&iommu_info);
     type_register_static(&sun4u_iommu_memory_region_info);
 }
 
-type_init(iommu_register_types)
+type_init(sun4u_iommu_memory_region_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IOMMUState, TYPE_SUN4U_IOMMU, TYPE_SYS_BUS_DEVICE)

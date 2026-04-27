@@ -294,43 +294,32 @@ static void lasips2_realize(DeviceState *dev, Error **errp)
                                                  lp->id));
 }
 
-static void lasips2_init(Object *obj)
+void LASIPS2State::init()
 {
-    LASIPS2State *s = LASIPS2(obj);
     LASIPS2Port *lp;
 
-    object_initialize_child(obj, "lasips2-kbd-port", &s->kbd_port,
+    object_initialize_child(reinterpret_cast<Object *>(this), "lasips2-kbd-port", &kbd_port,
                             TYPE_LASIPS2_KBD_PORT);
-    object_initialize_child(obj, "lasips2-mouse-port", &s->mouse_port,
+    object_initialize_child(reinterpret_cast<Object *>(this), "lasips2-mouse-port", &mouse_port,
                             TYPE_LASIPS2_MOUSE_PORT);
 
-    lp = LASIPS2_PORT(&s->kbd_port);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &lp->reg);
-    lp = LASIPS2_PORT(&s->mouse_port);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &lp->reg);
+    lp = LASIPS2_PORT(&kbd_port);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &lp->reg);
+    lp = LASIPS2_PORT(&mouse_port);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &lp->reg);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    qdev_init_gpio_in_named(DEVICE(obj), lasips2_set_irq,
+    qdev_init_gpio_in_named(DEVICE(this), lasips2_set_irq,
                             "lasips2-port-input-irq", 2);
 }
 
-static void lasips2_class_init(ObjectClass *klass, const void *data)
+void LASIPS2State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = lasips2_realize;
     dc->vmsd = &vmstate_lasips2;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
-
-static const TypeInfo lasips2_info = {
-    .name          = TYPE_LASIPS2,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = lasips2_init,
-    .instance_size = sizeof(LASIPS2State),
-    .class_init    = lasips2_class_init,
-};
 
 static void lasips2_port_set_irq(void *opaque, int n, int level)
 {
@@ -473,12 +462,14 @@ static const TypeInfo lasips2_mouse_port_info = {
     .class_init    = lasips2_mouse_port_class_init,
 };
 
-static void lasips2_register_types(void)
+static void lasips2_port_types_register(void)
 {
-    type_register_static(&lasips2_info);
     type_register_static(&lasips2_port_info);
     type_register_static(&lasips2_kbd_port_info);
     type_register_static(&lasips2_mouse_port_info);
 }
 
-type_init(lasips2_register_types)
+type_init(lasips2_port_types_register)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LASIPS2State, TYPE_LASIPS2, TYPE_SYS_BUS_DEVICE)

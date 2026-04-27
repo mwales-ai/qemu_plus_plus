@@ -722,23 +722,23 @@ static void i8042_mmio_realize_impl(MMIOKBDState *s, DeviceState *dev, Error **e
                                                  0));
 }
 
-static void i8042_mmio_init(Object *obj)
+void MMIOKBDState::init()
 {
-    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(obj);
-    KBDState *ks = &s->kbd;
+    KBDState *ks = &kbd;
 
     ks->extended_state = true;
 
-    object_initialize_child(obj, "ps2kbd", &ks->ps2kbd, TYPE_PS2_KBD_DEVICE);
-    object_initialize_child(obj, "ps2mouse", &ks->ps2mouse,
+    object_initialize_child(reinterpret_cast<Object *>(this), "ps2kbd", &ks->ps2kbd, TYPE_PS2_KBD_DEVICE);
+    object_initialize_child(reinterpret_cast<Object *>(this), "ps2mouse", &ks->ps2mouse,
                             TYPE_PS2_MOUSE_DEVICE);
 
-    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(obj), ks->irqs, 2);
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_mmio_set_kbd_irq,
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(this), ks->irqs, 2);
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), i8042_mmio_set_kbd_irq,
                             "ps2-kbd-input-irq", 1);
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_mmio_set_mouse_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), i8042_mmio_set_mouse_irq,
                             "ps2-mouse-input-irq", 1);
 }
+
 
 static const Property i8042_mmio_properties[] = {
     DEFINE_PROP_UINT64("mask", MMIOKBDState, kbd.mask, UINT64_MAX),
@@ -761,26 +761,14 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
     i8042_mmio_realize_impl(s, dev, errp);
 }
 
-struct I8042MMIOMethods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-        dc->realize = i8042_mmio_realize;
-        device_class_set_legacy_reset(dc, i8042_mmio_reset);
-        dc->vmsd = &vmstate_kbd_mmio;
-        device_class_set_props(dc, i8042_mmio_properties);
-        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    }
-};
-
-static const TypeInfo i8042_mmio_info = {
-    .name          = TYPE_I8042_MMIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MMIOKBDState),
-    .instance_init = i8042_mmio_init,
-    .class_init    = I8042MMIOMethods::classInit
-};
+void MMIOKBDState::classInit(DeviceClass *dc)
+{
+    dc->realize = i8042_mmio_realize;
+    device_class_set_legacy_reset(dc, i8042_mmio_reset);
+    dc->vmsd = &vmstate_kbd_mmio;
+    device_class_set_props(dc, i8042_mmio_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
 
 void i8042_isa_mouse_fake_event(ISAKBDState *isa)
 {
@@ -848,28 +836,28 @@ static void i8042_reset(DeviceState *dev)
     i8042_reset_impl(s);
 }
 
-static void i8042_initfn(Object *obj)
+void ISAKBDState::init()
 {
-    ISAKBDState *isa_s = reinterpret_cast<ISAKBDState *>(obj);
-    KBDState *s = &isa_s->kbd;
+    KBDState *s = &kbd;
 
-    memory_region_init_io(isa_s->io + 0, obj, &i8042_data_ops, s,
+    memory_region_init_io(io + 0, reinterpret_cast<Object *>(this), &i8042_data_ops, s,
                           "i8042-data", 1);
-    memory_region_init_io(isa_s->io + 1, obj, &i8042_cmd_ops, s,
+    memory_region_init_io(io + 1, reinterpret_cast<Object *>(this), &i8042_cmd_ops, s,
                           "i8042-cmd", 1);
 
-    object_initialize_child(obj, "ps2kbd", &s->ps2kbd, TYPE_PS2_KBD_DEVICE);
-    object_initialize_child(obj, "ps2mouse", &s->ps2mouse,
+    object_initialize_child(reinterpret_cast<Object *>(this), "ps2kbd", &s->ps2kbd, TYPE_PS2_KBD_DEVICE);
+    object_initialize_child(reinterpret_cast<Object *>(this), "ps2mouse", &s->ps2mouse,
                             TYPE_PS2_MOUSE_DEVICE);
 
-    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &s->a20_out, I8042_A20_LINE, 1);
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), &s->a20_out, I8042_A20_LINE, 1);
 
-    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(obj), s->irqs, 2);
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_set_kbd_irq,
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(this), s->irqs, 2);
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), i8042_set_kbd_irq,
                             "ps2-kbd-input-irq", 1);
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_set_mouse_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), i8042_set_mouse_irq,
                             "ps2-mouse-input-irq", 1);
 }
+
 
 static void i8042_realizefn_impl(ISAKBDState *isa_s, DeviceState *dev, Error **errp)
 {
@@ -961,37 +949,25 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
     i8042_realizefn_impl(isa_s, dev, errp);
 }
 
-struct I8042Methods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-        AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
-
-        device_class_set_props(dc, i8042_properties);
-        device_class_set_legacy_reset(dc, i8042_reset);
-        dc->realize = i8042_realizefn;
-        dc->vmsd = &vmstate_kbd_isa;
-        adevc->build_dev_aml = i8042_build_aml;
-        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    }
-};
-
-static const TypeInfo i8042_info = {
-    .name          = TYPE_I8042,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAKBDState),
-    .instance_init = i8042_initfn,
-    .class_init    = I8042Methods::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
-};
-
-static void i8042_register_types(void)
+void ISAKBDState::classInit(DeviceClass *dc)
 {
-    type_register_static(&i8042_info);
-    type_register_static(&i8042_mmio_info);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
+
+    device_class_set_props(dc, i8042_properties);
+    device_class_set_legacy_reset(dc, i8042_reset);
+    dc->realize = i8042_realizefn;
+    dc->vmsd = &vmstate_kbd_isa;
+    adevc->build_dev_aml = i8042_build_aml;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-type_init(i8042_register_types)
+static const InterfaceInfo i8042_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ISAKBDState, TYPE_I8042, TYPE_ISA_DEVICE,
+                             i8042_interfaces)
+REGISTER_QEMU_DEVICE(MMIOKBDState, TYPE_I8042_MMIO, TYPE_SYS_BUS_DEVICE)

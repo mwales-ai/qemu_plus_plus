@@ -104,6 +104,9 @@ struct PXA2xxTimerInfo {
 
     qemu_irq irq4;
     PXA2xxTimer4 tm4[8];
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define PXA2XX_TIMER_HAVE_TM4   0
@@ -450,20 +453,24 @@ static int pxa25x_timer_post_load(void *opaque, int version_id)
     return 0;
 }
 
+void PXA2xxTimerInfo::init()
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+
+    irq_enabled = 0;
+    oldclock = 0;
+    clock = 0;
+    lastload = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    reset3 = 0;
+
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &pxa2xx_timer_ops, this,
+                          "pxa2xx-timer", 0x00001000);
+    sysbus_init_mmio(dev, &iomem);
+}
+
 static void pxa2xx_timer_init(Object *obj)
 {
-    PXA2xxTimerInfo *s = PXA2XX_TIMER(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-
-    s->irq_enabled = 0;
-    s->oldclock = 0;
-    s->clock = 0;
-    s->lastload = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->reset3 = 0;
-
-    memory_region_init_io(&s->iomem, obj, &pxa2xx_timer_ops, s,
-                          "pxa2xx-timer", 0x00001000);
-    sysbus_init_mmio(dev, &s->iomem);
+    reinterpret_cast<PXA2xxTimerInfo *>(obj)->init();
 }
 
 static void pxa2xx_timer_realize(DeviceState *dev, Error **errp)
@@ -561,27 +568,15 @@ static const Property pxa25x_timer_dev_properties[] = {
                     PXA2XX_TIMER_HAVE_TM4, false),
 };
 
-static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
+void PXA2xxTimerInfo::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->desc = "PXA25x timer";
-    device_class_set_props(dc, pxa25x_timer_dev_properties);
+    dc->realize  = pxa2xx_timer_realize;
+    dc->vmsd = &vmstate_pxa2xx_timer_regs;
 }
-
-static const TypeInfo pxa25x_timer_dev_info = {
-    .name          = "pxa25x-timer",
-    .parent        = TYPE_PXA2XX_TIMER,
-    .instance_size = sizeof(PXA2xxTimerInfo),
-    .class_init    = pxa25x_timer_dev_class_init,
-};
 
 static void pxa2xx_timer_class_init(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize  = pxa2xx_timer_realize;
-    dc->vmsd = &vmstate_pxa2xx_timer_regs;
+    PXA2xxTimerInfo::classInit(DEVICE_CLASS(oc));
 }
 
 static const TypeInfo pxa2xx_timer_type_info = {
@@ -593,9 +588,24 @@ static const TypeInfo pxa2xx_timer_type_info = {
     .class_init    = pxa2xx_timer_class_init,
 };
 
+static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "PXA25x timer";
+    device_class_set_props(dc, pxa25x_timer_dev_properties);
+}
+
 static void pxa2xx_timer_register_types(void)
 {
     type_register_static(&pxa2xx_timer_type_info);
+
+    static const TypeInfo pxa25x_timer_dev_info = {
+        .name          = "pxa25x-timer",
+        .parent        = TYPE_PXA2XX_TIMER,
+        .instance_size = sizeof(PXA2xxTimerInfo),
+        .class_init    = pxa25x_timer_dev_class_init,
+    };
     type_register_static(&pxa25x_timer_dev_info);
 }
 

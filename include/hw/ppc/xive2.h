@@ -114,7 +114,7 @@ uint64_t xive2_presenter_nvgc_backlog_op(XivePresenter *xptr,
 #define TYPE_XIVE2_END_SOURCE "xive2-end-source"
 OBJECT_DECLARE_SIMPLE_TYPE(Xive2EndSource, XIVE2_END_SOURCE)
 
-typedef struct Xive2EndSource {
+struct Xive2EndSource {
     DeviceState parent;
 
     uint32_t        nr_ends;
@@ -124,7 +124,11 @@ typedef struct Xive2EndSource {
     MemoryRegion    esb_mmio;
 
     Xive2Router     *xrtr;
-} Xive2EndSource;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 /*
  * XIVE2 Thread Interrupt Management Area (POWER10)

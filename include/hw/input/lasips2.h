@@ -77,6 +77,11 @@ struct LASIPS2State {
     LASIPS2MousePort mouse_port;
     uint8_t int_status;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

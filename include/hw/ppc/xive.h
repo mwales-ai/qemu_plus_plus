@@ -198,6 +198,10 @@ struct XiveSource {
     MemoryRegion    esb_mmio_kvm;
 
     XiveNotifier    *xive;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*
@@ -382,6 +386,10 @@ struct XiveTCTX {
     uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
 
     XivePresenter *xptr;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static inline uint32_t xive_tctx_word2(uint8_t *ring)
@@ -552,6 +560,10 @@ struct XiveENDSource {
     MemoryRegion    esb_mmio;
 
     XiveRouter      *xrtr;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*

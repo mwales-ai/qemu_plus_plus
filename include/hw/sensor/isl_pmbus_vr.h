@@ -27,6 +27,11 @@ struct ISLState {
 
     uint8_t ic_device_id[ISL_MAX_IC_DEVICE_ID_LEN];
     uint8_t ic_device_id_len;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(ISLState, ISL69260)

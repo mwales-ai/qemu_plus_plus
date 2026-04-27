@@ -1345,9 +1345,9 @@ void PS2KbdState::kbdRealize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_keyboard_handler);
 }
 
-void PS2KbdState::classInit(ObjectClass *klass, const void *data)
+void PS2KbdState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     PS2DeviceClass *ps2dc = reinterpret_cast<PS2DeviceClass *>(klass);
 
@@ -1369,9 +1369,9 @@ void PS2MouseState::mouseRealize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_mouse_handler);
 }
 
-void PS2MouseState::classInit(ObjectClass *klass, const void *data)
+void PS2MouseState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     PS2DeviceClass *ps2dc = reinterpret_cast<PS2DeviceClass *>(klass);
 
@@ -1413,25 +1413,13 @@ static const TypeInfo ps2_info = {
     .class_init    = PS2Methods::classInit,
 };
 
-static const TypeInfo ps2_kbd_info = {
-    .name          = TYPE_PS2_KBD_DEVICE,
-    .parent        = TYPE_PS2_DEVICE,
-    .instance_size = sizeof(PS2KbdState),
-    .class_init    = PS2KbdState::classInit
-};
-
-static const TypeInfo ps2_mouse_info = {
-    .name          = TYPE_PS2_MOUSE_DEVICE,
-    .parent        = TYPE_PS2_DEVICE,
-    .instance_size = sizeof(PS2MouseState),
-    .class_init    = PS2MouseState::classInit
-};
-
-static void ps2_register_types(void)
+static void ps2_base_register_types(void)
 {
     type_register_static(&ps2_info);
-    type_register_static(&ps2_kbd_info);
-    type_register_static(&ps2_mouse_info);
 }
 
-type_init(ps2_register_types)
+type_init(ps2_base_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PS2KbdState, TYPE_PS2_KBD_DEVICE, TYPE_PS2_DEVICE)
+REGISTER_QEMU_DEVICE(PS2MouseState, TYPE_PS2_MOUSE_DEVICE, TYPE_PS2_DEVICE)

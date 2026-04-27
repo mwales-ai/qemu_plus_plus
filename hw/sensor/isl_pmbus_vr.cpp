@@ -200,9 +200,9 @@ static void isl_pmbus_vr_add_props(Object *obj, uint64_t *flags, uint8_t pages)
     }
 }
 
-static void raa22xx_init(Object *obj)
+void ISLState::init()
 {
-    PMBusDevice *pmdev = PMBUS_DEVICE(obj);
+    PMBusDevice *pmdev = PMBUS_DEVICE(this);
     uint64_t flags[2];
 
     flags[0] = PB_HAS_VIN | PB_HAS_VOUT | PB_HAS_VOUT_MODE |
@@ -216,7 +216,12 @@ static void raa22xx_init(Object *obj)
 
     pmbus_page_config(pmdev, 0, flags[0]);
     pmbus_page_config(pmdev, 1, flags[1]);
-    isl_pmbus_vr_add_props(obj, flags, ARRAY_SIZE(flags));
+    isl_pmbus_vr_add_props(reinterpret_cast<Object *>(this), flags, ARRAY_SIZE(flags));
+}
+
+static void raa22xx_init(Object *obj)
+{
+    reinterpret_cast<ISLState *>(obj)->init();
 }
 
 static void raa228000_init(Object *obj)
@@ -242,14 +247,15 @@ static void isl_pmbus_vr_class_init(ObjectClass *klass, const void *data,
     k->device_num_pages = pages;
 }
 
-static void isl69260_class_init(ObjectClass *klass, const void *data)
+void ISLState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->desc = "Renesas ISL69260 Digital Multiphase Voltage Regulator";
     rc->phases.exit = isl_pmbus_vr_exit_reset;
-    isl_pmbus_vr_class_init(klass, data, 2);
+    isl_pmbus_vr_class_init(klass, nullptr, 2);
 }
+
 
 static void raa228000_class_init(ObjectClass *klass, const void *data)
 {
@@ -278,42 +284,33 @@ static void isl69259_class_init(ObjectClass *klass, const void *data)
     isl_pmbus_vr_class_init(klass, data, 2);
 }
 
-static const TypeInfo isl69259_info = {
-    .name = TYPE_ISL69259,
-    .parent = TYPE_ISL69260,
-    .class_init = isl69259_class_init,
-};
-
-static const TypeInfo isl69260_info = {
-    .name = TYPE_ISL69260,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(ISLState),
-    .instance_init = raa22xx_init,
-    .class_init = isl69260_class_init,
-};
-
-static const TypeInfo raa229004_info = {
-    .name = TYPE_RAA229004,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(ISLState),
-    .instance_init = raa22xx_init,
-    .class_init = raa229004_class_init,
-};
-
-static const TypeInfo raa228000_info = {
-    .name = TYPE_RAA228000,
-    .parent = TYPE_PMBUS_DEVICE,
-    .instance_size = sizeof(ISLState),
-    .instance_init = raa228000_init,
-    .class_init = raa228000_class_init,
-};
-
-static void isl_pmbus_vr_register_types(void)
+static void isl_pmbus_vr_register_siblings(void)
 {
+    static const TypeInfo isl69259_info = {
+        .name = TYPE_ISL69259,
+        .parent = TYPE_ISL69260,
+        .class_init = isl69259_class_init,
+    };
+    static const TypeInfo raa229004_info = {
+        .name = TYPE_RAA229004,
+        .parent = TYPE_PMBUS_DEVICE,
+        .instance_size = sizeof(ISLState),
+        .instance_init = raa22xx_init,
+        .class_init = raa229004_class_init,
+    };
+    static const TypeInfo raa228000_info = {
+        .name = TYPE_RAA228000,
+        .parent = TYPE_PMBUS_DEVICE,
+        .instance_size = sizeof(ISLState),
+        .instance_init = raa228000_init,
+        .class_init = raa228000_class_init,
+    };
     type_register_static(&isl69259_info);
-    type_register_static(&isl69260_info);
-    type_register_static(&raa228000_info);
     type_register_static(&raa229004_info);
+    type_register_static(&raa228000_info);
 }
 
-type_init(isl_pmbus_vr_register_types)
+type_init(isl_pmbus_vr_register_siblings)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ISLState, TYPE_ISL69260, TYPE_PMBUS_DEVICE)

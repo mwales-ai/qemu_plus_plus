@@ -63,7 +63,8 @@ struct NeXTRTC {
     qemu_irq data_out_irq;
     qemu_irq power_irq;
 
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_NEXT_SCSI "next-scsi"
@@ -81,7 +82,8 @@ struct NeXTSCSI {
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
 
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_NEXT_PC "next-pc"
@@ -120,8 +122,8 @@ struct NeXTPC {
     /* methods */
     void realize(Error **errp);
     static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 typedef struct next_dma {
@@ -750,18 +752,17 @@ static const MemoryRegionOps next_scsi_csr_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void next_scsi_init(Object *obj)
+void NeXTSCSI::init()
 {
-    NeXTSCSI *s = reinterpret_cast<NeXTSCSI *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    object_initialize_child(obj, "esp", &s->sysbus_esp, TYPE_SYSBUS_ESP);
+    object_initialize_child(reinterpret_cast<Object *>(this), "esp", &sysbus_esp, TYPE_SYSBUS_ESP);
 
-    memory_region_init_io(&s->scsi_csr_mem, obj, &next_scsi_csr_ops,
-                          s, "csrs", 2);
+    memory_region_init_io(&scsi_csr_mem, reinterpret_cast<Object *>(this), &next_scsi_csr_ops,
+                          this, "csrs", 2);
 
-    memory_region_init(&s->scsi_mem, obj, "next.scsi", 0x40);
-    sysbus_init_mmio(sbd, &s->scsi_mem);
+    memory_region_init(&scsi_mem, reinterpret_cast<Object *>(this), "next.scsi", 0x40);
+    sysbus_init_mmio(sbd, &scsi_mem);
 }
 
 static void next_scsi_realize(DeviceState *dev, Error **errp)
@@ -806,22 +807,12 @@ static const VMStateDescription next_scsi_vmstate = {
     },
 };
 
-void NeXTSCSI::classInit(ObjectClass *klass, const void *data)
+void NeXTSCSI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "NeXT SCSI Controller";
     dc->realize = next_scsi_realize;
     dc->vmsd = &next_scsi_vmstate;
 }
-
-static const TypeInfo next_scsi_info = {
-    .name = TYPE_NEXT_SCSI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = next_scsi_init,
-    .instance_size = sizeof(NeXTSCSI),
-    .class_init = NeXTSCSI::classInit,
-};
 
 static void next_floppy_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
@@ -1043,17 +1034,15 @@ static void next_rtc_reset_hold(Object *obj, ResetType type)
     memcpy(rtc->ram, rtc_ram2, 32);
 }
 
-static void next_rtc_init(Object *obj)
+void NeXTRTC::init()
 {
-    NeXTRTC *rtc = reinterpret_cast<NeXTRTC *>(obj);
-
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), next_rtc_data_in_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), next_rtc_data_in_irq,
                             "rtc-data-in", 1);
-    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &rtc->data_out_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), &data_out_irq,
                              "rtc-data-out", 1);
-    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), next_rtc_cmd_reset_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(this), next_rtc_cmd_reset_irq,
                             "rtc-cmd-reset", 1);
-    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &rtc->power_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), &power_irq,
                              "rtc-power-out", 1);
 }
 
@@ -1073,23 +1062,15 @@ static const VMStateDescription next_rtc_vmstate = {
     },
 };
 
-void NeXTRTC::classInit(ObjectClass *klass, const void *data)
+void NeXTRTC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->desc = "NeXT RTC";
     dc->vmsd = &next_rtc_vmstate;
     rc->phases.hold = next_rtc_reset_hold;
 }
-
-static const TypeInfo next_rtc_info = {
-    .name = TYPE_NEXT_RTC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = next_rtc_init,
-    .instance_size = sizeof(NeXTRTC),
-    .class_init = NeXTRTC::classInit,
-};
 
 static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
 {
@@ -1177,10 +1158,10 @@ void NeXTPC::realize(Error **errp)
                                 qdev_get_gpio_in(dev, NEXT_PWR_I));
 }
 
-void NeXTPC::instanceInit(Object *obj)
+void NeXTPC::init()
 {
-    NeXTPC *s = reinterpret_cast<NeXTPC *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    NeXTPC *s = this;
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     qdev_init_gpio_in(reinterpret_cast<DeviceState *>(obj), next_irq, NEXT_NUM_IRQS);
 
@@ -1243,9 +1224,9 @@ static const VMStateDescription next_pc_vmstate = {
     },
 };
 
-void NeXTPC::classInit(ObjectClass *klass, const void *data)
+void NeXTPC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->desc = "NeXT Peripheral Controller";
@@ -1254,14 +1235,6 @@ void NeXTPC::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &next_pc_vmstate;
     rc->phases.hold = next_pc_reset_hold;
 }
-
-static const TypeInfo next_pc_info = {
-    .name = TYPE_NEXT_PC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = NeXTPC::instanceInit,
-    .instance_size = sizeof(NeXTPC),
-    .class_init = NeXTPC::classInit,
-};
 
 void NeXTState::machineInit(MachineState *machine)
 {
@@ -1383,12 +1356,14 @@ static const TypeInfo next_typeinfo = {
     .instance_size = sizeof(NeXTState),
 };
 
-static void next_register_type(void)
+static void next_machine_register_type(void)
 {
     type_register_static(&next_typeinfo);
-    type_register_static(&next_pc_info);
-    type_register_static(&next_scsi_info);
-    type_register_static(&next_rtc_info);
 }
 
-type_init(next_register_type)
+type_init(next_machine_register_type)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NeXTSCSI, TYPE_NEXT_SCSI, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(NeXTRTC, TYPE_NEXT_RTC, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(NeXTPC, TYPE_NEXT_PC, TYPE_SYS_BUS_DEVICE)
