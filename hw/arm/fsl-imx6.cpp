@@ -24,6 +24,7 @@
 #include "chardev/char.h"
 #include "hw/arm/fsl-imx6.h"
 #include "hw/boards.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qapi/error.h"
@@ -39,77 +40,77 @@ extern "C" {
 
 #define NAME_SIZE 20
 
-static void fsl_imx6_init(Object *obj)
+void FslIMX6State::init()
 {
+    Object *obj = OBJECT(this);
     MachineState *ms = MACHINE(qdev_get_machine());
-    FslIMX6State *s = FSL_IMX6(obj);
     char name[NAME_SIZE];
     int i;
 
     for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX6_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i],
+        object_initialize_child(obj, name, &cpu[i],
                                 ARM_CPU_TYPE_NAME("cortex-a9"));
     }
 
-    object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
+    object_initialize_child(obj, "a9mpcore", &a9mpcore, TYPE_A9MPCORE_PRIV);
 
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX6_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_IMX6_CCM);
 
-    object_initialize_child(obj, "src", &s->src, TYPE_IMX6_SRC);
+    object_initialize_child(obj, "src", &src, TYPE_IMX6_SRC);
 
-    object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
+    object_initialize_child(obj, "snvs", &snvs, TYPE_IMX7_SNVS);
 
     for (i = 0; i < FSL_IMX6_NUM_UARTS; i++) {
         snprintf(name, NAME_SIZE, "uart%d", i + 1);
-        object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
+        object_initialize_child(obj, name, &uart[i], TYPE_IMX_SERIAL);
     }
 
-    object_initialize_child(obj, "gpt", &s->gpt, TYPE_IMX6_GPT);
+    object_initialize_child(obj, "gpt", &gpt, TYPE_IMX6_GPT);
 
     for (i = 0; i < FSL_IMX6_NUM_EPITS; i++) {
         snprintf(name, NAME_SIZE, "epit%d", i + 1);
-        object_initialize_child(obj, name, &s->epit[i], TYPE_IMX_EPIT);
+        object_initialize_child(obj, name, &epit[i], TYPE_IMX_EPIT);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_I2CS; i++) {
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
-        object_initialize_child(obj, name, &s->i2c[i], TYPE_IMX_I2C);
+        object_initialize_child(obj, name, &i2c[i], TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_GPIOS; i++) {
         snprintf(name, NAME_SIZE, "gpio%d", i + 1);
-        object_initialize_child(obj, name, &s->gpio[i], TYPE_IMX_GPIO);
+        object_initialize_child(obj, name, &gpio[i], TYPE_IMX_GPIO);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ESDHCS; i++) {
         snprintf(name, NAME_SIZE, "sdhc%d", i + 1);
-        object_initialize_child(obj, name, &s->esdhc[i], TYPE_IMX_USDHC);
+        object_initialize_child(obj, name, &esdhc[i], TYPE_IMX_USDHC);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_USB_PHYS; i++) {
         snprintf(name, NAME_SIZE, "usbphy%d", i);
-        object_initialize_child(obj, name, &s->usbphy[i], TYPE_IMX_USBPHY);
+        object_initialize_child(obj, name, &usbphy[i], TYPE_IMX_USBPHY);
     }
     for (i = 0; i < FSL_IMX6_NUM_USBS; i++) {
         snprintf(name, NAME_SIZE, "usb%d", i);
-        object_initialize_child(obj, name, &s->usb[i], TYPE_CHIPIDEA);
+        object_initialize_child(obj, name, &usb[i], TYPE_CHIPIDEA);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ECSPIS; i++) {
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
-        object_initialize_child(obj, name, &s->spi[i], TYPE_IMX_SPI);
+        object_initialize_child(obj, name, &spi[i], TYPE_IMX_SPI);
     }
     for (i = 0; i < FSL_IMX6_NUM_WDTS; i++) {
         snprintf(name, NAME_SIZE, "wdt%d", i);
-        object_initialize_child(obj, name, &s->wdt[i], TYPE_IMX2_WDT);
+        object_initialize_child(obj, name, &wdt[i], TYPE_IMX2_WDT);
     }
 
 
-    object_initialize_child(obj, "eth", &s->eth, TYPE_IMX_ENET);
+    object_initialize_child(obj, "eth", &eth, TYPE_IMX_ENET);
 
-    object_initialize_child(obj, "pcie", &s->pcie, TYPE_DESIGNWARE_PCIE_HOST);
-    object_initialize_child(obj, "pcie4-msi-irq", &s->pcie4_msi_irq,
+    object_initialize_child(obj, "pcie", &pcie, TYPE_DESIGNWARE_PCIE_HOST);
+    object_initialize_child(obj, "pcie4-msi-irq", &pcie4_msi_irq,
                             TYPE_OR_IRQ);
 }
 
@@ -487,9 +488,10 @@ static const Property fsl_imx6_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX6State, phy_num, 0),
 };
 
-static void fsl_imx6_class_init(ObjectClass *oc, const void *data)
+void FslIMX6State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, fsl_imx6_properties);
     dc->realize = fsl_imx6_realize;
@@ -498,17 +500,4 @@ static void fsl_imx6_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo fsl_imx6_type_info = {
-    .name = TYPE_FSL_IMX6,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FslIMX6State),
-    .instance_init = fsl_imx6_init,
-    .class_init = fsl_imx6_class_init,
-};
-
-static void fsl_imx6_register_types(void)
-{
-    type_register_static(&fsl_imx6_type_info);
-}
-
-type_init(fsl_imx6_register_types)
+REGISTER_QEMU_DEVICE(FslIMX6State, TYPE_FSL_IMX6, TYPE_DEVICE)

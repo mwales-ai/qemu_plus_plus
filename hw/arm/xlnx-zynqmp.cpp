@@ -25,6 +25,7 @@
 #include "system/system.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
+#include "qom/cpp/object.h"
 
 #define ARM_PHYS_TIMER_PPI  30
 #define ARM_VIRT_TIMER_PPI  27
@@ -378,92 +379,92 @@ static void xlnx_zynqmp_create_unimp_mmio(XlnxZynqMPState *s)
     }
 }
 
-static void xlnx_zynqmp_init(Object *obj)
+void XlnxZynqMPState::init()
 {
+    Object *obj = OBJECT(this);
     MachineState *ms = MACHINE(qdev_get_machine());
-    XlnxZynqMPState *s = XLNX_ZYNQMP(obj);
     int i;
     int num_apus = MIN(ms->smp.cpus, XLNX_ZYNQMP_NUM_APU_CPUS);
     int num_rpus = xlnx_zynqmp_get_rpu_number(ms);
 
-    object_initialize_child(obj, "apu-cluster", &s->apu_cluster,
+    object_initialize_child(obj, "apu-cluster", &apu_cluster,
                             TYPE_CPU_CLUSTER);
-    qdev_prop_set_uint32(DEVICE(&s->apu_cluster), "cluster-id", 0);
+    qdev_prop_set_uint32(DEVICE(&apu_cluster), "cluster-id", 0);
 
     for (i = 0; i < num_apus; i++) {
-        object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
-                                &s->apu_cpu[i],
+        object_initialize_child(OBJECT(&apu_cluster), "apu-cpu[*]",
+                                &apu_cpu[i],
                                 ARM_CPU_TYPE_NAME("cortex-a53"));
     }
 
-    object_initialize_child(obj, "gic", &s->gic, gic_class_name());
+    object_initialize_child(obj, "gic", &gic, gic_class_name());
 
     if (num_rpus) {
         /* Do not create the rpu_gic if we don't have rpus */
-        object_initialize_child(obj, "rpu_gic", &s->rpu_gic,
+        object_initialize_child(obj, "rpu_gic", &rpu_gic,
                                 gic_class_name());
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GEMS; i++) {
-        object_initialize_child(obj, "gem[*]", &s->gem[i], TYPE_CADENCE_GEM);
+        object_initialize_child(obj, "gem[*]", &gem[i], TYPE_CADENCE_GEM);
         object_initialize_child(obj, "gem-irq-orgate[*]",
-                                &s->gem_irq_orgate[i], TYPE_OR_IRQ);
+                                &gem_irq_orgate[i], TYPE_OR_IRQ);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
-        object_initialize_child(obj, "uart[*]", &s->uart[i],
+        object_initialize_child(obj, "uart[*]", &uart[i],
                                 TYPE_CADENCE_UART);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_CAN; i++) {
-        object_initialize_child(obj, "can[*]", &s->can[i],
+        object_initialize_child(obj, "can[*]", &can[i],
                                 TYPE_XLNX_ZYNQMP_CAN);
     }
 
-    object_initialize_child(obj, "sata", &s->sata, TYPE_SYSBUS_AHCI);
+    object_initialize_child(obj, "sata", &sata, TYPE_SYSBUS_AHCI);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
-        object_initialize_child(obj, "sdhci[*]", &s->sdhci[i],
+        object_initialize_child(obj, "sdhci[*]", &sdhci[i],
                                 TYPE_SYSBUS_SDHCI);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_SPIS; i++) {
-        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_XILINX_SPIPS);
+        object_initialize_child(obj, "spi[*]", &spi[i], TYPE_XILINX_SPIPS);
     }
 
-    object_initialize_child(obj, "qspi", &s->qspi, TYPE_XLNX_ZYNQMP_QSPIPS);
+    object_initialize_child(obj, "qspi", &qspi, TYPE_XLNX_ZYNQMP_QSPIPS);
 
-    object_initialize_child(obj, "xxxdp", &s->dp, TYPE_XLNX_DP);
+    object_initialize_child(obj, "xxxdp", &dp, TYPE_XLNX_DP);
 
-    object_initialize_child(obj, "dp-dma", &s->dpdma, TYPE_XLNX_DPDMA);
+    object_initialize_child(obj, "dp-dma", &dpdma, TYPE_XLNX_DPDMA);
 
-    object_initialize_child(obj, "ipi", &s->ipi, TYPE_XLNX_ZYNQMP_IPI);
+    object_initialize_child(obj, "ipi", &ipi, TYPE_XLNX_ZYNQMP_IPI);
 
-    object_initialize_child(obj, "rtc", &s->rtc, TYPE_XLNX_ZYNQMP_RTC);
+    object_initialize_child(obj, "rtc", &rtc, TYPE_XLNX_ZYNQMP_RTC);
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
-        object_initialize_child(obj, "gdma[*]", &s->gdma[i], TYPE_XLNX_ZDMA);
+        object_initialize_child(obj, "gdma[*]", &gdma[i], TYPE_XLNX_ZDMA);
     }
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
-        object_initialize_child(obj, "adma[*]", &s->adma[i], TYPE_XLNX_ZDMA);
+        object_initialize_child(obj, "adma[*]", &adma[i], TYPE_XLNX_ZDMA);
     }
 
-    object_initialize_child(obj, "qspi-dma", &s->qspi_dma, TYPE_XLNX_CSU_DMA);
+    object_initialize_child(obj, "qspi-dma", &qspi_dma, TYPE_XLNX_CSU_DMA);
     object_initialize_child(obj, "qspi-irq-orgate",
-                            &s->qspi_irq_orgate, TYPE_OR_IRQ);
+                            &qspi_irq_orgate, TYPE_OR_IRQ);
 
     if (num_rpus) {
-        for (i = 0; i < ARRAY_SIZE(s->splitter); i++) {
+        for (i = 0; i < ARRAY_SIZE(splitter); i++) {
             g_autofree char *name = g_strdup_printf("irq-splitter%d", i);
-            object_initialize_child(obj, name, &s->splitter[i], TYPE_SPLIT_IRQ);
+            object_initialize_child(obj, name, &splitter[i], TYPE_SPLIT_IRQ);
         }
     }
 
 
 
     for (i = 0; i < XLNX_ZYNQMP_NUM_USB; i++) {
-        object_initialize_child(obj, "usb[*]", &s->usb[i], TYPE_USB_DWC3);
+        object_initialize_child(obj, "usb[*]", &usb[i], TYPE_USB_DWC3);
     }
 }
 
@@ -936,9 +937,10 @@ static const Property xlnx_zynqmp_props[] = {
                      CanBusState *),
 };
 
-static void xlnx_zynqmp_class_init(ObjectClass *oc, const void *data)
+void XlnxZynqMPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, xlnx_zynqmp_props);
     dc->realize = xlnx_zynqmp_realize;
@@ -946,17 +948,4 @@ static void xlnx_zynqmp_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo xlnx_zynqmp_type_info = {
-    .name = TYPE_XLNX_ZYNQMP,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPState),
-    .instance_init = xlnx_zynqmp_init,
-    .class_init = xlnx_zynqmp_class_init,
-};
-
-static void xlnx_zynqmp_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_type_info);
-}
-
-type_init(xlnx_zynqmp_register_types)
+REGISTER_QEMU_DEVICE(XlnxZynqMPState, TYPE_XLNX_ZYNQMP, TYPE_DEVICE)

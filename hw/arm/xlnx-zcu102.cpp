@@ -28,6 +28,7 @@
 #include "qom/object.h"
 #include "net/can_emu.h"
 #include "qemu/audio.h"
+#include "qom/cpp/object.h"
 
 struct XlnxZCU102 {
     MachineState parent_obj;
@@ -40,6 +41,9 @@ struct XlnxZCU102 {
     CanBusState *canbus[XLNX_ZYNQMP_NUM_CAN];
 
     struct arm_boot_info binfo;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
@@ -250,28 +254,29 @@ static void xlnx_zcu102_init(MachineState *machine)
     arm_load_kernel(s->soc.boot_cpu_ptr, machine, &s->binfo);
 }
 
-static void xlnx_zcu102_machine_instance_init(Object *obj)
+void XlnxZCU102::init()
 {
-    XlnxZCU102 *s = ZCU102_MACHINE(obj);
+    Object *obj = OBJECT(this);
 
     /* Default to secure mode being disabled */
-    s->secure = false;
+    secure = false;
     /* Default to virt (EL2) being disabled */
-    s->virt = false;
+    virt = false;
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
-                             (Object **)&s->canbus[0],
+                             (Object **)&canbus[0],
                              object_property_allow_set_link,
                              static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
-                             (Object **)&s->canbus[1],
+                             (Object **)&canbus[1],
                              object_property_allow_set_link,
                              static_cast<ObjectPropertyLinkFlags>(0));
 }
 
-static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
+void XlnxZCU102::classInit(DeviceClass *dc)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    MachineClass *mc = MACHINE_CLASS(klass);
 
     mc->desc = "Xilinx ZynqMP ZCU102 board with 4xA53s and 2xR5Fs based on " \
                "the value of smp";
@@ -285,32 +290,19 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 
     machine_add_audiodev_property(mc);
-    object_class_property_add_bool(oc, "secure", zcu102_get_secure,
+    object_class_property_add_bool(klass, "secure", zcu102_get_secure,
                                    zcu102_set_secure);
-    object_class_property_set_description(oc, "secure",
+    object_class_property_set_description(klass, "secure",
                                           "Set on/off to enable/disable the ARM "
                                           "Security Extensions (TrustZone)");
 
-    object_class_property_add_bool(oc, "virtualization", zcu102_get_virt,
+    object_class_property_add_bool(klass, "virtualization", zcu102_get_virt,
                                    zcu102_set_virt);
-    object_class_property_set_description(oc, "virtualization",
+    object_class_property_set_description(klass, "virtualization",
                                           "Set on/off to enable/disable emulating a "
                                           "guest CPU which implements the ARM "
                                           "Virtualization Extensions");
 }
 
-static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
-    .name       = TYPE_ZCU102_MACHINE,
-    .parent     = TYPE_MACHINE,
-    .instance_size = sizeof(XlnxZCU102),
-    .instance_init = xlnx_zcu102_machine_instance_init,
-    .class_init = xlnx_zcu102_machine_class_init,
-    .interfaces = aarch64_machine_interfaces,
-};
-
-static void xlnx_zcu102_machine_init_register_types(void)
-{
-    type_register_static(&xlnx_zcu102_machine_init_typeinfo);
-}
-
-type_init(xlnx_zcu102_machine_init_register_types)
+REGISTER_QEMU_DEVICE_IFACES(XlnxZCU102, TYPE_ZCU102_MACHINE, TYPE_MACHINE,
+                             aarch64_machine_interfaces)

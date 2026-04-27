@@ -29,53 +29,54 @@
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 #define IMX25_ESDHC_CAPABILITIES     0x07e20000
 
-static void fsl_imx25_init(Object *obj)
+void FslIMX25State::init()
 {
-    FslIMX25State *s = FSL_IMX25(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
+    object_initialize_child(obj, "cpu", &cpu, ARM_CPU_TYPE_NAME("arm926"));
 
-    object_initialize_child(obj, "avic", &s->avic, TYPE_IMX_AVIC);
+    object_initialize_child(obj, "avic", &avic, TYPE_IMX_AVIC);
 
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX25_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_IMX25_CCM);
 
     for (i = 0; i < FSL_IMX25_NUM_UARTS; i++) {
-        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_IMX_SERIAL);
+        object_initialize_child(obj, "uart[*]", &uart[i], TYPE_IMX_SERIAL);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_GPTS; i++) {
-        object_initialize_child(obj, "gpt[*]", &s->gpt[i], TYPE_IMX25_GPT);
+        object_initialize_child(obj, "gpt[*]", &gpt[i], TYPE_IMX25_GPT);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_EPITS; i++) {
-        object_initialize_child(obj, "epit[*]", &s->epit[i], TYPE_IMX_EPIT);
+        object_initialize_child(obj, "epit[*]", &epit[i], TYPE_IMX_EPIT);
     }
 
-    object_initialize_child(obj, "fec", &s->fec, TYPE_IMX_FEC);
+    object_initialize_child(obj, "fec", &fec, TYPE_IMX_FEC);
 
-    object_initialize_child(obj, "rngc", &s->rngc, TYPE_IMX_RNGC);
+    object_initialize_child(obj, "rngc", &rngc, TYPE_IMX_RNGC);
 
     for (i = 0; i < FSL_IMX25_NUM_I2CS; i++) {
-        object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_IMX_I2C);
+        object_initialize_child(obj, "i2c[*]", &i2c[i], TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_GPIOS; i++) {
-        object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_IMX_GPIO);
+        object_initialize_child(obj, "gpio[*]", &gpio[i], TYPE_IMX_GPIO);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_ESDHCS; i++) {
-        object_initialize_child(obj, "sdhc[*]", &s->esdhc[i], TYPE_IMX_USDHC);
+        object_initialize_child(obj, "sdhc[*]", &esdhc[i], TYPE_IMX_USDHC);
     }
 
     for (i = 0; i < FSL_IMX25_NUM_USBS; i++) {
-        object_initialize_child(obj, "usb[*]", &s->usb[i], TYPE_CHIPIDEA);
+        object_initialize_child(obj, "usb[*]", &usb[i], TYPE_CHIPIDEA);
     }
 
-    object_initialize_child(obj, "wdt", &s->wdt, TYPE_IMX2_WDT);
+    object_initialize_child(obj, "wdt", &wdt, TYPE_IMX2_WDT);
 }
 
 static void fsl_imx25_realize(DeviceState *dev, Error **errp)
@@ -311,9 +312,10 @@ static const Property fsl_imx25_properties[] = {
     DEFINE_PROP_UINT32("fec-phy-num", FslIMX25State, phy_num, 0),
 };
 
-static void fsl_imx25_class_init(ObjectClass *oc, const void *data)
+void FslIMX25State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, fsl_imx25_properties);
     dc->realize = fsl_imx25_realize;
@@ -325,17 +327,4 @@ static void fsl_imx25_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo fsl_imx25_type_info = {
-    .name = TYPE_FSL_IMX25,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FslIMX25State),
-    .instance_init = fsl_imx25_init,
-    .class_init = fsl_imx25_class_init,
-};
-
-static void fsl_imx25_register_types(void)
-{
-    type_register_static(&fsl_imx25_type_info);
-}
-
-type_init(fsl_imx25_register_types)
+REGISTER_QEMU_DEVICE(FslIMX25State, TYPE_FSL_IMX25, TYPE_DEVICE)

@@ -22,6 +22,7 @@
 #include "system/system.h"
 #include "hw/arm/fsl-imx7.h"
 #include "hw/boards.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qapi/error.h"
@@ -33,10 +34,10 @@ extern "C" {
 
 #define NAME_SIZE 20
 
-static void fsl_imx7_init(Object *obj)
+void FslIMX7State::init()
 {
+    Object *obj = OBJECT(this);
     MachineState *ms = MACHINE(qdev_get_machine());
-    FslIMX7State *s = FSL_IMX7(obj);
     char name[NAME_SIZE];
     int i;
 
@@ -45,14 +46,14 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < MIN(ms->smp.cpus, FSL_IMX7_NUM_CPUS); i++) {
         snprintf(name, NAME_SIZE, "cpu%d", i);
-        object_initialize_child(obj, name, &s->cpu[i],
+        object_initialize_child(obj, name, &cpu[i],
                                 ARM_CPU_TYPE_NAME("cortex-a7"));
     }
 
     /*
      * A7MPCORE
      */
-    object_initialize_child(obj, "a7mpcore", &s->a7mpcore,
+    object_initialize_child(obj, "a7mpcore", &a7mpcore,
                             TYPE_A15MPCORE_PRIV);
 
     /*
@@ -60,7 +61,7 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_GPIOS; i++) {
         snprintf(name, NAME_SIZE, "gpio%d", i);
-        object_initialize_child(obj, name, &s->gpio[i], TYPE_IMX_GPIO);
+        object_initialize_child(obj, name, &gpio[i], TYPE_IMX_GPIO);
     }
 
     /*
@@ -68,35 +69,35 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_GPTS; i++) {
         snprintf(name, NAME_SIZE, "gpt%d", i);
-        object_initialize_child(obj, name, &s->gpt[i], TYPE_IMX7_GPT);
+        object_initialize_child(obj, name, &gpt[i], TYPE_IMX7_GPT);
     }
 
     /*
      * CCM
      */
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX7_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_IMX7_CCM);
 
     /*
      * Analog
      */
-    object_initialize_child(obj, "analog", &s->analog, TYPE_IMX7_ANALOG);
+    object_initialize_child(obj, "analog", &analog, TYPE_IMX7_ANALOG);
 
     /*
      * GPCv2
      */
-    object_initialize_child(obj, "gpcv2", &s->gpcv2, TYPE_IMX_GPCV2);
+    object_initialize_child(obj, "gpcv2", &gpcv2, TYPE_IMX_GPCV2);
 
     /*
      * SRC
      */
-    object_initialize_child(obj, "src", &s->src, TYPE_IMX7_SRC);
+    object_initialize_child(obj, "src", &src, TYPE_IMX7_SRC);
 
     /*
      * ECSPIs
      */
     for (i = 0; i < FSL_IMX7_NUM_ECSPIS; i++) {
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
-        object_initialize_child(obj, name, &s->spi[i], TYPE_IMX_SPI);
+        object_initialize_child(obj, name, &spi[i], TYPE_IMX_SPI);
     }
 
     /*
@@ -104,7 +105,7 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_I2CS; i++) {
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
-        object_initialize_child(obj, name, &s->i2c[i], TYPE_IMX_I2C);
+        object_initialize_child(obj, name, &i2c[i], TYPE_IMX_I2C);
     }
 
     /*
@@ -112,7 +113,7 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_UARTS; i++) {
             snprintf(name, NAME_SIZE, "uart%d", i);
-            object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
+            object_initialize_child(obj, name, &uart[i], TYPE_IMX_SERIAL);
     }
 
     /*
@@ -120,7 +121,7 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_ETHS; i++) {
             snprintf(name, NAME_SIZE, "eth%d", i);
-            object_initialize_child(obj, name, &s->eth[i], TYPE_IMX_ENET);
+            object_initialize_child(obj, name, &eth[i], TYPE_IMX_ENET);
     }
 
     /*
@@ -128,32 +129,32 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_USDHCS; i++) {
             snprintf(name, NAME_SIZE, "usdhc%d", i);
-            object_initialize_child(obj, name, &s->usdhc[i], TYPE_IMX_USDHC);
+            object_initialize_child(obj, name, &usdhc[i], TYPE_IMX_USDHC);
     }
 
     /*
      * SNVS
      */
-    object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
+    object_initialize_child(obj, "snvs", &snvs, TYPE_IMX7_SNVS);
 
     /*
      * Watchdogs
      */
     for (i = 0; i < FSL_IMX7_NUM_WDTS; i++) {
             snprintf(name, NAME_SIZE, "wdt%d", i);
-            object_initialize_child(obj, name, &s->wdt[i], TYPE_IMX2_WDT);
+            object_initialize_child(obj, name, &wdt[i], TYPE_IMX2_WDT);
     }
 
     /*
      * GPR
      */
-    object_initialize_child(obj, "gpr", &s->gpr, TYPE_IMX7_GPR);
+    object_initialize_child(obj, "gpr", &gpr, TYPE_IMX7_GPR);
 
     /*
      * PCIE
      */
-    object_initialize_child(obj, "pcie", &s->pcie, TYPE_DESIGNWARE_PCIE_HOST);
-    object_initialize_child(obj, "pcie4-msi-irq", &s->pcie4_msi_irq,
+    object_initialize_child(obj, "pcie", &pcie, TYPE_DESIGNWARE_PCIE_HOST);
+    object_initialize_child(obj, "pcie4-msi-irq", &pcie4_msi_irq,
                             TYPE_OR_IRQ);
 
     /*
@@ -161,7 +162,7 @@ static void fsl_imx7_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX7_NUM_USBS; i++) {
         snprintf(name, NAME_SIZE, "usb%d", i);
-        object_initialize_child(obj, name, &s->usb[i], TYPE_CHIPIDEA);
+        object_initialize_child(obj, name, &usb[i], TYPE_CHIPIDEA);
     }
 }
 
@@ -751,9 +752,10 @@ static const Property fsl_imx7_properties[] = {
                      true),
 };
 
-static void fsl_imx7_class_init(ObjectClass *oc, const void *data)
+void FslIMX7State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, fsl_imx7_properties);
     dc->realize = fsl_imx7_realize;
@@ -763,16 +765,4 @@ static void fsl_imx7_class_init(ObjectClass *oc, const void *data)
     dc->desc = "i.MX7 SOC";
 }
 
-static const TypeInfo fsl_imx7_type_info = {
-    .name = TYPE_FSL_IMX7,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FslIMX7State),
-    .instance_init = fsl_imx7_init,
-    .class_init = fsl_imx7_class_init,
-};
-
-static void fsl_imx7_register_types(void)
-{
-    type_register_static(&fsl_imx7_type_info);
-}
-type_init(fsl_imx7_register_types)
+REGISTER_QEMU_DEVICE(FslIMX7State, TYPE_FSL_IMX7, TYPE_DEVICE)

@@ -24,6 +24,7 @@
 #include "qom/object.h"
 #include "hw/arm/bcm2838.h"
 #include <libfdt.h>
+#include "qom/cpp/object.h"
 
 #define TYPE_RASPI4B_MACHINE MACHINE_TYPE_NAME("raspi4b")
 OBJECT_DECLARE_SIMPLE_TYPE(Raspi4bMachineState, RASPI4B_MACHINE)
@@ -104,10 +105,11 @@ struct Raspi4bMachineState {
         raspi_base_machine_init(machine, &soc->parent_obj);
     }
 
-    static void classInit(ObjectClass *oc, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
-        RaspiBaseMachineClass *rmc = reinterpret_cast<RaspiBaseMachineClass *>(oc);
+        ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(klass);
+        RaspiBaseMachineClass *rmc = reinterpret_cast<RaspiBaseMachineClass *>(klass);
 
 #if HOST_LONG_BITS == 32
         rmc->board_rev = 0xa03111; /* Revision 1.1, 1 Gb RAM */
@@ -120,17 +122,6 @@ struct Raspi4bMachineState {
     }
 };
 
-static const TypeInfo raspi4b_machine_type = {
-    .name           = TYPE_RASPI4B_MACHINE,
-    .parent         = TYPE_RASPI_BASE_MACHINE,
-    .instance_size  = sizeof(Raspi4bMachineState),
-    .class_init     = Raspi4bMachineState::classInit,
-    .interfaces     = aarch64_machine_interfaces,
-};
-
-static void raspi4b_machine_register_type(void)
-{
-    type_register_static(&raspi4b_machine_type);
-}
-
-type_init(raspi4b_machine_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(Raspi4bMachineState, TYPE_RASPI4B_MACHINE,
+                             TYPE_RASPI_BASE_MACHINE, aarch64_machine_interfaces)

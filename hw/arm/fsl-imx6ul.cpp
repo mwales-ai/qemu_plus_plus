@@ -26,50 +26,51 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 #define NAME_SIZE 20
 
-static void fsl_imx6ul_init(Object *obj)
+void FslIMX6ULState::init()
 {
-    FslIMX6ULState *s = FSL_IMX6UL(obj);
+    Object *obj = OBJECT(this);
     char name[NAME_SIZE];
     int i;
 
-    object_initialize_child(obj, "cpu0", &s->cpu,
+    object_initialize_child(obj, "cpu0", &cpu,
                             ARM_CPU_TYPE_NAME("cortex-a7"));
 
     /*
      * A7MPCORE
      */
-    object_initialize_child(obj, "a7mpcore", &s->a7mpcore,
+    object_initialize_child(obj, "a7mpcore", &a7mpcore,
                             TYPE_A15MPCORE_PRIV);
 
     /*
      * CCM
      */
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX6UL_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_IMX6UL_CCM);
 
     /*
      * SRC
      */
-    object_initialize_child(obj, "src", &s->src, TYPE_IMX6_SRC);
+    object_initialize_child(obj, "src", &src, TYPE_IMX6_SRC);
 
     /*
      * GPCv2
      */
-    object_initialize_child(obj, "gpcv2", &s->gpcv2, TYPE_IMX_GPCV2);
+    object_initialize_child(obj, "gpcv2", &gpcv2, TYPE_IMX_GPCV2);
 
     /*
      * SNVS
      */
-    object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
+    object_initialize_child(obj, "snvs", &snvs, TYPE_IMX7_SNVS);
 
     /*
      * GPIOs
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPIOS; i++) {
         snprintf(name, NAME_SIZE, "gpio%d", i);
-        object_initialize_child(obj, name, &s->gpio[i], TYPE_IMX_GPIO);
+        object_initialize_child(obj, name, &gpio[i], TYPE_IMX_GPIO);
     }
 
     /*
@@ -77,7 +78,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_GPTS; i++) {
         snprintf(name, NAME_SIZE, "gpt%d", i);
-        object_initialize_child(obj, name, &s->gpt[i], TYPE_IMX6UL_GPT);
+        object_initialize_child(obj, name, &gpt[i], TYPE_IMX6UL_GPT);
     }
 
     /*
@@ -85,7 +86,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_EPITS; i++) {
         snprintf(name, NAME_SIZE, "epit%d", i + 1);
-        object_initialize_child(obj, name, &s->epit[i], TYPE_IMX_EPIT);
+        object_initialize_child(obj, name, &epit[i], TYPE_IMX_EPIT);
     }
 
     /*
@@ -93,7 +94,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_ECSPIS; i++) {
         snprintf(name, NAME_SIZE, "spi%d", i + 1);
-        object_initialize_child(obj, name, &s->spi[i], TYPE_IMX_SPI);
+        object_initialize_child(obj, name, &spi[i], TYPE_IMX_SPI);
     }
 
     /*
@@ -101,7 +102,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_I2CS; i++) {
         snprintf(name, NAME_SIZE, "i2c%d", i + 1);
-        object_initialize_child(obj, name, &s->i2c[i], TYPE_IMX_I2C);
+        object_initialize_child(obj, name, &i2c[i], TYPE_IMX_I2C);
     }
 
     /*
@@ -109,7 +110,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_UARTS; i++) {
         snprintf(name, NAME_SIZE, "uart%d", i);
-        object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
+        object_initialize_child(obj, name, &uart[i], TYPE_IMX_SERIAL);
     }
 
     /*
@@ -117,7 +118,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_ETHS; i++) {
         snprintf(name, NAME_SIZE, "eth%d", i);
-        object_initialize_child(obj, name, &s->eth[i], TYPE_IMX_ENET);
+        object_initialize_child(obj, name, &eth[i], TYPE_IMX_ENET);
     }
 
     /*
@@ -125,7 +126,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_USB_PHYS; i++) {
         snprintf(name, NAME_SIZE, "usbphy%d", i);
-        object_initialize_child(obj, name, &s->usbphy[i], TYPE_IMX_USBPHY);
+        object_initialize_child(obj, name, &usbphy[i], TYPE_IMX_USBPHY);
     }
 
     /*
@@ -133,7 +134,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_USBS; i++) {
         snprintf(name, NAME_SIZE, "usb%d", i);
-        object_initialize_child(obj, name, &s->usb[i], TYPE_CHIPIDEA);
+        object_initialize_child(obj, name, &usb[i], TYPE_CHIPIDEA);
     }
 
     /*
@@ -141,7 +142,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_USDHCS; i++) {
         snprintf(name, NAME_SIZE, "usdhc%d", i);
-        object_initialize_child(obj, name, &s->usdhc[i], TYPE_IMX_USDHC);
+        object_initialize_child(obj, name, &usdhc[i], TYPE_IMX_USDHC);
     }
 
     /*
@@ -149,7 +150,7 @@ static void fsl_imx6ul_init(Object *obj)
      */
     for (i = 0; i < FSL_IMX6UL_NUM_WDTS; i++) {
         snprintf(name, NAME_SIZE, "wdt%d", i);
-        object_initialize_child(obj, name, &s->wdt[i], TYPE_IMX2_WDT);
+        object_initialize_child(obj, name, &wdt[i], TYPE_IMX2_WDT);
     }
 }
 
@@ -715,9 +716,10 @@ static const Property fsl_imx6ul_properties[] = {
                      true),
 };
 
-static void fsl_imx6ul_class_init(ObjectClass *oc, const void *data)
+void FslIMX6ULState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    (void)klass;
 
     device_class_set_props(dc, fsl_imx6ul_properties);
     dc->realize = fsl_imx6ul_realize;
@@ -726,16 +728,4 @@ static void fsl_imx6ul_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo fsl_imx6ul_type_info = {
-    .name = TYPE_FSL_IMX6UL,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FslIMX6ULState),
-    .instance_init = fsl_imx6ul_init,
-    .class_init = fsl_imx6ul_class_init,
-};
-
-static void fsl_imx6ul_register_types(void)
-{
-    type_register_static(&fsl_imx6ul_type_info);
-}
-type_init(fsl_imx6ul_register_types)
+REGISTER_QEMU_DEVICE(FslIMX6ULState, TYPE_FSL_IMX6UL, TYPE_DEVICE)

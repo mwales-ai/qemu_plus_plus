@@ -66,6 +66,11 @@ struct FslIMX25State {
     MemoryRegion   iram;
     MemoryRegion   iram_alias;
     uint32_t       phy_num;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**
