@@ -261,9 +261,15 @@ constexpr auto get_instance_finalize() -> void (*)(Object *)
 /*
  * Extract the C++ vtable pointer for a given type. Uses a static local
  * so the temporary is constructed only once per type.
+ *
+ * Falls back to nullptr for types that are not default-constructible
+ * (e.g., structs containing unions of types with non-trivial constructors,
+ * such as SDHCIState's PCIDevice/SysBusDevice union). For such types the
+ * vtable feature is unavailable, but the macro still works — virtual
+ * methods just won't be dispatched through C++ vtables.
  */
 template<typename T>
-const void *extract_vtable()
+const void *extract_vtable_impl(std::true_type)
 {
     static const void *vtable = []() {
         alignas(T) unsigned char buf[sizeof(T)]{};
@@ -274,6 +280,18 @@ const void *extract_vtable()
         return vptr;
     }();
     return vtable;
+}
+
+template<typename T>
+const void *extract_vtable_impl(std::false_type)
+{
+    return nullptr;
+}
+
+template<typename T>
+const void *extract_vtable()
+{
+    return extract_vtable_impl<T>(std::is_default_constructible<T>{});
 }
 
 }  /* namespace qemu_device_detail */
