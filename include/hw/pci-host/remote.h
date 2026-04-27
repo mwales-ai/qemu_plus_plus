@@ -29,6 +29,11 @@ struct RemotePCIHost {
     MemoryRegion *mr_pci_mem;
     MemoryRegion *mr_sys_io;
     MemoryRegion *mr_sys_mem;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

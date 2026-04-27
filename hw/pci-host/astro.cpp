@@ -36,6 +36,7 @@
 #include "trace.h"
 #include "qom/object.h"
 #include "exec/target_page.h"
+#include "qom/cpp/object.h"
 
 /*
  * Helper functions
@@ -423,16 +424,16 @@ static void elroy_reset(DeviceState *dev)
     }
 }
 
-static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
+void ElroyState::realize(Error **errp)
 {
-    ElroyState *s = ELROY_PCI_HOST_BRIDGE(dev);
+    DeviceState *dev = DEVICE(this);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    Object *obj = OBJECT(s);
+    Object *obj = OBJECT(this);
 
     /* Elroy config access from CPU.  */
-    memory_region_init_io(&s->this_mem, obj, &elroy_chip_ops,
-                          s, "elroy", 0x2000);
+    memory_region_init_io(&this_mem, obj, &elroy_chip_ops,
+                          this, "elroy", 0x2000);
 
     /* Elroy PCI config. */
     memory_region_init_io(&phb->conf_mem, obj,
@@ -441,23 +442,23 @@ static void elroy_pcihost_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&phb->data_mem, obj,
                           &elroy_config_data_ops, dev,
                           "pci-conf-data", 8);
-    memory_region_add_subregion(&s->this_mem, 0x40,
+    memory_region_add_subregion(&this_mem, 0x40,
                                 &phb->conf_mem);
-    memory_region_add_subregion(&s->this_mem, 0x48,
+    memory_region_add_subregion(&this_mem, 0x48,
                                 &phb->data_mem);
 
     /* Elroy PCI bus memory.  */
-    memory_region_init(&s->pci_mmio, obj, "pci-mmio", UINT64_MAX);
-    memory_region_init_io(&s->pci_io, obj, &unassigned_io_ops, obj,
+    memory_region_init(&pci_mmio, obj, "pci-mmio", UINT64_MAX);
+    memory_region_init_io(&pci_io, obj, &unassigned_io_ops, obj,
                             "pci-isa-mmio",
                             ((uint32_t) IOS_DIST_BASE_SIZE) / ROPES_PER_IOC);
 
-    phb->bus = pci_register_root_bus(DEVICE(s), "pci",
-                                     elroy_set_irq, elroy_pci_map_irq, s,
-                                     &s->pci_mmio, &s->pci_io,
+    phb->bus = pci_register_root_bus(DEVICE(this), "pci",
+                                     elroy_set_irq, elroy_pci_map_irq, this,
+                                     &pci_mmio, &pci_io,
                                      PCI_DEVFN(0, 0), ELROY_IRQS, TYPE_PCI_BUS);
 
-    sysbus_init_mmio(sbd, &s->this_mem);
+    sysbus_init_mmio(sbd, &this_mem);
 
     qdev_init_gpio_in(dev, elroy_set_irq, ELROY_IRQS);
 }
@@ -482,29 +483,16 @@ static const VMStateDescription vmstate_elroy = {
     }
 };
 
-static void elroy_pcihost_class_init(ObjectClass *klass, const void *data)
+void ElroyState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, elroy_reset);
-    dc->realize = elroy_pcihost_realize;
     dc->vmsd = &vmstate_elroy;
     dc->user_creatable = false;
 }
 
-static const TypeInfo elroy_pcihost_info = {
-    .name          = TYPE_ELROY_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(ElroyState),
-    .class_init    = elroy_pcihost_class_init,
-};
-
-static void elroy_register_types(void)
-{
-    type_register_static(&elroy_pcihost_info);
-}
-
-type_init(elroy_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ElroyState, TYPE_ELROY_PCI_HOST_BRIDGE,
+                     TYPE_PCI_HOST_BRIDGE)
 
 
 static ElroyState *elroy_init(int num)
@@ -817,25 +805,20 @@ static void astro_reset(DeviceState *dev)
     }
 }
 
-static void astro_init(Object *obj)
+void AstroState::realize(Error **errp)
 {
-}
-
-static void astro_realize(DeviceState *obj, Error **errp)
-{
-    AstroState *s = ASTRO_CHIP(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
 
-    memory_region_init_io(&s->this_mem, OBJECT(s), &astro_chip_ops,
-                          s, "astro", 0x40000);
-    sysbus_init_mmio(sbd, &s->this_mem);
+    memory_region_init_io(&this_mem, OBJECT(this), &astro_chip_ops,
+                          this, "astro", 0x40000);
+    sysbus_init_mmio(sbd, &this_mem);
 
     /* Host memory as seen from Elroys PCI side, via the IOMMU.  */
-    memory_region_init_iommu(&s->iommu, sizeof(s->iommu),
-                             TYPE_ASTRO_IOMMU_MEMORY_REGION, OBJECT(s),
+    memory_region_init_iommu(&iommu, sizeof(iommu),
+                             TYPE_ASTRO_IOMMU_MEMORY_REGION, OBJECT(this),
                              "iommu-astro", UINT64_MAX);
-    address_space_init(&s->iommu_as, MEMORY_REGION(&s->iommu),
+    address_space_init(&iommu_as, MEMORY_REGION(&iommu),
                        "bm-pci");
 
     /* Create Elroys (PCI host bus chips).  */
@@ -854,10 +837,10 @@ static void astro_realize(DeviceState *obj, Error **errp)
         rope = elroy_rope_nr[i];
 
         elroy = elroy_init(i);
-        s->elroy[i] = elroy;
+        this->elroy[i] = elroy;
         elroy->hpa = ASTRO_HPA + addr_offset;
         elroy->pci_bus_num = i;
-        elroy->astro = s;
+        elroy->astro = this;
 
         /*
          * NOTE: we only allow PCI devices on first Elroy for now.
@@ -868,7 +851,7 @@ static void astro_realize(DeviceState *obj, Error **errp)
         }
 
         /* map elroy config addresses into Astro space */
-        memory_region_add_subregion(&s->this_mem, addr_offset,
+        memory_region_add_subregion(&this_mem, addr_offset,
                                     &elroy->this_mem);
 
         /* LMMIO */
@@ -909,27 +892,16 @@ static void astro_realize(DeviceState *obj, Error **errp)
     }
 }
 
-static void astro_class_init(ObjectClass *klass, const void *data)
+void AstroState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, astro_reset);
     dc->vmsd = &vmstate_astro;
-    dc->realize = astro_realize;
     /*
      * astro with elroys are hard part of the newer PA2.0 machines and can not
      * be created without that hardware
      */
     dc->user_creatable = false;
 }
-
-static const TypeInfo astro_chip_info = {
-    .name          = TYPE_ASTRO_CHIP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = astro_init,
-    .instance_size = sizeof(AstroState),
-    .class_init    = astro_class_init,
-};
 
 static void astro_iommu_memory_region_class_init(ObjectClass *klass,
                                                  const void *data)
@@ -939,17 +911,14 @@ static void astro_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = astro_translate_iommu;
 }
 
-static const TypeInfo astro_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .name = TYPE_ASTRO_IOMMU_MEMORY_REGION,
-    .class_init = astro_iommu_memory_region_class_init,
-};
-
-
-static void astro_register_types(void)
+static void __attribute__((constructor)) astro_register_siblings(void)
 {
-    type_register_static(&astro_chip_info);
+    static const TypeInfo astro_iommu_memory_region_info = {
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .name = TYPE_ASTRO_IOMMU_MEMORY_REGION,
+        .class_init = astro_iommu_memory_region_class_init,
+    };
     type_register_static(&astro_iommu_memory_region_info);
 }
 
-type_init(astro_register_types)
+REGISTER_QEMU_DEVICE(AstroState, TYPE_ASTRO_CHIP, TYPE_SYS_BUS_DEVICE)

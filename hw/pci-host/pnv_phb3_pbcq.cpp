@@ -265,45 +265,44 @@ static void pnv_pbcq_default_bars(PnvPBCQState *pbcq)
     pbcq->pci_regs[PBCQ_PCI_BAR2] = reg << 14;
 }
 
-static void pnv_pbcq_realize(DeviceState *dev, Error **errp)
+void PnvPBCQState::realize(Error **errp)
 {
-    PnvPBCQState *pbcq = PNV_PBCQ(dev);
     PnvPHB3 *phb;
     char name[32];
 
-    assert(pbcq->phb);
-    phb = pbcq->phb;
+    assert(this->phb);
+    phb = this->phb;
 
     /* TODO: Fix OPAL to do that: establish default BAR values */
-    pnv_pbcq_default_bars(pbcq);
+    pnv_pbcq_default_bars(this);
 
     /* Initialize the XSCOM region for the PBCQ registers */
     snprintf(name, sizeof(name), "xscom-pbcq-nest-%d.%d",
              phb->chip_id, phb->phb_id);
-    pnv_xscom_region_init(&pbcq->xscom_nest_regs, OBJECT(dev),
-                          &pnv_pbcq_nest_xscom_ops, pbcq, name,
+    pnv_xscom_region_init(&xscom_nest_regs, OBJECT(this),
+                          &pnv_pbcq_nest_xscom_ops, this, name,
                           PNV_XSCOM_PBCQ_NEST_SIZE);
     snprintf(name, sizeof(name), "xscom-pbcq-pci-%d.%d",
              phb->chip_id, phb->phb_id);
-    pnv_xscom_region_init(&pbcq->xscom_pci_regs, OBJECT(dev),
-                          &pnv_pbcq_pci_xscom_ops, pbcq, name,
+    pnv_xscom_region_init(&xscom_pci_regs, OBJECT(this),
+                          &pnv_pbcq_pci_xscom_ops, this, name,
                           PNV_XSCOM_PBCQ_PCI_SIZE);
     snprintf(name, sizeof(name), "xscom-pbcq-spci-%d.%d",
              phb->chip_id, phb->phb_id);
-    pnv_xscom_region_init(&pbcq->xscom_spci_regs, OBJECT(dev),
-                          &pnv_pbcq_spci_xscom_ops, pbcq, name,
+    pnv_xscom_region_init(&xscom_spci_regs, OBJECT(this),
+                          &pnv_pbcq_spci_xscom_ops, this, name,
                           PNV_XSCOM_PBCQ_SPCI_SIZE);
 
     /* Populate the XSCOM address space. */
     pnv_xscom_add_subregion(phb->chip,
                             PNV_XSCOM_PBCQ_NEST_BASE + 0x400 * phb->phb_id,
-                            &pbcq->xscom_nest_regs);
+                            &xscom_nest_regs);
     pnv_xscom_add_subregion(phb->chip,
                             PNV_XSCOM_PBCQ_PCI_BASE + 0x400 * phb->phb_id,
-                            &pbcq->xscom_pci_regs);
+                            &xscom_pci_regs);
     pnv_xscom_add_subregion(phb->chip,
                             PNV_XSCOM_PBCQ_SPCI_BASE + 0x040 * phb->phb_id,
-                            &pbcq->xscom_spci_regs);
+                            &xscom_spci_regs);
 }
 
 static int pnv_pbcq_dt_xscom(PnvXScomInterface *dev, void *fdt,
@@ -337,44 +336,29 @@ static int pnv_pbcq_dt_xscom(PnvXScomInterface *dev, void *fdt,
     return 0;
 }
 
-static void phb3_pbcq_instance_init(Object *obj)
+void PnvPBCQState::init()
 {
-    PnvPBCQState *pbcq = PNV_PBCQ(obj);
-
-    object_property_add_link(obj, "phb", TYPE_PNV_PHB3,
-                             (Object **)&pbcq->phb,
+    object_property_add_link(OBJECT(this), "phb", TYPE_PNV_PHB3,
+                             (Object **)&phb,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 }
 
-static void pnv_pbcq_class_init(ObjectClass *klass, const void *data)
+void PnvPBCQState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
 
     xdc->dt_xscom = pnv_pbcq_dt_xscom;
 
-    dc->realize = pnv_pbcq_realize;
     dc->user_creatable = false;
 }
 
-static const InterfaceInfo pnv_pbcq_interfaces[] = {
+static const InterfaceInfo pnv_pbcq_ifaces[] = {
     { TYPE_PNV_XSCOM_INTERFACE },
     { }
 };
 
-static const TypeInfo pnv_pbcq_type_info = {
-    .name          = TYPE_PNV_PBCQ,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPBCQState),
-    .instance_init = phb3_pbcq_instance_init,
-    .class_init    = pnv_pbcq_class_init,
-    .interfaces    = pnv_pbcq_interfaces,
-};
-
-static void pnv_pbcq_register_types(void)
-{
-    type_register_static(&pnv_pbcq_type_info);
-}
-
-type_init(pnv_pbcq_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvPBCQState, TYPE_PNV_PBCQ, TYPE_DEVICE,
+                             pnv_pbcq_ifaces)

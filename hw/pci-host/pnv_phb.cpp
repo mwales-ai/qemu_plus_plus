@@ -109,18 +109,17 @@ static bool pnv_phb_user_device_init(PnvPHB *phb, Error **errp)
     return true;
 }
 
-static void pnv_phb_realize(DeviceState *dev, Error **errp)
+void PnvPHB::realize(Error **errp)
 {
-    PnvPHB *phb = PNV_PHB(dev);
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    PCIHostState *pci = PCI_HOST_BRIDGE(this);
     char *phb_typename = NULL;
 
-    if (!phb->version) {
+    if (!version) {
         error_setg(errp, "version not specified");
         return;
     }
 
-    switch (phb->version) {
+    switch (version) {
     case 3:
         phb_typename = g_strdup(TYPE_PNV_PHB3);
         break;
@@ -134,40 +133,40 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         g_assert_not_reached();
     }
 
-    phb->backend = object_new(phb_typename);
+    backend = object_new(phb_typename);
     g_free(phb_typename);
-    object_property_add_child(OBJECT(dev), "phb-backend", phb->backend);
+    object_property_add_child(OBJECT(this), "phb-backend", backend);
 
     /* Passthrough child device properties to the proxy device */
-    object_property_set_uint(phb->backend, "index", phb->phb_id, errp);
-    object_property_set_uint(phb->backend, "chip-id", phb->chip_id, errp);
-    object_property_set_link(phb->backend, "phb-base", OBJECT(phb), errp);
+    object_property_set_uint(backend, "index", phb_id, errp);
+    object_property_set_uint(backend, "chip-id", chip_id, errp);
+    object_property_set_link(backend, "phb-base", OBJECT(this), errp);
 
     /*
      * Handle user created devices. User devices will not have a
      * pointer to a chip (PHB3) and a PEC (PHB4/5).
      */
-    if (!phb->chip && !phb->pec) {
-        if (!pnv_phb_user_device_init(phb, errp)) {
+    if (!chip && !pec) {
+        if (!pnv_phb_user_device_init(this, errp)) {
             return;
         }
     }
 
-    if (phb->version == 3) {
-        object_property_set_link(phb->backend, "chip",
-                                 OBJECT(phb->chip), errp);
+    if (version == 3) {
+        object_property_set_link(backend, "chip",
+                                 OBJECT(chip), errp);
     } else {
-        object_property_set_link(phb->backend, "pec", OBJECT(phb->pec), errp);
+        object_property_set_link(backend, "pec", OBJECT(pec), errp);
     }
 
-    if (!qdev_realize(DEVICE(phb->backend), NULL, errp)) {
+    if (!qdev_realize(DEVICE(backend), NULL, errp)) {
         return;
     }
 
-    if (phb->version == 3) {
-        pnv_phb3_bus_init(dev, PNV_PHB3(phb->backend));
+    if (version == 3) {
+        pnv_phb3_bus_init(DEVICE(this), PNV_PHB3(backend));
     } else {
-        pnv_phb4_bus_init(dev, PNV_PHB4(phb->backend));
+        pnv_phb4_bus_init(DEVICE(this), PNV_PHB4(backend));
     }
 
     if (defaults_enabled()) {
@@ -198,13 +197,12 @@ static const Property pnv_phb_properties[] = {
                      PnvPhb4PecState *),
 };
 
-static void pnv_phb_class_init(ObjectClass *klass, const void *data)
+void PnvPHB::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     hc->root_bus_path = pnv_phb_root_bus_path;
-    dc->realize = pnv_phb_realize;
     device_class_set_props(dc, pnv_phb_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable = true;
@@ -239,10 +237,15 @@ static void pnv_phb_root_port_reset_hold(Object *obj, ResetType type)
     pci_config_set_interrupt_pin(conf, 0);
 }
 
-static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
+static void pnv_phb_root_port_realize_trampoline(DeviceState *dev, Error **errp)
 {
+    reinterpret_cast<PnvPHBRootPort *>(dev)->realize(errp);
+}
+
+void PnvPHBRootPort::realize(Error **errp)
+{
+    DeviceState *dev = DEVICE(this);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    PnvPHBRootPort *phb_rp = PNV_PHB_ROOT_PORT(dev);
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(dev));
     PCIDevice *pci = PCI_DEVICE(dev);
     uint16_t device_id = 0;
@@ -286,7 +289,7 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    switch (phb_rp->version) {
+    switch (version) {
     case 3:
         device_id = PNV_PHB3_DEVICE_ID;
         break;
@@ -308,9 +311,9 @@ static const Property pnv_phb_root_port_properties[] = {
     DEFINE_PROP_UINT32("version", PnvPHBRootPort, version, 0),
 };
 
-static void pnv_phb_root_port_class_init(ObjectClass *klass, const void *data)
+void PnvPHBRootPort::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
@@ -318,7 +321,7 @@ static void pnv_phb_root_port_class_init(ObjectClass *klass, const void *data)
     dc->desc     = "IBM PHB PCIE Root Port";
 
     device_class_set_props(dc, pnv_phb_root_port_properties);
-    device_class_set_parent_realize(dc, pnv_phb_root_port_realize,
+    device_class_set_parent_realize(dc, pnv_phb_root_port_realize_trampoline,
                                     &rpc->parent_realize);
     resettable_class_set_parent_phases(rc, NULL, pnv_phb_root_port_reset_hold,
                                        NULL, &rpc->parent_phases);
@@ -333,24 +336,22 @@ static void pnv_phb_root_port_class_init(ObjectClass *klass, const void *data)
     rpc->aer_offset = 0x100;
 }
 
-static const TypeInfo pnv_phb_type_info = {
-    .name          = TYPE_PNV_PHB,
-    .parent        = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(PnvPHB),
-    .class_init    = pnv_phb_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PnvPHB, TYPE_PNV_PHB, TYPE_PCIE_HOST_BRIDGE)
 
-static const TypeInfo pnv_phb_root_port_info = {
-    .name          = TYPE_PNV_PHB_ROOT_PORT,
-    .parent        = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(PnvPHBRootPort),
-    .class_init    = pnv_phb_root_port_class_init,
-};
-
-static void pnv_phb_register_types(void)
+static void pnv_phb_root_port_class_init_wrapper(ObjectClass *klass,
+                                                  const void *data)
 {
-    type_register_static(&pnv_phb_type_info);
-    type_register_static(&pnv_phb_root_port_info);
+    PnvPHBRootPort::classInit(DEVICE_CLASS(klass));
 }
 
-type_init(pnv_phb_register_types)
+static void __attribute__((constructor)) pnv_phb_register_siblings(void)
+{
+    static const TypeInfo pnv_phb_root_port_info = {
+        .name          = TYPE_PNV_PHB_ROOT_PORT,
+        .parent        = TYPE_PCIE_ROOT_PORT,
+        .instance_size = sizeof(PnvPHBRootPort),
+        .class_init    = pnv_phb_root_port_class_init_wrapper,
+    };
+    type_register_static(&pnv_phb_root_port_info);
+}

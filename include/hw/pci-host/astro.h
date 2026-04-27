@@ -64,6 +64,11 @@ struct ElroyState {
     MemoryRegion pci_mmio_alias;
     MemoryRegion pci_hole;
     MemoryRegion pci_io;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct AstroState {
@@ -89,6 +94,11 @@ struct AstroState {
 
     IOMMUMemoryRegion iommu;
     AddressSpace iommu_as;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

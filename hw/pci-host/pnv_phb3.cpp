@@ -894,12 +894,6 @@ static void pnv_phb3_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = pnv_phb3_translate_iommu;
 }
 
-static const TypeInfo pnv_phb3_iommu_memory_region_info = {
-    .name = TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = pnv_phb3_iommu_memory_region_class_init,
-};
-
 /*
  * MSI/MSIX memory region implementation.
  * The handler handles both MSI and MSIX.
@@ -971,24 +965,21 @@ static PCIIOMMUOps pnv_phb3_iommu_ops = {
     .get_address_space = pnv_phb3_dma_iommu,
 };
 
-static void pnv_phb3_instance_init(Object *obj)
+void PnvPHB3::init()
 {
-    PnvPHB3 *phb = PNV_PHB3(obj);
-
-    QLIST_INIT(&phb->dma_spaces);
+    QLIST_INIT(&dma_spaces);
 
     /* LSI sources */
-    object_initialize_child(obj, "lsi", &phb->lsis, TYPE_ICS);
+    object_initialize_child(OBJECT(this), "lsi", &lsis, TYPE_ICS);
 
     /* Default init ... will be fixed by HW inits */
-    phb->lsis.offset = 0;
+    lsis.offset = 0;
 
     /* MSI sources */
-    object_initialize_child(obj, "msi", &phb->msis, TYPE_PHB3_MSI);
+    object_initialize_child(OBJECT(this), "msi", &msis, TYPE_PHB3_MSI);
 
     /* Power Bus Common Queue */
-    object_initialize_child(obj, "pbcq", &phb->pbcq, TYPE_PNV_PBCQ);
-
+    object_initialize_child(OBJECT(this), "pbcq", &pbcq, TYPE_PNV_PBCQ);
 }
 
 void pnv_phb3_bus_init(DeviceState *dev, PnvPHB3 *phb)
@@ -1018,52 +1009,51 @@ void pnv_phb3_bus_init(DeviceState *dev, PnvPHB3 *phb)
     pci_setup_iommu(pci->bus, &pnv_phb3_iommu_ops, phb);
 }
 
-static void pnv_phb3_realize(DeviceState *dev, Error **errp)
+void PnvPHB3::realize(Error **errp)
 {
-    PnvPHB3 *phb = PNV_PHB3(dev);
     PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
     int i;
 
-    if (phb->phb_id >= PNV_CHIP_GET_CLASS(phb->chip)->num_phbs) {
-        error_setg(errp, "invalid PHB index: %d", phb->phb_id);
+    if (phb_id >= PNV_CHIP_GET_CLASS(chip)->num_phbs) {
+        error_setg(errp, "invalid PHB index: %d", phb_id);
         return;
     }
 
     /* LSI sources */
-    object_property_set_link(OBJECT(&phb->lsis), "xics", OBJECT(pnv),
+    object_property_set_link(OBJECT(&lsis), "xics", OBJECT(pnv),
                              &error_abort);
-    object_property_set_int(OBJECT(&phb->lsis), "nr-irqs", PNV_PHB3_NUM_LSI,
+    object_property_set_int(OBJECT(&lsis), "nr-irqs", PNV_PHB3_NUM_LSI,
                             &error_abort);
-    if (!qdev_realize(DEVICE(&phb->lsis), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&lsis), NULL, errp)) {
         return;
     }
 
-    for (i = 0; i < phb->lsis.nr_irqs; i++) {
-        ics_set_irq_type(&phb->lsis, i, true);
+    for (i = 0; i < lsis.nr_irqs; i++) {
+        ics_set_irq_type(&lsis, i, true);
     }
 
-    phb->qirqs = qemu_allocate_irqs(ics_set_irq, &phb->lsis, phb->lsis.nr_irqs);
+    qirqs = qemu_allocate_irqs(ics_set_irq, &lsis, lsis.nr_irqs);
 
     /* MSI sources */
-    object_property_set_link(OBJECT(&phb->msis), "phb", OBJECT(phb),
+    object_property_set_link(OBJECT(&msis), "phb", OBJECT(this),
                              &error_abort);
-    object_property_set_link(OBJECT(&phb->msis), "xics", OBJECT(pnv),
+    object_property_set_link(OBJECT(&msis), "xics", OBJECT(pnv),
                              &error_abort);
-    object_property_set_int(OBJECT(&phb->msis), "nr-irqs", PHB3_MAX_MSI,
+    object_property_set_int(OBJECT(&msis), "nr-irqs", PHB3_MAX_MSI,
                             &error_abort);
-    if (!qdev_realize(DEVICE(&phb->msis), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&msis), NULL, errp)) {
         return;
     }
 
     /* Power Bus Common Queue */
-    object_property_set_link(OBJECT(&phb->pbcq), "phb", OBJECT(phb),
+    object_property_set_link(OBJECT(&pbcq), "phb", OBJECT(this),
                              &error_abort);
-    if (!qdev_realize(DEVICE(&phb->pbcq), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&pbcq), NULL, errp)) {
         return;
     }
 
     /* Controller Registers */
-    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb3_reg_ops, phb,
+    memory_region_init_io(&mr_regs, OBJECT(this), &pnv_phb3_reg_ops, this,
                           "phb3-regs", 0x1000);
 }
 
@@ -1096,22 +1086,11 @@ static const Property pnv_phb3_properties[] = {
     DEFINE_PROP_LINK("phb-base", PnvPHB3, phb_base, TYPE_PNV_PHB, PnvPHB *),
 };
 
-static void pnv_phb3_class_init(ObjectClass *klass, const void *data)
+void PnvPHB3::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = pnv_phb3_realize;
     device_class_set_props(dc, pnv_phb3_properties);
     dc->user_creatable = false;
 }
-
-static const TypeInfo pnv_phb3_type_info = {
-    .name          = TYPE_PNV_PHB3,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPHB3),
-    .instance_init = pnv_phb3_instance_init,
-    .class_init    = pnv_phb3_class_init,
-};
 
 static void pnv_phb3_root_bus_get_prop(Object *obj, Visitor *v,
                                        const char *name,
@@ -1169,18 +1148,22 @@ static void pnv_phb3_root_bus_class_init(ObjectClass *klass, const void *data)
     k->max_dev = 1;
 }
 
-static const TypeInfo pnv_phb3_root_bus_info = {
-    .name = TYPE_PNV_PHB3_ROOT_BUS,
-    .parent = TYPE_PCIE_BUS,
-    .instance_size = sizeof(PnvPHB3RootBus),
-    .class_init = pnv_phb3_root_bus_class_init,
-};
-
-static void pnv_phb3_register_types(void)
+static void __attribute__((constructor)) pnv_phb3_register_siblings(void)
 {
+    static const TypeInfo pnv_phb3_root_bus_info = {
+        .name = TYPE_PNV_PHB3_ROOT_BUS,
+        .parent = TYPE_PCIE_BUS,
+        .instance_size = sizeof(PnvPHB3RootBus),
+        .class_init = pnv_phb3_root_bus_class_init,
+    };
+    static const TypeInfo pnv_phb3_iommu_mr_info = {
+        .name = TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .class_init = pnv_phb3_iommu_memory_region_class_init,
+    };
     type_register_static(&pnv_phb3_root_bus_info);
-    type_register_static(&pnv_phb3_type_info);
-    type_register_static(&pnv_phb3_iommu_memory_region_info);
+    type_register_static(&pnv_phb3_iommu_mr_info);
 }
 
-type_init(pnv_phb3_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PnvPHB3, TYPE_PNV_PHB3, TYPE_DEVICE)

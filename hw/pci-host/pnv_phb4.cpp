@@ -1362,12 +1362,6 @@ static void pnv_phb4_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = pnv_phb4_translate_iommu;
 }
 
-static const TypeInfo pnv_phb4_iommu_memory_region_info = {
-    .name = TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = pnv_phb4_iommu_memory_region_class_init,
-};
-
 /*
  * Return the index/phb-id of a PHB4 that belongs to a
  * pec->stacks[stack_index] stack.
@@ -1524,14 +1518,12 @@ static PCIIOMMUOps pnv_phb4_iommu_ops = {
     .get_address_space = pnv_phb4_dma_iommu,
 };
 
-static void pnv_phb4_instance_init(Object *obj)
+void PnvPHB4::init()
 {
-    PnvPHB4 *phb = PNV_PHB4(obj);
-
-    QLIST_INIT(&phb->dma_spaces);
+    QLIST_INIT(&dma_spaces);
 
     /* XIVE interrupt source object */
-    object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
+    object_initialize_child(OBJECT(this), "source", &xsrc, TYPE_XIVE_SOURCE);
 }
 
 void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
@@ -1567,39 +1559,37 @@ void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
     pci->bus->flags = static_cast<PCIBusFlags>(pci->bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
 }
 
-static void pnv_phb4_realize(DeviceState *dev, Error **errp)
+void PnvPHB4::realize(Error **errp)
 {
-    PnvPHB4 *phb = PNV_PHB4(dev);
-    XiveSource *xsrc = &phb->xsrc;
+    XiveSource *xsrc = &this->xsrc;
     int nr_irqs;
     char name[32];
 
     /* Set the "big_phb" flag */
-    phb->big_phb = phb->phb_id == 0 || phb->phb_id == 3;
+    big_phb = phb_id == 0 || phb_id == 3;
 
     /* Controller Registers */
-    snprintf(name, sizeof(name), "phb4-%d.%d-regs", phb->chip_id,
-             phb->phb_id);
-    memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
+    snprintf(name, sizeof(name), "phb4-%d.%d-regs", chip_id, phb_id);
+    memory_region_init_io(&mr_regs, OBJECT(this), &pnv_phb4_reg_ops, this,
                           name, 0x2000);
 
     /* Setup XIVE Source */
-    if (phb->big_phb) {
+    if (big_phb) {
         nr_irqs = PNV_PHB4_MAX_INTs;
     } else {
         nr_irqs = PNV_PHB4_MAX_INTs >> 1;
     }
     object_property_set_int(OBJECT(xsrc), "nr-irqs", nr_irqs, &error_fatal);
-    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(phb), &error_fatal);
+    object_property_set_link(OBJECT(xsrc), "xive", OBJECT(this), &error_fatal);
     if (!qdev_realize(DEVICE(xsrc), NULL, errp)) {
         return;
     }
 
-    pnv_phb4_update_xsrc(phb);
+    pnv_phb4_update_xsrc(this);
 
-    phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
+    qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
-    pnv_phb4_xscom_realize(phb);
+    pnv_phb4_xscom_realize(this);
 }
 
 /*
@@ -1689,37 +1679,16 @@ static const Property pnv_phb4_properties[] = {
     DEFINE_PROP_LINK("phb-base", PnvPHB4, phb_base, TYPE_PNV_PHB, PnvPHB *),
 };
 
-static void pnv_phb4_class_init(ObjectClass *klass, const void *data)
+void PnvPHB4::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
 
-    dc->realize         = pnv_phb4_realize;
     device_class_set_props(dc, pnv_phb4_properties);
     dc->user_creatable  = false;
 
     xfc->notify         = pnv_phb4_xive_notify;
 }
-
-static const InterfaceInfo pnv_phb4_interfaces[] = {
-    { TYPE_XIVE_NOTIFIER },
-    { },
-};
-
-static const TypeInfo pnv_phb4_type_info = {
-    .name          = TYPE_PNV_PHB4,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvPHB4),
-    .instance_init = pnv_phb4_instance_init,
-    .class_init    = pnv_phb4_class_init,
-    .interfaces    = pnv_phb4_interfaces,
-};
-
-static const TypeInfo pnv_phb5_type_info = {
-    .name          = TYPE_PNV_PHB5,
-    .parent        = TYPE_PNV_PHB4,
-    .instance_size = sizeof(PnvPHB4),
-};
 
 static void pnv_phb4_root_bus_get_prop(Object *obj, Visitor *v,
                                        const char *name,
@@ -1777,22 +1746,37 @@ static void pnv_phb4_root_bus_class_init(ObjectClass *klass, const void *data)
     k->max_dev = 1;
 }
 
-static const TypeInfo pnv_phb4_root_bus_info = {
-    .name = TYPE_PNV_PHB4_ROOT_BUS,
-    .parent = TYPE_PCIE_BUS,
-    .instance_size = sizeof(PnvPHB4RootBus),
-    .class_init = pnv_phb4_root_bus_class_init,
-};
-
-static void pnv_phb4_register_types(void)
+static void __attribute__((constructor)) pnv_phb4_register_siblings(void)
 {
+    static const TypeInfo pnv_phb4_root_bus_info = {
+        .name = TYPE_PNV_PHB4_ROOT_BUS,
+        .parent = TYPE_PCIE_BUS,
+        .instance_size = sizeof(PnvPHB4RootBus),
+        .class_init = pnv_phb4_root_bus_class_init,
+    };
+    static const TypeInfo pnv_phb5_type_info = {
+        .name          = TYPE_PNV_PHB5,
+        .parent        = TYPE_PNV_PHB4,
+        .instance_size = sizeof(PnvPHB4),
+    };
+    static const TypeInfo pnv_phb4_iommu_mr_info = {
+        .name = TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .class_init = pnv_phb4_iommu_memory_region_class_init,
+    };
     type_register_static(&pnv_phb4_root_bus_info);
-    type_register_static(&pnv_phb4_type_info);
     type_register_static(&pnv_phb5_type_info);
-    type_register_static(&pnv_phb4_iommu_memory_region_info);
+    type_register_static(&pnv_phb4_iommu_mr_info);
 }
 
-type_init(pnv_phb4_register_types);
+static const InterfaceInfo pnv_phb4_ifaces[] = {
+    { TYPE_XIVE_NOTIFIER },
+    { },
+};
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PnvPHB4, TYPE_PNV_PHB4, TYPE_DEVICE,
+                             pnv_phb4_ifaces)
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, GString *buf)
 {

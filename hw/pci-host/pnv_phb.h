@@ -35,6 +35,11 @@ struct PnvPHB {
 
     /* The PHB backend (PnvPHB3, PnvPHB4 ...) being used */
     Object *backend;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_PNV_PHB "pnv-phb"
@@ -47,11 +52,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB, PNV_PHB)
 #define PNV_PHB4_DEVICE_ID         0x04c1
 #define PNV_PHB5_DEVICE_ID         0x0652
 
-typedef struct PnvPHBRootPort {
+struct PnvPHBRootPort {
     PCIESlot parent_obj;
 
     uint32_t version;
-} PnvPHBRootPort;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 #define TYPE_PNV_PHB_ROOT_PORT "pnv-phb-root-port"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHBRootPort, PNV_PHB_ROOT_PORT)

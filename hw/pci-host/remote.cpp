@@ -36,39 +36,26 @@ static const char *remote_pcihost_root_bus_path(PCIHostState *host_bridge,
     return "0000:00";
 }
 
-static void remote_pcihost_realize(DeviceState *dev, Error **errp)
+void RemotePCIHost::realize(Error **errp)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    RemotePCIHost *s = REMOTE_PCIHOST(dev);
+    PCIHostState *pci = PCI_HOST_BRIDGE(this);
 
-    pci->bus = pci_root_bus_new(DEVICE(s), "remote-pci",
-                                s->mr_pci_mem, s->mr_sys_io,
+    pci->bus = pci_root_bus_new(DEVICE(this), "remote-pci",
+                                mr_pci_mem, mr_sys_io,
                                 0, TYPE_PCIE_BUS);
 }
 
-static void remote_pcihost_class_init(ObjectClass *klass, const void *data)
+void RemotePCIHost::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
     hc->root_bus_path = remote_pcihost_root_bus_path;
-    dc->realize = remote_pcihost_realize;
 
     dc->user_creatable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
 }
 
-static const TypeInfo remote_pcihost_info = {
-    .name = TYPE_REMOTE_PCIHOST,
-    .parent = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(RemotePCIHost),
-    .class_init = remote_pcihost_class_init,
-};
-
-static void remote_pcihost_register(void)
-{
-    type_register_static(&remote_pcihost_info);
-}
-
-type_init(remote_pcihost_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RemotePCIHost, TYPE_REMOTE_PCIHOST, TYPE_PCIE_HOST_BRIDGE)

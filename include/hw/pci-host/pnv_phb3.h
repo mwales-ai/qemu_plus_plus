@@ -103,6 +103,12 @@ struct PnvPBCQState {
     MemoryRegion xscom_nest_regs;
     MemoryRegion xscom_pci_regs;
     MemoryRegion xscom_spci_regs;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*
@@ -161,6 +167,12 @@ struct PnvPHB3 {
     QLIST_HEAD(, PnvPhb3DMASpace) dma_spaces;
 
     PnvChip *chip;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size);

@@ -158,6 +158,12 @@ struct PnvPHB4 {
     qemu_irq *qirqs;
 
     QLIST_HEAD(, PnvPhb4DMASpace) dma_spaces;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, GString *buf);
