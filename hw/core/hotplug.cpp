@@ -62,17 +62,7 @@ void hotplug_handler_unplug(HotplugHandler *plug_handler,
     }
 }
 
-static const TypeInfo hotplug_handler_info = {
-    .name          = TYPE_HOTPLUG_HANDLER,
-    .parent        = TYPE_INTERFACE,
-    .class_size = sizeof(HotplugHandlerClass),
-};
-
-static void hotplug_handler_register_types(void)
-{
-    type_register_static(&hotplug_handler_info);
-}
-
-type_init(hotplug_handler_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_INTERFACE(HotplugHandlerClass, TYPE_HOTPLUG_HANDLER)

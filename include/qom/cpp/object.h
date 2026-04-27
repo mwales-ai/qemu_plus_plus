@@ -572,4 +572,46 @@ static void ClassName##_cpp_register_types(void)                             \
                                                                              \
 type_init(ClassName##_cpp_register_types)
 
+/*
+ * REGISTER_QEMU_INTERFACE: register a QOM interface type. Interfaces have
+ * no instance_size (no per-object data), only a class struct that derived
+ * types extend. Simpler than the device variants — no SFINAE, no
+ * trampolines.
+ *
+ * Usage:
+ *   REGISTER_QEMU_INTERFACE(HotplugHandlerClass, TYPE_HOTPLUG_HANDLER)
+ */
+#define REGISTER_QEMU_INTERFACE(ClassStruct, type_name_str)                  \
+static void ClassStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name       = type_name_str,                                         \
+        .parent     = TYPE_INTERFACE,                                        \
+        .class_size = sizeof(ClassStruct),                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassStruct##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_INTERFACE_CI: as REGISTER_QEMU_INTERFACE but with a
+ * custom class_init function. Used by interfaces that need to wire up
+ * default method implementations during class initialization.
+ */
+#define REGISTER_QEMU_INTERFACE_CI(ClassStruct, type_name_str,               \
+                                    class_init_fn)                           \
+static void ClassStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name       = type_name_str,                                         \
+        .parent     = TYPE_INTERFACE,                                        \
+        .class_size = sizeof(ClassStruct),                                   \
+        .class_init = class_init_fn,                                         \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassStruct##_cpp_register_types)
+
 #endif /* QOM_CPP_OBJECT_H */
