@@ -28,6 +28,7 @@
 #include "system/system.h"
 #include "system/qtest.h"
 #include "system/reset.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -38,7 +39,7 @@
 #define VIRT_MACHINE(obj) \
     OBJECT_CHECK(OR1KVirtState, (obj), TYPE_VIRT_MACHINE)
 
-typedef struct OR1KVirtState {
+struct OR1KVirtState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -46,7 +47,10 @@ typedef struct OR1KVirtState {
     void *fdt;
     int fdt_size;
 
-} OR1KVirtState;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 enum {
     VIRT_DRAM,
@@ -543,8 +547,9 @@ static void openrisc_virt_init(MachineState *machine)
     }
 }
 
-static void openrisc_virt_machine_init(ObjectClass *oc, const void *data)
+void OR1KVirtState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "or1k virtual machine";
@@ -554,16 +559,4 @@ static void openrisc_virt_machine_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
 }
 
-static const TypeInfo or1ksim_machine_typeinfo = {
-    .name       = TYPE_VIRT_MACHINE,
-    .parent     = TYPE_MACHINE,
-    .class_init = openrisc_virt_machine_init,
-    .instance_size = sizeof(OR1KVirtState),
-};
-
-static void or1ksim_machine_init_register_types(void)
-{
-    type_register_static(&or1ksim_machine_typeinfo);
-}
-
-type_init(or1ksim_machine_init_register_types)
+REGISTER_QEMU_DEVICE(OR1KVirtState, TYPE_VIRT_MACHINE, TYPE_MACHINE)

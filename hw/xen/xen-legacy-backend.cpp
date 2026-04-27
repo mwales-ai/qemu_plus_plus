@@ -32,6 +32,7 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pvdev.h"
 #include "monitor/qdev.h"
+#include "qom/cpp/object.h"
 
 DeviceState *xen_sysdev;
 BusState *xen_sysbus;
@@ -635,20 +636,11 @@ int xen_be_bind_evtchn(struct XenLegacyDevice *xendev)
 }
 
 
-static void xendev_class_init(ObjectClass *klass, const void *data)
+void XenLegacyDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->bus_type = TYPE_XENSYSBUS;
 }
-
-static const TypeInfo xendev_type_info = {
-    .name          = TYPE_XENBACKEND,
-    .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenLegacyDevice),
-    .class_init    = xendev_class_init,
-};
 
 static void xen_sysbus_class_init(ObjectClass *klass, const void *data)
 {
@@ -657,14 +649,16 @@ static void xen_sysbus_class_init(ObjectClass *klass, const void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
+static const InterfaceInfo xensysbus_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo xensysbus_info = {
     .name       = TYPE_XENSYSBUS,
     .parent     = TYPE_BUS,
     .class_init = xen_sysbus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces = xensysbus_interfaces,
 };
 
 static const TypeInfo xensysdev_info = {
@@ -672,11 +666,13 @@ static const TypeInfo xensysdev_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
 };
 
-static void xenbe_register_types(void)
+static void xenbe_misc_register_types(void)
 {
     type_register_static(&xensysbus_info);
     type_register_static(&xensysdev_info);
-    type_register_static(&xendev_type_info);
 }
 
-type_init(xenbe_register_types)
+type_init(xenbe_misc_register_types)
+
+REGISTER_QEMU_DEVICE(XenLegacyDevice, TYPE_XENBACKEND,
+                     TYPE_DYNAMIC_SYS_BUS_DEVICE)

@@ -79,6 +79,10 @@ struct MacfbSysBusState {
     SysBusDevice busdev;
 
     MacfbState macfb;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NUBUS_MACFB "nubus-macfb"

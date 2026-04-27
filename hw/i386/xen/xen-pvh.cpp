@@ -19,6 +19,7 @@ extern "C" {
 }
 
 #include "target/i386/cpu.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_XEN_PVH_X86  MACHINE_TYPE_NAME("xenpvh")
 OBJECT_DECLARE_SIMPLE_TYPE(XenPVHx86State, XEN_PVH_X86)
@@ -28,6 +29,11 @@ struct XenPVHx86State {
     XenPVHMachineState parent;
 
     DeviceState **cpu;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static DeviceState *xen_pvh_cpu_new(MachineState *ms,
@@ -55,9 +61,9 @@ static void xen_pvh_init(MachineState *ms)
     }
 }
 
-static void xen_pvh_instance_init(Object *obj)
+void XenPVHx86State::init()
 {
-    XenPVHMachineState *s = XEN_PVH_MACHINE(obj);
+    XenPVHMachineState *s = XEN_PVH_MACHINE(this);
 
     /* Default values.  */
     memset(&s->cfg.ram_low, 0, sizeof(s->cfg.ram_low));
@@ -84,8 +90,9 @@ static void xen_pvh_set_pci_intx_irq(void *opaque, int irq, int level)
     }
 }
 
-static void xen_pvh_machine_class_init(ObjectClass *oc, const void *data)
+void XenPVHx86State::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     XenPVHMachineClass *xpc = XEN_PVH_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -117,17 +124,4 @@ static void xen_pvh_machine_class_init(ObjectClass *oc, const void *data)
     xen_pvh_class_setup_common_props(xpc);
 }
 
-static const TypeInfo xen_pvh_x86_machine_type = {
-    .name = TYPE_XEN_PVH_X86,
-    .parent = TYPE_XEN_PVH_MACHINE,
-    .class_init = xen_pvh_machine_class_init,
-    .instance_init = xen_pvh_instance_init,
-    .instance_size = sizeof(XenPVHx86State),
-};
-
-static void xen_pvh_machine_register_types(void)
-{
-    type_register_static(&xen_pvh_x86_machine_type);
-}
-
-type_init(xen_pvh_machine_register_types)
+REGISTER_QEMU_DEVICE(XenPVHx86State, TYPE_XEN_PVH_X86, TYPE_XEN_PVH_MACHINE)

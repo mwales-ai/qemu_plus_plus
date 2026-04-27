@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #ifdef CONFIG_XEN
 #include "hw/xen/xen_native.h"
@@ -69,6 +70,10 @@ struct PCIXenPlatformState {
     /* Log from guest drivers */
     char log_buffer[4096];
     int log_buffer_off;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_XEN_PLATFORM "xen-platform"
@@ -582,9 +587,9 @@ static void platform_reset(DeviceState *dev)
     platform_fixed_ioport_reset(s);
 }
 
-static void xen_platform_class_init(ObjectClass *klass, const void *data)
+void PCIXenPlatformState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = xen_platform_realize;
@@ -605,17 +610,5 @@ static const InterfaceInfo xen_platform_interfaces[] = {
     { },
 };
 
-static const TypeInfo xen_platform_info = {
-    .name          = TYPE_XEN_PLATFORM,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIXenPlatformState),
-    .class_init    = xen_platform_class_init,
-    .interfaces    = xen_platform_interfaces,
-};
-
-static void xen_platform_register_types(void)
-{
-    type_register_static(&xen_platform_info);
-}
-
-type_init(xen_platform_register_types)
+REGISTER_QEMU_DEVICE_IFACES(PCIXenPlatformState, TYPE_XEN_PLATFORM,
+                             TYPE_PCI_DEVICE, xen_platform_interfaces)

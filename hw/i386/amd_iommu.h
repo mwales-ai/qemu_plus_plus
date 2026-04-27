@@ -360,6 +360,10 @@ typedef struct AMDVIAddressSpace AMDVIAddressSpace;
 struct AMDVIPCIState {
     PCIDevice dev;               /* The PCI device itself        */
     uint32_t capab_offset;       /* capability offset pointer    */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct AMDVIState {
@@ -426,6 +430,10 @@ struct AMDVIState {
 
     /* DMA address translation */
     bool dma_remap;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s);

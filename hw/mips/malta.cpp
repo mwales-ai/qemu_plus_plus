@@ -57,6 +57,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "system/kvm.h"
+#include "qom/cpp/object.h"
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
 #include "hw/qdev-clock.h"
@@ -105,9 +106,9 @@ struct MaltaState {
     Clock *cpuclk;
     MIPSCPSState cps;
 
-    /* Methods */
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 static struct _loaderparams {
@@ -1268,24 +1269,11 @@ void mips_malta_init(MachineState *machine)
     pci_vga_init(pci_bus);
 }
 
-void MaltaState::instanceInitWrapper(Object *obj)
-{
-    MaltaState *s = MIPS_MALTA(obj);
-    s->instanceInit();
-}
-
-void MaltaState::instanceInit()
+void MaltaState::init()
 {
     cpuclk = qdev_init_clock_out(DEVICE(this), "cpu-refclk");
     clock_set_hz(cpuclk, 320000000); /* 320 MHz */
 }
-
-static const TypeInfo mips_malta_device = {
-    .name          = TYPE_MIPS_MALTA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MaltaState),
-    .instance_init = MaltaState::instanceInitWrapper,
-};
 
 GlobalProperty malta_compat[] = {
     { "PIIX4_PM", "memory-hotplug-support", "off" },
@@ -1313,9 +1301,4 @@ static void mips_malta_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE("malta", mips_malta_machine_init)
 
-static void mips_malta_register_types(void)
-{
-    type_register_static(&mips_malta_device);
-}
-
-type_init(mips_malta_register_types)
+REGISTER_QEMU_DEVICE(MaltaState, TYPE_MIPS_MALTA, TYPE_SYS_BUS_DEVICE)

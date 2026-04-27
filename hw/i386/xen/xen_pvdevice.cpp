@@ -37,6 +37,7 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"
 
@@ -51,6 +52,10 @@ struct XenPVDevice {
     uint8_t         revision;
     uint32_t        size;
     MemoryRegion    mmio;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 static uint64_t xen_pv_mmio_read(void *opaque, hwaddr addr,
@@ -122,9 +127,9 @@ static const Property xen_pv_props[] = {
     DEFINE_PROP_UINT32("size", XenPVDevice, size, 0x400000),
 };
 
-static void xen_pv_class_init(ObjectClass *klass, const void *data)
+void XenPVDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = xen_pv_realize;
@@ -134,20 +139,10 @@ static void xen_pv_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_xen_pvdevice;
 }
 
-static const TypeInfo xen_pv_type_info = {
-    .name          = TYPE_XEN_PV_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(XenPVDevice),
-    .class_init    = xen_pv_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo xen_pv_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void xen_pv_register_types(void)
-{
-    type_register_static(&xen_pv_type_info);
-}
-
-type_init(xen_pv_register_types)
+REGISTER_QEMU_DEVICE_IFACES(XenPVDevice, TYPE_XEN_PV_DEVICE, TYPE_PCI_DEVICE,
+                             xen_pv_interfaces)

@@ -21,6 +21,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define VIDEO_BASE 0x0
 #define DAFB_BASE  0x00800000
@@ -792,10 +793,8 @@ static const VMStateDescription vmstate_macfb_nubus = {
     }
 };
 
-static void macfb_sysbus_class_init(ObjectClass *klass, const void *data)
+void MacfbSysBusState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = macfb_sysbus_realize;
     dc->desc = "SysBus Macintosh framebuffer";
     device_class_set_legacy_reset(dc, macfb_sysbus_reset);
@@ -819,13 +818,6 @@ static void macfb_nubus_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, macfb_nubus_properties);
 }
 
-static const TypeInfo macfb_sysbus_info = {
-    .name          = TYPE_MACFB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MacfbSysBusState),
-    .class_init    = macfb_sysbus_class_init,
-};
-
 static const TypeInfo macfb_nubus_info = {
     .name          = TYPE_NUBUS_MACFB,
     .parent        = TYPE_NUBUS_DEVICE,
@@ -834,10 +826,11 @@ static const TypeInfo macfb_nubus_info = {
     .class_size    = sizeof(MacfbNubusDeviceClass),
 };
 
-static void macfb_register_types(void)
+static void macfb_nubus_register_types(void)
 {
-    type_register_static(&macfb_sysbus_info);
     type_register_static(&macfb_nubus_info);
 }
 
-type_init(macfb_register_types)
+type_init(macfb_nubus_register_types)
+
+REGISTER_QEMU_DEVICE(MacfbSysBusState, TYPE_MACFB, TYPE_SYS_BUS_DEVICE)

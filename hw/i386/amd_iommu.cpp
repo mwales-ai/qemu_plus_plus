@@ -26,6 +26,7 @@
 #include "hw/pci/pci_bus.h"
 #include "migration/vmstate.h"
 #include "amd_iommu.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qapi/error.h"
@@ -2609,9 +2610,9 @@ static const VMStateDescription vmstate_amdvi_sysbus = {
     .unmigratable = 1
 };
 
-static void amdvi_sysbus_class_init(ObjectClass *klass, const void *data)
+void AMDVIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     X86IOMMUClass *dc_class = X86_IOMMU_DEVICE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, amdvi_sysbus_reset);
@@ -2624,16 +2625,9 @@ static void amdvi_sysbus_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, amdvi_properties);
 }
 
-static const TypeInfo amdvi_sysbus = {
-    .name = TYPE_AMD_IOMMU_DEVICE,
-    .parent = TYPE_X86_IOMMU_DEVICE,
-    .instance_size = sizeof(AMDVIState),
-    .class_init = amdvi_sysbus_class_init
-};
-
-static void amdvi_pci_class_init(ObjectClass *klass, const void *data)
+void AMDVIPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_AMD;
@@ -2648,14 +2642,6 @@ static void amdvi_pci_class_init(ObjectClass *klass, const void *data)
 static const InterfaceInfo amdvi_pci_interfaces[] = {
     { INTERFACE_CONVENTIONAL_PCI_DEVICE },
     { },
-};
-
-static const TypeInfo amdvi_pci = {
-    .name = TYPE_AMD_IOMMU_PCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(AMDVIPCIState),
-    .class_init = amdvi_pci_class_init,
-    .interfaces = amdvi_pci_interfaces,
 };
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
@@ -2674,11 +2660,14 @@ static const TypeInfo amdvi_iommu_memory_region_info = {
     .class_init = amdvi_iommu_memory_region_class_init,
 };
 
-extern "C" void amdvi_register_types(void)
+extern "C" void amdvi_iommu_register_types(void)
 {
-    type_register_static(&amdvi_pci);
-    type_register_static(&amdvi_sysbus);
     type_register_static(&amdvi_iommu_memory_region_info);
 }
 
-type_init(amdvi_register_types);
+type_init(amdvi_iommu_register_types);
+
+REGISTER_QEMU_DEVICE(AMDVIState, TYPE_AMD_IOMMU_DEVICE, TYPE_X86_IOMMU_DEVICE)
+
+REGISTER_QEMU_DEVICE_IFACES(AMDVIPCIState, TYPE_AMD_IOMMU_PCI, TYPE_PCI_DEVICE,
+                             amdvi_pci_interfaces)

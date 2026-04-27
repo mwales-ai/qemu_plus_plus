@@ -35,6 +35,7 @@
 #include "system/qtest.h"
 #include "system/reset.h"
 #include "hw/core/split-irq.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -47,7 +48,7 @@
 #define OR1KSIM_MACHINE(obj) \
     OBJECT_CHECK(Or1ksimState, (obj), TYPE_OR1KSIM_MACHINE)
 
-typedef struct Or1ksimState {
+struct Or1ksimState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -55,7 +56,10 @@ typedef struct Or1ksimState {
     void *fdt;
     int fdt_size;
 
-} Or1ksimState;
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
+};
 
 enum {
     OR1KSIM_DRAM,
@@ -356,8 +360,9 @@ static void openrisc_sim_init(MachineState *machine)
     }
 }
 
-static void openrisc_sim_machine_init(ObjectClass *oc, const void *data)
+void Or1ksimState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "or1k simulation";
@@ -367,16 +372,4 @@ static void openrisc_sim_machine_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = OPENRISC_CPU_TYPE_NAME("or1200");
 }
 
-static const TypeInfo or1ksim_machine_typeinfo = {
-    .name       = TYPE_OR1KSIM_MACHINE,
-    .parent     = TYPE_MACHINE,
-    .class_init = openrisc_sim_machine_init,
-    .instance_size = sizeof(Or1ksimState),
-};
-
-static void or1ksim_machine_init_register_types(void)
-{
-    type_register_static(&or1ksim_machine_typeinfo);
-}
-
-type_init(or1ksim_machine_init_register_types)
+REGISTER_QEMU_DEVICE(Or1ksimState, TYPE_OR1KSIM_MACHINE, TYPE_MACHINE)

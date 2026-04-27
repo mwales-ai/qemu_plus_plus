@@ -33,6 +33,7 @@
 #include "system/dma.h"
 #include "system/system.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qemu/error-report.h"
@@ -5463,9 +5464,9 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     x86ms->ioapic_as = vtd_host_dma_iommu(bus, s, Q35_PSEUDO_DEVFN_IOAPIC);
 }
 
-static void vtd_class_init(ObjectClass *klass, const void *data)
+void IntelIOMMUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -5482,13 +5483,6 @@ static void vtd_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "Intel IOMMU (VT-d) DMA Remapping device";
 }
-
-static const TypeInfo vtd_info = {
-    .name          = TYPE_INTEL_IOMMU_DEVICE,
-    .parent        = TYPE_X86_IOMMU_DEVICE,
-    .instance_size = sizeof(IntelIOMMUState),
-    .class_init    = vtd_class_init,
-};
 
 static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
                                                const void *data)
@@ -5508,12 +5502,14 @@ static const TypeInfo vtd_iommu_memory_region_info = {
 
 extern "C" {
 
-static void vtd_register_types(void)
+static void vtd_iommu_register_types(void)
 {
-    type_register_static(&vtd_info);
     type_register_static(&vtd_iommu_memory_region_info);
 }
 
-type_init(vtd_register_types)
+type_init(vtd_iommu_register_types)
 
 } /* extern "C" */
+
+REGISTER_QEMU_DEVICE(IntelIOMMUState, TYPE_INTEL_IOMMU_DEVICE,
+                     TYPE_X86_IOMMU_DEVICE)

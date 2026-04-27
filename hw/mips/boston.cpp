@@ -46,6 +46,7 @@
 
 #include <libfdt.h>
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_BOSTON "mips-boston"
 typedef struct BostonState BostonState;
@@ -75,6 +76,10 @@ struct BostonState {
 
     hwaddr kernel_entry;
     hwaddr fdt_base;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 enum {
@@ -303,26 +308,13 @@ static const MemoryRegionOps boston_platreg_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mips_boston_instance_init(Object *obj)
+void BostonState::init()
 {
-    BostonState *s = BOSTON(obj);
-
-    s->cpuclk = qdev_init_clock_out(DEVICE(obj), "cpu-refclk");
-    clock_set_hz(s->cpuclk, 1000000000); /* 1 GHz */
+    cpuclk = qdev_init_clock_out(DEVICE(this), "cpu-refclk");
+    clock_set_hz(cpuclk, 1000000000); /* 1 GHz */
 }
 
-static const TypeInfo boston_device = {
-    .name          = TYPE_BOSTON,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BostonState),
-    .instance_init = mips_boston_instance_init,
-};
-
-static void boston_register_types(void)
-{
-    type_register_static(&boston_device);
-}
-type_init(boston_register_types)
+REGISTER_QEMU_DEVICE(BostonState, TYPE_BOSTON, TYPE_SYS_BUS_DEVICE)
 
 static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
 {

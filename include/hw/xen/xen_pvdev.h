@@ -59,6 +59,10 @@ struct XenLegacyDevice {
 
     const struct XenDevOps *ops;
     QTAILQ_ENTRY(XenLegacyDevice) next;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /* ------------------------------------------------------------- */
