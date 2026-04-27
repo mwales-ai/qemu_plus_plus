@@ -605,6 +605,69 @@ static void StateStruct##_cpp_register_types(void)                           \
 type_init(StateStruct##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_BUS_CI_IFACES: bus type with class_init AND interfaces.
+ */
+#define REGISTER_QEMU_BUS_CI_IFACES(StateStruct, type_name_str,              \
+                                     class_init_fn, ifaces_array)            \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = TYPE_BUS,                                           \
+        .instance_size = sizeof(StateStruct),                                \
+        .class_init    = class_init_fn,                                      \
+        .interfaces    = ifaces_array,                                       \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_BUS_FULL: bus type with everything: instance_init, class_init,
+ * class_size, optional parent (defaults TYPE_BUS-rooted).
+ *
+ * For unusual cases like nubus-bus that need instance_init.
+ */
+#define REGISTER_QEMU_BUS_FULL(StateStruct, ClassStruct, type_name_str,      \
+                                parent_type_str, instance_init_fn,           \
+                                class_init_fn)                               \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(StateStruct),                                \
+        .instance_init = instance_init_fn,                                   \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_BUS_ABSTRACT: abstract bus type (parent TYPE_BUS, has class_size).
+ */
+#define REGISTER_QEMU_BUS_ABSTRACT(StateStruct, ClassStruct, type_name_str,  \
+                                    class_init_fn)                           \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = TYPE_BUS,                                           \
+        .instance_size = sizeof(StateStruct),                                \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_INTERFACE: register a QOM interface type. Interfaces have
  * no instance_size (no per-object data), only a class struct that derived
  * types extend. Simpler than the device variants — no SFINAE, no
