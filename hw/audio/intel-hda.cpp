@@ -42,11 +42,6 @@ static const Property hda_props[] = {
     DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
 };
 
-static const TypeInfo hda_codec_bus_info = {
-    .name = TYPE_HDA_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(HDACodecBus),
-};
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
                         hda_codec_response_func response,
@@ -1248,7 +1243,6 @@ static void intel_hda_and_codec_init(const char *audiodev)
 
 static void intel_hda_register_types(void)
 {
-    type_register_static(&hda_codec_bus_info);
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     audio_register_model_with_cb("hda", "Intel HD Audio", intel_hda_and_codec_init);
@@ -1257,6 +1251,8 @@ static void intel_hda_register_types(void)
 type_init(intel_hda_register_types)
 
 #include "qom/cpp/object.h"
+REGISTER_QEMU_BUS(HDACodecBus, TYPE_HDA_BUS)
+
 REGISTER_QEMU_DEVICE_ABSTRACT(HDACodecDevice, HDACodecDeviceClass,
                                TYPE_HDA_CODEC_DEVICE, TYPE_DEVICE)
 

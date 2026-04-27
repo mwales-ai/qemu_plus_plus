@@ -45,12 +45,6 @@ static const TypeInfo isa_dma_info = {
     .class_size = sizeof(IsaDmaClass),
 };
 
-static const TypeInfo isa_bus_info = {
-    .name = TYPE_ISA_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(ISABus),
-    .class_init = isa_bus_class_init,
-};
 
 extern "C"
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
@@ -255,7 +249,6 @@ static const TypeInfo isa_device_type_info = {
 static void isabus_register_types(void)
 {
     type_register_static(&isa_dma_info);
-    type_register_static(&isa_bus_info);
     type_register_static(&isabus_bridge_info);
     type_register_static(&isa_device_type_info);
 }
@@ -295,3 +288,6 @@ MemoryRegion *isa_address_space_io(ISADevice *dev)
 }
 
 type_init(isabus_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(ISABus, TYPE_ISA_BUS, isa_bus_class_init)

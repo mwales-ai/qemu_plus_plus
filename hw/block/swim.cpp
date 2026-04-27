@@ -265,11 +265,6 @@ void SWIMDrive::classInit(DeviceClass *dc)
     dc->desc = "virtual SWIM drive";
 }
 
-static const TypeInfo swim_bus_info = {
-    .name = TYPE_SWIM_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(SWIMBus),
-};
 
 static void iwmctrl_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size)
@@ -560,22 +555,8 @@ void Swim::classInit(DeviceClass *dc)
     dc->vmsd = &vmstate_sysbus_swim;
 }
 
-static void __attribute__((constructor)) swim_register_bus_and_drive_types(void)
-{
-    static const TypeInfo swim_bus_info = {
-        .name = TYPE_SWIM_BUS,
-        .parent = TYPE_BUS,
-        .instance_size = sizeof(SWIMBus),
-    };
-    type_register_static(&swim_bus_info);
+REGISTER_QEMU_BUS(SWIMBus, TYPE_SWIM_BUS)
 
-    static const TypeInfo swim_drive_info = {
-        .name = TYPE_SWIM_DRIVE,
-        .parent = TYPE_DEVICE,
-        .instance_size = sizeof(SWIMDrive),
-        .class_init = qemu_device_detail::trampoline_class_init<SWIMDrive>,
-    };
-    type_register_static(&swim_drive_info);
-}
+REGISTER_QEMU_DEVICE(SWIMDrive, TYPE_SWIM_DRIVE, TYPE_DEVICE)
 
 REGISTER_QEMU_DEVICE(Swim, TYPE_SWIM, TYPE_SYS_BUS_DEVICE)

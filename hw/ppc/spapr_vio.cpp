@@ -58,12 +58,6 @@ static void spapr_vio_bus_class_init(ObjectClass *klass, const void *data)
     k->get_fw_dev_path = spapr_vio_get_dev_name;
 }
 
-static const TypeInfo spapr_vio_bus_info = {
-    .name = TYPE_SPAPR_VIO_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(SpaprVioBus),
-    .class_init = spapr_vio_bus_class_init,
-};
 
 SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg)
 {
@@ -641,12 +635,14 @@ static const TypeInfo spapr_vio_type_info = {
 
 static void spapr_vio_register_types(void)
 {
-    type_register_static(&spapr_vio_bus_info);
     type_register_static(&spapr_vio_bridge_info);
     type_register_static(&spapr_vio_type_info);
 }
 
 type_init(spapr_vio_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(SpaprVioBus, TYPE_SPAPR_VIO_BUS, spapr_vio_bus_class_init)
 
 static int compare_reg(const void *p1, const void *p2)
 {

@@ -14,11 +14,6 @@
 
 #define TO_REG(x)                               ((x) >> 2)
 
-static const TypeInfo fsi_bus_info = {
-    .name = TYPE_FSI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(FSIBus),
-};
 
 static uint64_t fsi_slave_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -85,9 +80,6 @@ void FSISlaveState::classInit(DeviceClass *dc)
     device_class_set_legacy_reset(dc, fsi_slave_reset);
 }
 
-static void __attribute__((constructor)) fsi_bus_register(void)
-{
-    type_register_static(&fsi_bus_info);
-}
+REGISTER_QEMU_BUS(FSIBus, TYPE_FSI_BUS)
 
 REGISTER_QEMU_DEVICE(FSISlaveState, TYPE_FSI_SLAVE, TYPE_DEVICE)

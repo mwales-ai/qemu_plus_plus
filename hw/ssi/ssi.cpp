@@ -66,12 +66,6 @@ static void ssi_bus_class_init(ObjectClass *klass, const void *data)
     k->check_address = ssi_bus_check_address;
 }
 
-static const TypeInfo ssi_bus_info = {
-    .name = TYPE_SSI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(SSIBus),
-    .class_init = ssi_bus_class_init,
-};
 
 static void ssi_cs_default(void *opaque, int n, int level)
 {
@@ -180,11 +174,8 @@ const VMStateDescription vmstate_ssi_peripheral = {
     .fields = vmstate_ssi_peripheral_fields,
 };
 
-static void __attribute__((constructor)) register_ssi_bus_type(void)
-{
-    type_register_static(&ssi_bus_info);
-}
-
 #include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(SSIBus, TYPE_SSI_BUS, ssi_bus_class_init)
+
 REGISTER_QEMU_DEVICE_ABSTRACT(SSIPeripheral, SSIPeripheralClass,
                                TYPE_SSI_PERIPHERAL, TYPE_DEVICE)

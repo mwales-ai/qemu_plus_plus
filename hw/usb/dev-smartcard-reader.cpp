@@ -1229,11 +1229,6 @@ static const Property ccid_props[] = {
     DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
 };
 
-static const TypeInfo ccid_bus_info = {
-    .name = TYPE_CCID_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(CCIDBus),
-};
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,
                                   uint8_t *apdu, uint32_t len)
@@ -1548,11 +1543,12 @@ static const TypeInfo ccid_card_type_info = {
 
 static void ccid_register_types(void)
 {
-    type_register_static(&ccid_bus_info);
     type_register_static(&ccid_card_type_info);
 }
 
 type_init(ccid_register_types)
+
+REGISTER_QEMU_BUS(CCIDBus, TYPE_CCID_BUS)
 
 REGISTER_QEMU_DEVICE_IFACES(USBCCIDState, TYPE_USB_CCID_DEV, TYPE_USB_DEVICE,
                              ccid_interfaces)

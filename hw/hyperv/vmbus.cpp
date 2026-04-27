@@ -2622,12 +2622,6 @@ static const VMStateDescription vmstate_vmbus = {
     .subsections = vmstate_vmbus_subsections,
 };
 
-static const TypeInfo vmbus_type_info = {
-    .name = TYPE_VMBUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(VMBus),
-    .class_init = vmbus_class_init,
-};
 
 static void vmbus_bridge_realize(DeviceState *dev, Error **errp)
 {
@@ -2697,7 +2691,8 @@ void VMBusBridge::classInit(DeviceClass *dc)
 static void __attribute__((constructor)) vmbus_register_non_cpp_types(void)
 {
     type_register_static(&vmbus_dev_type_info);
-    type_register_static(&vmbus_type_info);
 }
+
+REGISTER_QEMU_BUS_CI(VMBus, TYPE_VMBUS, vmbus_class_init)
 
 REGISTER_QEMU_DEVICE(VMBusBridge, TYPE_VMBUS_BRIDGE, TYPE_SYS_BUS_DEVICE)

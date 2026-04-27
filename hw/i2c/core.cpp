@@ -26,11 +26,6 @@ static const Property i2c_props[] = {
     DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
 };
 
-static const TypeInfo i2c_bus_info = {
-    .name = TYPE_I2C_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(I2CBus),
-};
 
 static int i2c_bus_pre_save(void *opaque)
 {
@@ -439,11 +434,8 @@ void I2CSlave::classInit(DeviceClass *dc)
     sc->match_and_add = i2c_slave_match;
 }
 
-static void __attribute__((constructor)) register_i2c_bus_type(void)
-{
-    type_register_static(&i2c_bus_info);
-}
-
 #include "qom/cpp/object.h"
+REGISTER_QEMU_BUS(I2CBus, TYPE_I2C_BUS)
+
 REGISTER_QEMU_DEVICE_ABSTRACT(I2CSlave, I2CSlaveClass, TYPE_I2C_SLAVE,
                                TYPE_DEVICE)

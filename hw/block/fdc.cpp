@@ -76,11 +76,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(FloppyBus, FLOPPY_BUS)
 
 static FDrive *get_drv(FDCtrl *fdctrl, int unit);
 
-static const TypeInfo floppy_bus_info = {
-    .name = TYPE_FLOPPY_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(FloppyBus),
-};
 
 static void floppy_bus_create(FDCtrl *fdc, FloppyBus *bus, DeviceState *dev)
 {
@@ -2386,7 +2381,4 @@ void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl, Error **errp)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(FloppyDrive, TYPE_FLOPPY_DRIVE, TYPE_DEVICE)
 
-static void __attribute__((constructor)) register_floppy_bus(void)
-{
-    type_register_static(&floppy_bus_info);
-}
+REGISTER_QEMU_BUS(FloppyBus, TYPE_FLOPPY_BUS)

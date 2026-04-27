@@ -847,12 +847,6 @@ static void virtser_bus_class_init(ObjectClass *klass, const void *data)
     k->print_dev = virtser_bus_dev_print;
 }
 
-static const TypeInfo virtser_bus_info = {
-    .name = TYPE_VIRTIO_SERIAL_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(VirtIOSerialBus),
-    .class_init = virtser_bus_class_init,
-};
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
@@ -1195,7 +1189,9 @@ REGISTER_QEMU_DEVICE_IFACES(VirtIOSerial, TYPE_VIRTIO_SERIAL, TYPE_VIRTIO_DEVICE
 
 static void register_virtser_bus_and_port_types(void)
 {
-    type_register_static(&virtser_bus_info);
     type_register_static(&virtio_serial_port_type_info);
 }
 type_init(register_virtser_bus_and_port_types)
+
+REGISTER_QEMU_BUS_CI(VirtIOSerialBus, TYPE_VIRTIO_SERIAL_BUS,
+                     virtser_bus_class_init)

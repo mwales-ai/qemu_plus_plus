@@ -271,12 +271,6 @@ static void adb_bus_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = adb_bus_reset_hold;
 }
 
-static const TypeInfo adb_bus_type_info = {
-    .name = TYPE_ADB_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(ADBBusState),
-    .class_init = adb_bus_class_init,
-};
 
 const VMStateDescription vmstate_adb_device = {
     .name = "adb_device",
@@ -318,8 +312,10 @@ static const TypeInfo adb_device_type_info = {
     .class_init = adb_device_class_init,
 };
 
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(ADBBusState, TYPE_ADB_BUS, adb_bus_class_init)
+
 static void __attribute__((constructor)) adb_register_types(void)
 {
-    type_register_static(&adb_bus_type_info);
     type_register_static(&adb_device_type_info);
 }

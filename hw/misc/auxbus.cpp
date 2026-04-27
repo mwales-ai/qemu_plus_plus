@@ -247,12 +247,6 @@ AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
     return ret;
 }
 
-static const TypeInfo aux_bus_info = {
-    .name = TYPE_AUX_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(AUXBus),
-    .class_init = AUXBusClass::classInit
-};
 
 /* aux-i2c implementation (internal not public) */
 struct AUXTOI2CState {
@@ -353,9 +347,11 @@ static const TypeInfo aux_slave_type_info = {
 
 static void aux_register_types(void)
 {
-    type_register_static(&aux_bus_info);
     type_register_static(&aux_slave_type_info);
     type_register_static(&aux_to_i2c_type_info);
 }
 
 type_init(aux_register_types)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI(AUXBus, TYPE_AUX_BUS, AUXBusClass::classInit)

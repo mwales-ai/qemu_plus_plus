@@ -101,20 +101,8 @@ const VMStateDescription vmstate_ipack_device = {
     .fields = vmstate_ipack_device_fields,
 };
 
-static const TypeInfo ipack_bus_info = {
-    .name = TYPE_IPACK_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(IPackBus),
-};
-
-static void ipack_register_types(void)
-{
-    type_register_static(&ipack_bus_info);
-}
-
-type_init(ipack_register_types)
-
 #include "qom/cpp/object.h"
+REGISTER_QEMU_BUS(IPackBus, TYPE_IPACK_BUS)
 
 REGISTER_QEMU_DEVICE_ABSTRACT(IPackDevice, IPackDeviceClass,
                                TYPE_IPACK_DEVICE, TYPE_DEVICE)
