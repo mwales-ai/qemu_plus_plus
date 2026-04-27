@@ -38,6 +38,10 @@ struct Phb3MsiState {
     PnvPHB3 *phb;
     uint64_t rba[PHB3_MAX_MSI / 64];
     uint32_t rba_sum;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 void pnv_phb3_msi_update_config(Phb3MsiState *msis, uint32_t base,

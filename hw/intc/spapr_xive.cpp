@@ -275,17 +275,15 @@ static void spapr_xive_reset(void *dev)
     }
 }
 
-static void spapr_xive_instance_init(Object *obj)
+void SpaprXive::init()
 {
-    SpaprXive *xive = SPAPR_XIVE(obj);
+    object_initialize_child(OBJECT(this), "source", &source, TYPE_XIVE_SOURCE);
 
-    object_initialize_child(obj, "source", &xive->source, TYPE_XIVE_SOURCE);
-
-    object_initialize_child(obj, "end_source", &xive->end_source,
+    object_initialize_child(OBJECT(this), "end_source", &end_source,
                             TYPE_XIVE_END_SOURCE);
 
     /* Not connected to the KVM XIVE device */
-    xive->fd = -1;
+    fd = -1;
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -861,22 +859,11 @@ static const InterfaceInfo spapr_xive_interfaces[] = {
     { }
 };
 
-static const TypeInfo spapr_xive_info = {
-    .name = TYPE_SPAPR_XIVE,
-    .parent = TYPE_XIVE_ROUTER,
-    .instance_size = sizeof(SpaprXive),
-    .instance_init = spapr_xive_instance_init,
-    .class_size = sizeof(SpaprXiveClass),
-    .class_init = spapr_xive_class_init,
-    .interfaces = spapr_xive_interfaces,
-};
-
-static void spapr_xive_register_types(void)
-{
-    type_register_static(&spapr_xive_info);
-}
-
-type_init(spapr_xive_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(SpaprXive, SpaprXiveClass,
+                                       TYPE_SPAPR_XIVE, TYPE_XIVE_ROUTER,
+                                       spapr_xive_class_init,
+                                       spapr_xive_interfaces)
 
 /*
  * XIVE hcalls

@@ -1922,13 +1922,11 @@ static void pnv_xive_reset(void *dev)
     }
 }
 
-static void pnv_xive_init(Object *obj)
+void PnvXive::init()
 {
-    PnvXive *xive = PNV_XIVE(obj);
-
-    object_initialize_child(obj, "ipi_source", &xive->ipi_source,
+    object_initialize_child(OBJECT(this), "ipi_source", &ipi_source,
                             TYPE_XIVE_SOURCE);
-    object_initialize_child(obj, "end_source", &xive->end_source,
+    object_initialize_child(OBJECT(this), "end_source", &end_source,
                             TYPE_XIVE_END_SOURCE);
 }
 
@@ -2104,19 +2102,8 @@ static const InterfaceInfo pnv_xive_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_xive_info = {
-    .name          = TYPE_PNV_XIVE,
-    .parent        = TYPE_XIVE_ROUTER,
-    .instance_size = sizeof(PnvXive),
-    .instance_init = pnv_xive_init,
-    .class_size    = sizeof(PnvXiveClass),
-    .class_init    = pnv_xive_class_init,
-    .interfaces    = pnv_xive_interfaces,
-};
-
-static void pnv_xive_register_types(void)
-{
-    type_register_static(&pnv_xive_info);
-}
-
-type_init(pnv_xive_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(PnvXive, PnvXiveClass,
+                                       TYPE_PNV_XIVE, TYPE_XIVE_ROUTER,
+                                       pnv_xive_class_init,
+                                       pnv_xive_interfaces)

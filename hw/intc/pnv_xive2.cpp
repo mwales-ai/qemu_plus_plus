@@ -2541,13 +2541,11 @@ static const Property pnv_xive2_properties[] = {
     DEFINE_PROP_LINK("chip", PnvXive2, chip, TYPE_PNV_CHIP, PnvChip *),
 };
 
-static void pnv_xive2_instance_init(Object *obj)
+void PnvXive2::init()
 {
-    PnvXive2 *xive = PNV_XIVE2(obj);
-
-    object_initialize_child(obj, "ipi_source", &xive->ipi_source,
+    object_initialize_child(OBJECT(this), "ipi_source", &ipi_source,
                             TYPE_XIVE_SOURCE);
-    object_initialize_child(obj, "end_source", &xive->end_source,
+    object_initialize_child(OBJECT(this), "end_source", &end_source,
                             TYPE_XIVE2_END_SOURCE);
 }
 
@@ -2613,22 +2611,11 @@ static const InterfaceInfo pnv_xive2_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_xive2_info = {
-    .name          = TYPE_PNV_XIVE2,
-    .parent        = TYPE_XIVE2_ROUTER,
-    .instance_size = sizeof(PnvXive2),
-    .instance_init = pnv_xive2_instance_init,
-    .class_size    = sizeof(PnvXive2Class),
-    .class_init    = pnv_xive2_class_init,
-    .interfaces    = pnv_xive2_interfaces,
-};
-
-static void pnv_xive2_register_types(void)
-{
-    type_register_static(&pnv_xive2_info);
-}
-
-type_init(pnv_xive2_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(PnvXive2, PnvXive2Class,
+                                       TYPE_PNV_XIVE2, TYPE_XIVE2_ROUTER,
+                                       pnv_xive2_class_init,
+                                       pnv_xive2_interfaces)
 
 /*
  * If the table is direct, we can compute the number of PQ entries

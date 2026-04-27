@@ -51,6 +51,10 @@ typedef struct SpaprXive {
     VMChangeStateEntry *change;
 
     uint8_t       hv_prio;
+
+#ifdef __cplusplus
+    void init();
+#endif
 } SpaprXive;
 
 typedef struct SpaprXiveClass {

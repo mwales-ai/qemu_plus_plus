@@ -26,6 +26,10 @@ struct LoongArchDINTCState {
     MemoryRegion dintc_mmio;
     DINTCCore *cpu;
     uint32_t num_cpu;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 struct LoongArchDINTCClass {

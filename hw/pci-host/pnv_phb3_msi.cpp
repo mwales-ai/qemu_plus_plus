@@ -274,13 +274,12 @@ static void phb3_msi_realize(DeviceState *dev, Error **errp)
     msi->qirqs = qemu_allocate_irqs(phb3_msi_set_irq, msi, ics->nr_irqs);
 }
 
-static void phb3_msi_instance_init(Object *obj)
+void Phb3MsiState::init()
 {
-    Phb3MsiState *msi = PHB3_MSI(obj);
-    ICSState *ics = ICS(obj);
+    ICSState *ics = ICS(this);
 
-    object_property_add_link(obj, "phb", TYPE_PNV_PHB3,
-                             (Object **)&msi->phb,
+    object_property_add_link(OBJECT(this), "phb", TYPE_PNV_PHB3,
+                             (Object **)&phb,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 
@@ -303,21 +302,10 @@ static void phb3_msi_class_init(ObjectClass *klass, const void *data)
     isc->resend = phb3_msi_resend;
 }
 
-static const TypeInfo phb3_msi_info = {
-    .name = TYPE_PHB3_MSI,
-    .parent = TYPE_ICS,
-    .instance_size = sizeof(Phb3MsiState),
-    .instance_init = phb3_msi_instance_init,
-    .class_size    = sizeof(ICSStateClass),
-    .class_init    = phb3_msi_class_init,
-};
-
-static void pnv_phb3_msi_register_types(void)
-{
-    type_register_static(&phb3_msi_info);
-}
-
-type_init(pnv_phb3_msi_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(Phb3MsiState, ICSStateClass,
+                                TYPE_PHB3_MSI, TYPE_ICS,
+                                phb3_msi_class_init)
 
 extern "C"
 void pnv_phb3_msi_pic_print_info(Phb3MsiState *msi, GString *buf)

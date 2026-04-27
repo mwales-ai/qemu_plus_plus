@@ -85,6 +85,10 @@ struct PnvXive {
     uint64_t      mig[XIVE_TABLE_MIG_MAX];
     uint64_t      vdt[XIVE_TABLE_VDT_MAX];
     uint64_t      edt[XIVE_TABLE_EDT_MAX];
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 struct PnvXiveClass {
@@ -161,6 +165,9 @@ typedef struct PnvXive2 {
     /* Translation tables */
     uint64_t      tables[8][XIVE_BLOCK_MAX];
 
+#ifdef __cplusplus
+    void init();
+#endif
 } PnvXive2;
 
 typedef struct PnvXive2Class {

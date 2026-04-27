@@ -108,15 +108,13 @@ static void loongarch_dintc_unrealize(DeviceState *dev)
     g_free(s->cpu);
 }
 
-static void loongarch_dintc_init(Object *obj)
+void LoongArchDINTCState::init()
 {
-    LoongArchDINTCState *s = LOONGARCH_DINTC(obj);
-    SysBusDevice *shd = SYS_BUS_DEVICE(obj);
-    memory_region_init_io(&s->dintc_mmio, OBJECT(s), &loongarch_dintc_ops,
-                          s, TYPE_LOONGARCH_DINTC, VIRT_DINTC_SIZE);
-    sysbus_init_mmio(shd, &s->dintc_mmio);
+    SysBusDevice *shd = SYS_BUS_DEVICE(this);
+    memory_region_init_io(&dintc_mmio, OBJECT(this), &loongarch_dintc_ops,
+                          this, TYPE_LOONGARCH_DINTC, VIRT_DINTC_SIZE);
+    sysbus_init_mmio(shd, &dintc_mmio);
     msi_nonbroken = true;
-    return;
 }
 
 static DINTCCore *loongarch_dintc_get_cpu(LoongArchDINTCState *s,
@@ -201,19 +199,8 @@ static const InterfaceInfo loongarch_dintc_interfaces[] = {
     { }
 };
 
-static const TypeInfo loongarch_dintc_info = {
-    .name          = TYPE_LOONGARCH_DINTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongArchDINTCState),
-    .instance_init = loongarch_dintc_init,
-    .class_size    = sizeof(LoongArchDINTCClass),
-    .class_init    = loongarch_dintc_class_init,
-    .interfaces    = loongarch_dintc_interfaces,
-};
-
-static void loongarch_dintc_register_types(void)
-{
-    type_register_static(&loongarch_dintc_info);
-}
-
-type_init(loongarch_dintc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(LoongArchDINTCState, LoongArchDINTCClass,
+                                       TYPE_LOONGARCH_DINTC, TYPE_SYS_BUS_DEVICE,
+                                       loongarch_dintc_class_init,
+                                       loongarch_dintc_interfaces)
