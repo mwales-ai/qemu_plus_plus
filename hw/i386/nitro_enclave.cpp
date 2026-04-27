@@ -150,13 +150,12 @@ static void nitro_enclave_machine_reset(MachineState *machine, ResetType type)
     }
 }
 
-static void nitro_enclave_machine_initfn(Object *obj)
+void NitroEnclaveMachineState::init()
 {
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-    X86MachineState *x86ms = X86_MACHINE(obj);
-    NitroEnclaveMachineState *nems = NITRO_ENCLAVE_MACHINE(obj);
+    MicrovmMachineState *mms = MICROVM_MACHINE(this);
+    X86MachineState *x86ms = X86_MACHINE(this);
 
-    nems->id = g_strdup("i-234-enc5678");
+    id = g_strdup("i-234-enc5678");
 
     /* AWS nitro enclaves have PCIE and ACPI disabled */
     mms->pcie = ON_OFF_AUTO_OFF;
@@ -337,17 +336,9 @@ static void nitro_enclave_class_init(ObjectClass *oc, const void *data)
                                           "Set parent instance identifier");
 }
 
-static const TypeInfo nitro_enclave_machine_info = {
-    .name          = TYPE_NITRO_ENCLAVE_MACHINE,
-    .parent        = TYPE_MICROVM_MACHINE,
-    .instance_size = sizeof(NitroEnclaveMachineState),
-    .instance_init = nitro_enclave_machine_initfn,
-    .class_size    = sizeof(NitroEnclaveMachineClass),
-    .class_init    = nitro_enclave_class_init,
-};
-
-static void nitro_enclave_machine_init(void)
-{
-    type_register_static(&nitro_enclave_machine_info);
-}
-type_init(nitro_enclave_machine_init);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(NitroEnclaveMachineState,
+                                NitroEnclaveMachineClass,
+                                TYPE_NITRO_ENCLAVE_MACHINE,
+                                TYPE_MICROVM_MACHINE,
+                                nitro_enclave_class_init)

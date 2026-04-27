@@ -95,6 +95,11 @@ struct RISCVIOMMUState {
     /* HPM event counters */
     GHashTable *hpm_event_ctr_map; /* Mapping of events to counters */
     uint8_t hpm_cntrs;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void riscv_iommu_pci_setup_iommu(RISCVIOMMUState *iommu, PCIBus *bus,

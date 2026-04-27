@@ -54,7 +54,7 @@ struct KBDState {
     bool hasData(ADBDevice *d);
     void reset(DeviceState *dev);
     void realize(DeviceState *dev, Error **errp);
-    void initfn(Object *obj);
+    void init();
 
     /* Class init */
     static void classInit(ObjectClass *oc, const void *data);
@@ -415,17 +415,11 @@ static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
     s->realize(dev, errp);
 }
 
-void KBDState::initfn(Object *obj)
+void KBDState::init()
 {
-    ADBDevice *d = reinterpret_cast<ADBDevice *>(obj);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(this);
 
     d->devaddr = ADB_DEVID_KEYBOARD;
-}
-
-static void adb_kbd_initfn(Object *obj)
-{
-    KBDState *s = reinterpret_cast<KBDState *>(obj);
-    s->initfn(obj);
 }
 
 void KBDState::classInit(ObjectClass *oc, const void *data)
@@ -444,18 +438,7 @@ void KBDState::classInit(ObjectClass *oc, const void *data)
     dc->vmsd = &vmstate_adb_kbd;
 }
 
-static const TypeInfo adb_kbd_type_info = {
-    .name = TYPE_ADB_KEYBOARD,
-    .parent = TYPE_ADB_DEVICE,
-    .instance_size = sizeof(KBDState),
-    .instance_init = adb_kbd_initfn,
-    .class_size = sizeof(ADBKeyboardClass),
-    .class_init = KBDState::classInit,
-};
-
-static void adb_kbd_register_types(void)
-{
-    type_register_static(&adb_kbd_type_info);
-}
-
-type_init(adb_kbd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(KBDState, ADBKeyboardClass,
+                               TYPE_ADB_KEYBOARD, TYPE_ADB_DEVICE,
+                               KBDState::classInit)

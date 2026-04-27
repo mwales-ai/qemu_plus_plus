@@ -53,6 +53,10 @@ struct NitroEnclaveMachineState {
     /* certificate fingerprint SHA384 hash */
     uint8_t fingerprint_hash[QCRYPTO_HASH_DIGEST_LEN_SHA384];
     bool signature_found;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 #define TYPE_NITRO_ENCLAVE_MACHINE MACHINE_TYPE_NAME("nitro-enclave")

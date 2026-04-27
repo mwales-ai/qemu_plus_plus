@@ -23,6 +23,11 @@ typedef struct XiangshanKmhSoCState {
     RISCVHartArrayState cpus;
     DeviceState *irqchip;
     MemoryRegion rom;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } XiangshanKmhSoCState;
 
 #define TYPE_XIANGSHAN_KMH_SOC "xiangshan.kunminghu.soc"
@@ -35,6 +40,10 @@ typedef struct XiangshanKmhState {
 
     /*< public >*/
     XiangshanKmhSoCState soc;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } XiangshanKmhState;
 
 #define TYPE_XIANGSHAN_KMH_MACHINE MACHINE_TYPE_NAME("xiangshan-kunminghu")

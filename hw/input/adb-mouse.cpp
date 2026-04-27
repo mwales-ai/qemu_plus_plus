@@ -53,7 +53,7 @@ struct MouseState {
     bool hasData();
     void reset();
     void realize(Error **errp);
-    void initfn();
+    void init();
 
     /* Class init */
     static void classInit(ObjectClass *oc, const void *data);
@@ -318,17 +318,11 @@ static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
     s->realize(errp);
 }
 
-void MouseState::initfn()
+void MouseState::init()
 {
     ADBDevice *d = reinterpret_cast<ADBDevice *>(this);
 
     d->devaddr = ADB_DEVID_MOUSE;
-}
-
-static void adb_mouse_initfn(Object *obj)
-{
-    MouseState *s = reinterpret_cast<MouseState *>(obj);
-    s->initfn();
 }
 
 void MouseState::classInit(ObjectClass *oc, const void *data)
@@ -347,18 +341,7 @@ void MouseState::classInit(ObjectClass *oc, const void *data)
     dc->vmsd = &vmstate_adb_mouse;
 }
 
-static const TypeInfo adb_mouse_type_info = {
-    .name = TYPE_ADB_MOUSE,
-    .parent = TYPE_ADB_DEVICE,
-    .instance_size = sizeof(MouseState),
-    .instance_init = adb_mouse_initfn,
-    .class_size = sizeof(ADBMouseClass),
-    .class_init = MouseState::classInit,
-};
-
-static void adb_mouse_register_types(void)
-{
-    type_register_static(&adb_mouse_type_info);
-}
-
-type_init(adb_mouse_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(MouseState, ADBMouseClass,
+                               TYPE_ADB_MOUSE, TYPE_ADB_DEVICE,
+                               MouseState::classInit)

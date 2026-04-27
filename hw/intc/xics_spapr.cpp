@@ -457,19 +457,13 @@ static void ics_spapr_class_init(ObjectClass *klass, const void *data)
     sicc->post_load = xics_spapr_post_load;
 }
 
-static const TypeInfo ics_spapr_info = {
-    .name = TYPE_ICS_SPAPR,
-    .parent = TYPE_ICS,
-    .class_init = ics_spapr_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_SPAPR_INTC },
-        { }
-    },
+static const InterfaceInfo ics_spapr_ifaces[] = {
+    { TYPE_SPAPR_INTC },
+    { }
 };
 
-static void xics_spapr_register_types(void)
-{
-    type_register_static(&ics_spapr_info);
-}
-
-type_init(xics_spapr_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(ICSState, ICSStateClass,
+                                       TYPE_ICS_SPAPR, TYPE_ICS,
+                                       ics_spapr_class_init,
+                                       ics_spapr_ifaces)

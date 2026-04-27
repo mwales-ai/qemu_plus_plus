@@ -2441,41 +2441,39 @@ void riscv_iommu_set_cap_igs(RISCVIOMMUState *s, riscv_iommu_igs_mode mode)
     s->cap = set_field(s->cap, RISCV_IOMMU_CAP_IGS, mode);
 }
 
-static void riscv_iommu_instance_init(Object *obj)
+void RISCVIOMMUState::init()
 {
-    RISCVIOMMUState *s = RISCV_IOMMU(obj);
-
     /* Enable translation debug interface */
-    s->cap = RISCV_IOMMU_CAP_DBG;
+    cap = RISCV_IOMMU_CAP_DBG;
 
     /* Report QEMU target physical address space limits */
-    s->cap = set_field(s->cap, RISCV_IOMMU_CAP_PAS,
-                       TARGET_PHYS_ADDR_SPACE_BITS);
+    cap = set_field(cap, RISCV_IOMMU_CAP_PAS,
+                    TARGET_PHYS_ADDR_SPACE_BITS);
 
     /* TODO: method to report supported PID bits */
-    s->pid_bits = 8; /* restricted to size of MemTxAttrs.pid */
-    s->cap |= RISCV_IOMMU_CAP_PD8;
+    pid_bits = 8; /* restricted to size of MemTxAttrs.pid */
+    cap |= RISCV_IOMMU_CAP_PD8;
 
     /* register storage */
-    s->regs_rw = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
-    s->regs_ro = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
-    s->regs_wc = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
+    regs_rw = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
+    regs_ro = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
+    regs_wc = g_new0(uint8_t, RISCV_IOMMU_REG_SIZE);
 
      /* Mark all registers read-only */
-    memset(s->regs_ro, 0xff, RISCV_IOMMU_REG_SIZE);
+    memset(regs_ro, 0xff, RISCV_IOMMU_REG_SIZE);
 
     /* Device translation context cache */
-    s->ctx_cache = g_hash_table_new_full(riscv_iommu_ctx_hash,
-                                         riscv_iommu_ctx_equal,
-                                         g_free, NULL);
+    ctx_cache = g_hash_table_new_full(riscv_iommu_ctx_hash,
+                                      riscv_iommu_ctx_equal,
+                                      g_free, NULL);
 
-    s->iot_cache = g_hash_table_new_full(riscv_iommu_iot_hash,
-                                         riscv_iommu_iot_equal,
-                                         g_free, NULL);
+    iot_cache = g_hash_table_new_full(riscv_iommu_iot_hash,
+                                      riscv_iommu_iot_equal,
+                                      g_free, NULL);
 
-    s->iommus.le_next = NULL;
-    s->iommus.le_prev = NULL;
-    QLIST_INIT(&s->spaces);
+    iommus.le_next = NULL;
+    iommus.le_prev = NULL;
+    QLIST_INIT(&spaces);
 }
 
 static void riscv_iommu_realize(DeviceState *dev, Error **errp)
@@ -2654,24 +2652,14 @@ static const Property riscv_iommu_properties[] = {
                       RISCV_IOMMU_IOCOUNT_NUM),
 };
 
-static void riscv_iommu_class_init(ObjectClass *klass, const void *data)
+void RISCVIOMMUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     /* internal device for riscv-iommu-{pci/sys}, not user-creatable */
     dc->user_creatable = false;
     dc->realize = riscv_iommu_realize;
     dc->unrealize = riscv_iommu_unrealize;
     device_class_set_props(dc, riscv_iommu_properties);
 }
-
-static const TypeInfo riscv_iommu_info = {
-    .name = TYPE_RISCV_IOMMU,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(RISCVIOMMUState),
-    .instance_init = riscv_iommu_instance_init,
-    .class_init = riscv_iommu_class_init,
-};
 
 static const char *IOMMU_FLAG_STR[] = {
     "NA",
@@ -2814,7 +2802,9 @@ static const TypeInfo riscv_iommu_memory_region_info = {
 static void riscv_iommu_register_mr_types(void)
 {
     type_register_static(&riscv_iommu_memory_region_info);
-    type_register_static(&riscv_iommu_info);
 }
 
 type_init(riscv_iommu_register_mr_types);
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVIOMMUState, TYPE_RISCV_IOMMU, TYPE_DEVICE)

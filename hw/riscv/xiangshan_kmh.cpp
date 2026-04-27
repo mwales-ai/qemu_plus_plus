@@ -131,34 +131,19 @@ static void xiangshan_kmh_soc_realize(DeviceState *dev, Error **errp)
                                 memmap[XIANGSHAN_KMH_ROM].base, &s->rom);
 }
 
-static void xiangshan_kmh_soc_class_init(ObjectClass *klass, const void *data)
+void XiangshanKmhSoCState::init()
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    object_initialize_child(OBJECT(this), "cpus", &cpus, TYPE_RISCV_HART_ARRAY);
+}
 
+void XiangshanKmhSoCState::classInit(DeviceClass *dc)
+{
     dc->realize = xiangshan_kmh_soc_realize;
     dc->user_creatable = false;
 }
 
-static void xiangshan_kmh_soc_instance_init(Object *obj)
-{
-    XiangshanKmhSoCState *s = XIANGSHAN_KMH_SOC(obj);
-
-    object_initialize_child(obj, "cpus", &s->cpus, TYPE_RISCV_HART_ARRAY);
-}
-
-static const TypeInfo xiangshan_kmh_soc_info = {
-    .name = TYPE_XIANGSHAN_KMH_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(XiangshanKmhSoCState),
-    .instance_init = xiangshan_kmh_soc_instance_init,
-    .class_init = xiangshan_kmh_soc_class_init,
-};
-
-static void xiangshan_kmh_soc_register_types(void)
-{
-    type_register_static(&xiangshan_kmh_soc_info);
-}
-type_init(xiangshan_kmh_soc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XiangshanKmhSoCState, TYPE_XIANGSHAN_KMH_SOC, TYPE_DEVICE)
 
 static void xiangshan_kmh_machine_init(MachineState *machine)
 {
@@ -189,9 +174,9 @@ static void xiangshan_kmh_machine_init(MachineState *machine)
     /* Note: dtb has been integrated into firmware(OpenSBI) when compiling */
 }
 
-static void xiangshan_kmh_machine_class_init(ObjectClass *klass, const void *data)
+void XiangshanKmhState::classInit(DeviceClass *dc)
 {
-    MachineClass *mc = MACHINE_CLASS(klass);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(dc);
     static const char *const valid_cpu_types[] = {
         TYPE_RISCV_CPU_XIANGSHAN_KMH,
         NULL
@@ -206,15 +191,4 @@ static void xiangshan_kmh_machine_class_init(ObjectClass *klass, const void *dat
     mc->default_ram_id = "xiangshan.kunminghu.ram";
 }
 
-static const TypeInfo xiangshan_kmh_machine_info = {
-    .name = TYPE_XIANGSHAN_KMH_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(XiangshanKmhState),
-    .class_init = xiangshan_kmh_machine_class_init,
-};
-
-static void xiangshan_kmh_machine_register_types(void)
-{
-    type_register_static(&xiangshan_kmh_machine_info);
-}
-type_init(xiangshan_kmh_machine_register_types)
+REGISTER_QEMU_DEVICE(XiangshanKmhState, TYPE_XIANGSHAN_KMH_MACHINE, TYPE_MACHINE)

@@ -504,15 +504,6 @@ static void ioapic_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, ioapic_properties);
 }
 
-static void ioapic_register_types(void)
-{
-    static TypeInfo ioapic_info = {
-        .name          = TYPE_IOAPIC,
-        .parent        = TYPE_IOAPIC_COMMON,
-        .instance_size = sizeof(IOAPICCommonState),
-        .class_init    = ioapic_class_init,
-    };
-    type_register_static(&ioapic_info);
-}
-
-type_init(ioapic_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(IOAPICCommonState, IOAPICCommonClass,
+                               TYPE_IOAPIC, TYPE_IOAPIC_COMMON,
+                               ioapic_class_init)
