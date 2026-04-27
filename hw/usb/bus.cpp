@@ -47,14 +47,6 @@ static const InterfaceInfo usb_bus_interfaces[] = {
     { }
 };
 
-static const TypeInfo usb_bus_info = {
-    .name = TYPE_USB_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(USBBus),
-    .class_init = usb_bus_class_init,
-    .interfaces = usb_bus_interfaces
-};
-
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
@@ -717,10 +709,13 @@ void USBDevice::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_BUS_CI_IFACES(USBBus, TYPE_USB_BUS,
+                             usb_bus_class_init, usb_bus_interfaces)
+
 /*
  * usb_device_type_info: abstract base with instance_init + class_init.
  * Use manual registration with trampolines to wire init().
- * usb_bus_info stays as a static TypeInfo.
  */
 static void usb_register_types(void)
 {
@@ -733,7 +728,6 @@ static void usb_register_types(void)
         .class_size    = sizeof(USBDeviceClass),
         .class_init    = qemu_device_detail::trampoline_class_init<USBDevice>,
     };
-    type_register_static(&usb_bus_info);
     type_register_static(&usb_device_info);
 }
 

@@ -2038,20 +2038,10 @@ static const InterfaceInfo scsi_bus_interfaces[] = {
     { }
 };
 
-static const TypeInfo scsi_bus_info = {
-    .name = TYPE_SCSI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(SCSIBus),
-    .class_init = scsi_bus_class_init,
-    .interfaces = scsi_bus_interfaces,
-};
-
-static void __attribute__((constructor)) register_scsi_bus_type(void)
-{
-    type_register_static(&scsi_bus_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_BUS_CI_IFACES(SCSIBus, TYPE_SCSI_BUS,
+                             scsi_bus_class_init, scsi_bus_interfaces)
 /*
  * scsi_device_type_info: abstract base with instance_init + class_size.
  * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we

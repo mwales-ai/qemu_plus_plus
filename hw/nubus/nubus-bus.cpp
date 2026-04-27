@@ -172,17 +172,7 @@ static void nubus_class_init(ObjectClass *oc, const void *data)
     bc->get_dev_path = nubus_get_dev_path;
 }
 
-static const TypeInfo nubus_bus_info = {
-    .name = TYPE_NUBUS_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(NubusBus),
-    .instance_init = nubus_init,
-    .class_init = nubus_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void nubus_register_types(void)
-{
-    type_register_static(&nubus_bus_info);
-}
-
-type_init(nubus_register_types)
+REGISTER_QEMU_BUS_INSTANCE_CI(NubusBus, TYPE_NUBUS_BUS, TYPE_BUS,
+                               nubus_init, nubus_class_init)

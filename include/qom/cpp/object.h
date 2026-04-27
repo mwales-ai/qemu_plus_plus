@@ -648,6 +648,48 @@ static void StateStruct##_cpp_register_types(void)                           \
 type_init(StateStruct##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_BUS_INSTANCE_CI: bus type with instance_init + class_init
+ * but no custom class struct (uses parent class_size). For buses like
+ * NubusBus that need instance_init without a dedicated ClassStruct.
+ */
+#define REGISTER_QEMU_BUS_INSTANCE_CI(StateStruct, type_name_str,            \
+                                       parent_type_str, instance_init_fn,    \
+                                       class_init_fn)                        \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(StateStruct),                                \
+        .instance_init = instance_init_fn,                                   \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_BUS_CLASS_SIZE: bus type with a custom class struct but
+ * no class_init and no instance_init. The class struct is allocated by
+ * QOM at the correct size; class fields default to zero. Use for buses
+ * like SDBus whose class methods are filled in by child types.
+ */
+#define REGISTER_QEMU_BUS_CLASS_SIZE(StateStruct, ClassStruct, type_name_str) \
+static void StateStruct##_cpp_register_types(void)                            \
+{                                                                             \
+    static const TypeInfo info = {                                            \
+        .name          = type_name_str,                                       \
+        .parent        = TYPE_BUS,                                            \
+        .instance_size = sizeof(StateStruct),                                 \
+        .class_size    = sizeof(ClassStruct),                                 \
+    };                                                                        \
+    type_register_static(&info);                                              \
+}                                                                             \
+                                                                              \
+type_init(StateStruct##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_BUS_ABSTRACT: abstract bus type (parent TYPE_BUS, has class_size).
  */
 #define REGISTER_QEMU_BUS_ABSTRACT(StateStruct, ClassStruct, type_name_str,  \

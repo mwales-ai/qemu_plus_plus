@@ -261,13 +261,6 @@ void sdbus_reparent_card(SDBus *from, SDBus *to)
     sdbus_set_readonly(to, readonly);
 }
 
-static const TypeInfo sd_bus_types[] = {
-    {
-        .name           = TYPE_SD_BUS,
-        .parent         = TYPE_BUS,
-        .instance_size  = sizeof(SDBus),
-        .class_size     = sizeof(SDBusClass),
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(sd_bus_types)
+REGISTER_QEMU_BUS_CLASS_SIZE(SDBus, SDBusClass, TYPE_SD_BUS)

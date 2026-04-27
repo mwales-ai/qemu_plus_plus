@@ -360,18 +360,7 @@ static void virtio_bus_class_init(ObjectClass *klass, const void *data)
     bus_class->get_fw_dev_path = virtio_bus_get_fw_dev_path;
 }
 
-static const TypeInfo virtio_bus_info = {
-    .name = TYPE_VIRTIO_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(VirtioBusState),
-    .is_abstract = true,
-    .class_size = sizeof(VirtioBusClass),
-    .class_init = virtio_bus_class_init
-};
+#include "qom/cpp/object.h"
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_bus_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_BUS_ABSTRACT(VirtioBusState, VirtioBusClass, TYPE_VIRTIO_BUS,
+                            virtio_bus_class_init)
