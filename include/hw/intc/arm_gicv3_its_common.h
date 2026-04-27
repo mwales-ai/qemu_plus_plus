@@ -82,6 +82,10 @@ struct GICv3ITSState {
     CmdQDesc   cq;
 
     Error *migration_blocker;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct GICv3ITSState GICv3ITSState;

@@ -2162,25 +2162,14 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
 
 }
 
-static void arm_gic_class_init(ObjectClass *klass, const void *data)
+void GICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ARMGICClass *agc = ARM_GIC_CLASS(klass);
 
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }
 
-static const TypeInfo arm_gic_info = {
-    .name = TYPE_ARM_GIC,
-    .parent = TYPE_ARM_GIC_COMMON,
-    .instance_size = sizeof(GICState),
-    .class_size = sizeof(ARMGICClass),
-    .class_init = arm_gic_class_init,
-};
-
-static void arm_gic_register_types(void)
-{
-    type_register_static(&arm_gic_info);
-}
-
-type_init(arm_gic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CLASS_SIZE(GICState, ARMGICClass, TYPE_ARM_GIC,
+                                TYPE_ARM_GIC_COMMON)

@@ -148,6 +148,10 @@ struct GICState {
     bool irq_reset_nonsecure; /* configure IRQs as group 1 (NS) on reset? */
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     Error *migration_blocker;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct GICState GICState;
 
