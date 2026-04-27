@@ -126,7 +126,7 @@ static const TypeInfo virtio_ccw_tablet = {
     .instance_init = virtio_ccw_tablet_instance_init,
 };
 
-static void virtio_ccw_input_register(void)
+static void __attribute__((constructor)) virtio_ccw_input_register(void)
 {
     type_register_static(&virtio_ccw_input);
     type_register_static(&virtio_ccw_input_hid);
@@ -134,5 +134,3 @@ static void virtio_ccw_input_register(void)
     type_register_static(&virtio_ccw_mouse);
     type_register_static(&virtio_ccw_tablet);
 }
-
-type_init(virtio_ccw_input_register)

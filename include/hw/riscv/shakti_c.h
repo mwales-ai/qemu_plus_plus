@@ -37,6 +37,10 @@ typedef struct ShaktiCSoCState {
     ShaktiUartState uart;
     MemoryRegion rom;
 
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } ShaktiCSoCState;
 
 #define TYPE_RISCV_SHAKTI_MACHINE MACHINE_TYPE_NAME("shakti_c")
@@ -48,6 +52,10 @@ typedef struct ShaktiCMachineState {
 
     /*< public >*/
     ShaktiCSoCState soc;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 } ShaktiCMachineState;
 
 enum {

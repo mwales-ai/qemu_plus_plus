@@ -722,7 +722,7 @@ static const TypeInfo xtfpga_kc705_nommu_type = {
     .class_init = xtfpga_kc705_nommu_class_init,
 };
 
-static void xtfpga_machines_init(void)
+static void __attribute__((constructor)) xtfpga_machines_init(void)
 {
     type_register_static(&xtfpga_lx60_type);
     type_register_static(&xtfpga_lx200_type);
@@ -733,5 +733,3 @@ static void xtfpga_machines_init(void)
     type_register_static(&xtfpga_ml605_nommu_type);
     type_register_static(&xtfpga_kc705_nommu_type);
 }
-
-type_init(xtfpga_machines_init)

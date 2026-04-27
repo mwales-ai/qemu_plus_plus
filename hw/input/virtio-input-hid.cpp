@@ -557,7 +557,7 @@ static void __attribute__((constructor)) init_virtio_input_hid_configs(void)
     /* [6] is zero-initialized end of list */
 }
 
-static void virtio_register_types(void)
+static void __attribute__((constructor)) virtio_register_types(void)
 {
     type_register_static(&virtio_input_hid_info);
     type_register_static(&virtio_keyboard_info);
@@ -565,5 +565,3 @@ static void virtio_register_types(void)
     type_register_static(&virtio_tablet_info);
     type_register_static(&virtio_multitouch_info);
 }
-
-type_init(virtio_register_types)

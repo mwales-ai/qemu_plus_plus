@@ -59,6 +59,7 @@
 #include "system/device_tree.h"
 #include "system/runstate.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 #include <libfdt.h>
 
@@ -699,9 +700,10 @@ static void sifive_u_machine_set_start_in_flash(Object *obj, bool value, Error *
     s->start_in_flash = value;
 }
 
-static void sifive_u_machine_instance_init(Object *obj)
+void SiFiveUState::init()
 {
-    SiFiveUState *s = RISCV_U_MACHINE(obj);
+    SiFiveUState *s = this;
+    Object *obj = OBJECT(s);
 
     s->start_in_flash = false;
     s->msel = 0;
@@ -716,8 +718,9 @@ static void sifive_u_machine_instance_init(Object *obj)
     object_property_set_description(obj, "serial", "Board serial number");
 }
 
-static void sifive_u_machine_class_init(ObjectClass *oc, const void *data)
+void SiFiveUState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with SiFive U SDK";
@@ -738,24 +741,12 @@ static void sifive_u_machine_class_init(ObjectClass *oc, const void *data)
                                           "or L2LIM depending on the msel value");
 }
 
-static const TypeInfo sifive_u_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("sifive_u"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SiFiveUState),
-    .instance_init = sifive_u_machine_instance_init,
-    .class_init    = sifive_u_machine_class_init,
-};
+REGISTER_QEMU_DEVICE(SiFiveUState, MACHINE_TYPE_NAME("sifive_u"), TYPE_MACHINE)
 
-static void sifive_u_machine_init_register_types(void)
+void SiFiveUSoCState::init()
 {
-    type_register_static(&sifive_u_machine_typeinfo);
-}
-
-type_init(sifive_u_machine_init_register_types)
-
-static void sifive_u_soc_instance_init(Object *obj)
-{
-    SiFiveUSoCState *s = RISCV_U_SOC(obj);
+    SiFiveUSoCState *s = this;
+    Object *obj = OBJECT(s);
 
     object_initialize_child(obj, "e-cluster", &s->e_cluster, TYPE_CPU_CLUSTER);
     qdev_prop_set_uint32(DEVICE(&s->e_cluster), "cluster-id", 0);
@@ -949,27 +940,33 @@ static const Property sifive_u_soc_props[] = {
     DEFINE_PROP_STRING("cpu-type", SiFiveUSoCState, cpu_type),
 };
 
-static void sifive_u_soc_class_init(ObjectClass *oc, const void *data)
+void SiFiveUSoCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, sifive_u_soc_props);
     dc->realize = sifive_u_soc_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo sifive_u_soc_type_info = {
-    .name = TYPE_RISCV_U_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SiFiveUSoCState),
-    .instance_init = sifive_u_soc_instance_init,
-    .class_init = sifive_u_soc_class_init,
-};
-
-static void sifive_u_soc_register_types(void)
+static void sifive_u_soc_instance_init_trampoline(Object *obj)
 {
-    type_register_static(&sifive_u_soc_type_info);
+    reinterpret_cast<SiFiveUSoCState *>(obj)->init();
 }
 
-type_init(sifive_u_soc_register_types)
+static void sifive_u_soc_class_init_trampoline(ObjectClass *oc,
+                                               const void *data)
+{
+    SiFiveUSoCState::classInit(DEVICE_CLASS(oc));
+}
+
+static void __attribute__((constructor)) sifive_u_soc_register(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_RISCV_U_SOC,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(SiFiveUSoCState),
+        .instance_init = sifive_u_soc_instance_init_trampoline,
+        .class_init    = sifive_u_soc_class_init_trampoline,
+    };
+    type_register_static(&info);
+}

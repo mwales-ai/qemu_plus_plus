@@ -318,10 +318,8 @@ static const TypeInfo adb_device_type_info = {
     .class_init = adb_device_class_init,
 };
 
-static void adb_register_types(void)
+static void __attribute__((constructor)) adb_register_types(void)
 {
     type_register_static(&adb_bus_type_info);
     type_register_static(&adb_device_type_info);
 }
-
-type_init(adb_register_types)

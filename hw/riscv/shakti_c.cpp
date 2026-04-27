@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "system/address-spaces.h"
 #include "hw/riscv/boot.h"
+#include "qom/cpp/object.h"
 
 static const struct MemmapEntry {
     hwaddr base;
@@ -67,13 +68,10 @@ static void shakti_c_machine_state_init(MachineState *mstate)
                               shakti_c_memmap[SHAKTI_C_ROM].size, 0, 0);
 }
 
-static void shakti_c_machine_instance_init(Object *obj)
+void ShaktiCMachineState::classInit(DeviceClass *dc)
 {
-}
-
-static void shakti_c_machine_class_init(ObjectClass *klass, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(klass);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+    MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
         RISCV_CPU_TYPE_NAME("shakti-c"),
         NULL
@@ -86,19 +84,7 @@ static void shakti_c_machine_class_init(ObjectClass *klass, const void *data)
     mc->default_ram_id = "riscv.shakti.c.ram";
 }
 
-static const TypeInfo shakti_c_machine_type_info = {
-    .name = TYPE_RISCV_SHAKTI_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(ShaktiCMachineState),
-    .instance_init = shakti_c_machine_instance_init,
-    .class_init = shakti_c_machine_class_init,
-};
-
-static void shakti_c_machine_type_info_register(void)
-{
-    type_register_static(&shakti_c_machine_type_info);
-}
-type_init(shakti_c_machine_type_info_register)
+REGISTER_QEMU_DEVICE(ShaktiCMachineState, TYPE_RISCV_SHAKTI_MACHINE, TYPE_MACHINE)
 
 static void shakti_c_soc_state_realize(DeviceState *dev, Error **errp)
 {
@@ -142,9 +128,8 @@ static void shakti_c_soc_state_realize(DeviceState *dev, Error **errp)
         shakti_c_memmap[SHAKTI_C_ROM].base, &sss->rom);
 }
 
-static void shakti_c_soc_class_init(ObjectClass *klass, const void *data)
+void ShaktiCSoCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = shakti_c_soc_state_realize;
     /*
      * Reasons:
@@ -155,12 +140,13 @@ static void shakti_c_soc_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static void shakti_c_soc_instance_init(Object *obj)
+void ShaktiCSoCState::init()
 {
-    ShaktiCSoCState *sss = RISCV_SHAKTI_SOC(obj);
+    ShaktiCSoCState *sss = this;
 
-    object_initialize_child(obj, "cpus", &sss->cpus, TYPE_RISCV_HART_ARRAY);
-    object_initialize_child(obj, "uart", &sss->uart, TYPE_SHAKTI_UART);
+    object_initialize_child(OBJECT(sss), "cpus", &sss->cpus,
+                            TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(OBJECT(sss), "uart", &sss->uart, TYPE_SHAKTI_UART);
 
     /*
      * CPU type is fixed and we are not supporting passing from commandline yet.
@@ -173,16 +159,25 @@ static void shakti_c_soc_instance_init(Object *obj)
                             &error_abort);
 }
 
-static const TypeInfo shakti_c_type_info = {
-    .name = TYPE_RISCV_SHAKTI_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(ShaktiCSoCState),
-    .instance_init = shakti_c_soc_instance_init,
-    .class_init = shakti_c_soc_class_init,
-};
-
-static void shakti_c_type_info_register(void)
+static void shakti_c_soc_instance_init_trampoline(Object *obj)
 {
-    type_register_static(&shakti_c_type_info);
+    reinterpret_cast<ShaktiCSoCState *>(obj)->init();
 }
-type_init(shakti_c_type_info_register)
+
+static void shakti_c_soc_class_init_trampoline(ObjectClass *oc,
+                                               const void *data)
+{
+    ShaktiCSoCState::classInit(DEVICE_CLASS(oc));
+}
+
+static void __attribute__((constructor)) shakti_c_soc_register(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_RISCV_SHAKTI_SOC,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(ShaktiCSoCState),
+        .instance_init = shakti_c_soc_instance_init_trampoline,
+        .class_init    = shakti_c_soc_class_init_trampoline,
+    };
+    type_register_static(&info);
+}

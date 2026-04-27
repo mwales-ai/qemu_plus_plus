@@ -47,6 +47,7 @@
 #include "hw/misc/sifive_e_aon.h"
 #include "chardev/char.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 static const MemMapEntry sifive_e_memmap[] = {
     [SIFIVE_E_DEV_DEBUG] =    {        0x0,     0x1000 },
@@ -136,15 +137,14 @@ static void sifive_e_machine_set_revb(Object *obj, bool value, Error **errp)
     s->revb = value;
 }
 
-static void sifive_e_machine_instance_init(Object *obj)
+void SiFiveEState::init()
 {
-    SiFiveEState *s = RISCV_E_MACHINE(obj);
-
-    s->revb = false;
+    this->revb = false;
 }
 
-static void sifive_e_machine_class_init(ObjectClass *oc, const void *data)
+void SiFiveEState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "RISC-V Board compatible with SiFive E SDK";
@@ -161,35 +161,7 @@ static void sifive_e_machine_class_init(ObjectClass *oc, const void *data)
                                           "the revB HiFive1 board");
 }
 
-static const TypeInfo sifive_e_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("sifive_e"),
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SiFiveEState),
-    .instance_init = sifive_e_machine_instance_init,
-    .class_init    = sifive_e_machine_class_init,
-};
-
-static void sifive_e_machine_init_register_types(void)
-{
-    type_register_static(&sifive_e_machine_typeinfo);
-}
-
-type_init(sifive_e_machine_init_register_types)
-
-static void sifive_e_soc_init(Object *obj)
-{
-    MachineState *ms = MACHINE(qdev_get_machine());
-    SiFiveESoCState *s = RISCV_E_SOC(obj);
-
-    object_initialize_child(obj, "cpus", &s->cpus, TYPE_RISCV_HART_ARRAY);
-    object_property_set_int(OBJECT(&s->cpus), "num-harts", ms->smp.cpus,
-                            &error_abort);
-    object_property_set_int(OBJECT(&s->cpus), "resetvec", 0x1004, &error_abort);
-    object_initialize_child(obj, "riscv.sifive.e.gpio0", &s->gpio,
-                            TYPE_SIFIVE_GPIO);
-    object_initialize_child(obj, "riscv.sifive.e.aon", &s->aon,
-                            TYPE_SIFIVE_E_AON);
-}
+REGISTER_QEMU_DEVICE(SiFiveEState, MACHINE_TYPE_NAME("sifive_e"), TYPE_MACHINE)
 
 static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
 {
@@ -284,26 +256,47 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
         &s->xip_mem);
 }
 
-static void sifive_e_soc_class_init(ObjectClass *oc, const void *data)
+void SiFiveESoCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->realize = sifive_e_soc_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo sifive_e_soc_type_info = {
-    .name = TYPE_RISCV_E_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SiFiveESoCState),
-    .instance_init = sifive_e_soc_init,
-    .class_init = sifive_e_soc_class_init,
-};
-
-static void sifive_e_soc_register_types(void)
+void SiFiveESoCState::init()
 {
-    type_register_static(&sifive_e_soc_type_info);
+    MachineState *ms = MACHINE(qdev_get_machine());
+    SiFiveESoCState *s = this;
+
+    object_initialize_child(OBJECT(s), "cpus", &s->cpus, TYPE_RISCV_HART_ARRAY);
+    object_property_set_int(OBJECT(&s->cpus), "num-harts", ms->smp.cpus,
+                            &error_abort);
+    object_property_set_int(OBJECT(&s->cpus), "resetvec", 0x1004, &error_abort);
+    object_initialize_child(OBJECT(s), "riscv.sifive.e.gpio0", &s->gpio,
+                            TYPE_SIFIVE_GPIO);
+    object_initialize_child(OBJECT(s), "riscv.sifive.e.aon", &s->aon,
+                            TYPE_SIFIVE_E_AON);
 }
 
-type_init(sifive_e_soc_register_types)
+static void sifive_e_soc_instance_init_trampoline(Object *obj)
+{
+    reinterpret_cast<SiFiveESoCState *>(obj)->init();
+}
+
+static void sifive_e_soc_class_init_trampoline(ObjectClass *oc,
+                                               const void *data)
+{
+    SiFiveESoCState::classInit(DEVICE_CLASS(oc));
+}
+
+static void __attribute__((constructor)) sifive_e_soc_register(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_RISCV_E_SOC,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(SiFiveESoCState),
+        .instance_init = sifive_e_soc_instance_init_trampoline,
+        .class_init    = sifive_e_soc_class_init_trampoline,
+    };
+    type_register_static(&info);
+}

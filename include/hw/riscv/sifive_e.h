@@ -40,6 +40,11 @@ typedef struct SiFiveESoCState {
     SIFIVEGPIOState gpio;
     MemoryRegion xip_mem;
     MemoryRegion mask_rom;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } SiFiveESoCState;
 
 typedef struct SiFiveEState {
@@ -49,6 +54,11 @@ typedef struct SiFiveEState {
     /*< public >*/
     SiFiveESoCState soc;
     bool revb;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 } SiFiveEState;
 
 #define TYPE_RISCV_E_MACHINE MACHINE_TYPE_NAME("sifive_e")

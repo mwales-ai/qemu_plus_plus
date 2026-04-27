@@ -15,6 +15,7 @@
 #include "hw/pci/msi.h"
 #include "hw/xen/xen.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 static uint64_t xen_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
@@ -89,16 +90,6 @@ static void xen_apic_class_init(ObjectClass *klass, const void *data)
     k->send_msi = xen_send_msi;
 }
 
-static const TypeInfo xen_apic_info = {
-    .name = "xen-apic",
-    .parent = TYPE_APIC_COMMON,
-    .instance_size = sizeof(APICCommonState),
-    .class_init = xen_apic_class_init,
-};
-
-static void xen_apic_register_types(void)
-{
-    type_register_static(&xen_apic_info);
-}
-
-type_init(xen_apic_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(APICCommonState, APICCommonClass,
+                               "xen-apic", TYPE_APIC_COMMON,
+                               xen_apic_class_init)
