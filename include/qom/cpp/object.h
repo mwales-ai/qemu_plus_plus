@@ -581,6 +581,70 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT: register a QOM type rooted at TYPE_OBJECT (or any
+ * non-Device, non-Bus, non-Interface base). For things like Clock, IRQState,
+ * RemoteObject — types that aren't devices but live in the QOM hierarchy.
+ *
+ * SFINAE-detects init() and finalize() members on the state struct. The
+ * class_init function (if needed) is a user-supplied free function with
+ * the canonical (ObjectClass *, const void *) signature.
+ *
+ * Usage:
+ *   REGISTER_QEMU_OBJECT(Clock, TYPE_CLOCK, TYPE_OBJECT)                    // no class_init
+ *   REGISTER_QEMU_OBJECT_CI(Clock, TYPE_CLOCK, TYPE_OBJECT, clock_class_init)
+ *   REGISTER_QEMU_OBJECT_CI_CS(RemoteObject, RemoteObjectClass, ...)        // with class_size
+ */
+#define REGISTER_QEMU_OBJECT(ClassName, type_name_str, parent_type_str)      \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+#define REGISTER_QEMU_OBJECT_CI(ClassName, type_name_str, parent_type_str,   \
+                                 class_init_fn)                              \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+#define REGISTER_QEMU_OBJECT_CI_CS(ClassName, ClassStruct, type_name_str,    \
+                                    parent_type_str, class_init_fn)          \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_BUS: register a QOM bus type (parent TYPE_BUS).
  * Buses extend BusClass, not DeviceClass. Use the _CI variant if a
  * class_init is needed.

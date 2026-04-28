@@ -180,36 +180,32 @@ static void clock_unparent(Object *obj)
     clock_set_callback(CLOCK(obj), NULL, NULL, 0);
 }
 
-static void clock_initfn(Object *obj)
+void Clock::init()
 {
-    Clock *clk = CLOCK(obj);
+    multiplier = 1;
+    divider = 1;
 
-    clk->multiplier = 1;
-    clk->divider = 1;
-
-    QLIST_INIT(&clk->children);
+    QLIST_INIT(&children);
 
     if (qtest_enabled()) {
-        object_property_add(obj, "qtest-clock-period", "uint64",
+        object_property_add(OBJECT(this), "qtest-clock-period", "uint64",
                             clock_period_prop_get, NULL, NULL, NULL);
     }
 }
 
-__attribute__((used))
-static void clock_finalizefn(Object *obj)
+void Clock::finalize()
 {
-    Clock *clk = CLOCK(obj);
     Clock *child, *next;
 
     /* clear our list of children */
-    QLIST_FOREACH_SAFE(child, &clk->children, sibling, next) {
+    QLIST_FOREACH_SAFE(child, &children, sibling, next) {
         clock_disconnect(child);
     }
 
     /* remove us from source's children list */
-    clock_disconnect(clk);
+    clock_disconnect(this);
 
-    g_free(clk->canonical_path);
+    g_free(canonical_path);
 }
 
 static void clock_class_init(ObjectClass *klass, const void *data)
@@ -217,20 +213,7 @@ static void clock_class_init(ObjectClass *klass, const void *data)
     klass->unparent = clock_unparent;
 }
 
-static const TypeInfo clock_info = {
-    .name              = TYPE_CLOCK,
-    .parent            = TYPE_OBJECT,
-    .instance_size     = sizeof(Clock),
-    .instance_init     = clock_initfn,
-    .instance_finalize = clock_finalizefn,
-    .class_init        = clock_class_init,
-};
-
-static void clock_register_types(void)
-{
-    type_register_static(&clock_info);
-}
-
-type_init(clock_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_CI(Clock, TYPE_CLOCK, TYPE_OBJECT, clock_class_init)

@@ -93,6 +93,11 @@ struct Clock {
     Clock *source;
     QLIST_HEAD(, Clock) children;
     QLIST_ENTRY(Clock) sibling;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 /*
