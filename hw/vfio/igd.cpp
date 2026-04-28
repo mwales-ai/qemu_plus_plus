@@ -308,22 +308,22 @@ static void vfio_pci_igd_lpc_bridge_class_init(ObjectClass *klass,
     k->class_id = PCI_CLASS_BRIDGE_ISA;
 }
 
-static const TypeInfo vfio_pci_igd_lpc_bridge_info = {
-    .name = "vfio-pci-igd-lpc-bridge",
-    .parent = TYPE_PCI_DEVICE,
-    .class_init = vfio_pci_igd_lpc_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo vfio_pci_igd_lpc_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void vfio_pci_igd_register_types(void)
+static const TypeInfo vfio_pci_igd_lpc_bridge_info = {
+    .name       = "vfio-pci-igd-lpc-bridge",
+    .parent     = TYPE_PCI_DEVICE,
+    .class_init = vfio_pci_igd_lpc_bridge_class_init,
+    .interfaces = vfio_pci_igd_lpc_bridge_interfaces,
+};
+
+static void __attribute__((constructor)) vfio_pci_igd_register_types(void)
 {
     type_register_static(&vfio_pci_igd_lpc_bridge_info);
 }
-
-type_init(vfio_pci_igd_register_types)
 
 static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
                                  struct vfio_region_info *info)

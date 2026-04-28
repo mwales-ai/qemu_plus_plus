@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "hw/s390x/ap-bridge.h"
 #include "cpu.h"
+#include "qom/cpp/object.h"
 
 static char *ap_bus_get_dev_path(DeviceState *dev)
 {
@@ -70,21 +71,21 @@ static void ap_bridge_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
+static const InterfaceInfo ap_bridge_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo ap_bridge_info = {
     .name          = TYPE_AP_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = 0,
     .class_init    = ap_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces    = ap_bridge_interfaces,
 };
 
-static void ap_register(void)
+static void __attribute__((constructor)) ap_register(void)
 {
     type_register_static(&ap_bridge_info);
     type_register_static(&ap_bus_info);
 }
-
-type_init(ap_register)

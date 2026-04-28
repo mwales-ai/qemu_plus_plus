@@ -46,6 +46,11 @@ typedef struct SGXEPCDevice {
     uint64_t addr;
     uint32_t node;
     HostMemoryBackendEpc *hostmem;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(ObjectClass *oc, const void *data);
+#endif
 } SGXEPCDevice;
 
 /*

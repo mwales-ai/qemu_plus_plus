@@ -15,6 +15,7 @@
 #include "hw/i386/sgx-epc.h"
 #include "hw/mem/memory-device.h"
 #include "system/address-spaces.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/qdev-properties.h"
@@ -45,10 +46,10 @@ static void sgx_epc_get_size(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void sgx_epc_init(Object *obj)
+void SGXEPCDevice::init()
 {
-    object_property_add(obj, SGX_EPC_SIZE_PROP, "uint64", sgx_epc_get_size,
-                        NULL, NULL, NULL);
+    object_property_add(OBJECT(this), SGX_EPC_SIZE_PROP, "uint64",
+                        sgx_epc_get_size, NULL, NULL, NULL);
 }
 
 static void sgx_epc_realize(DeviceState *dev, Error **errp)
@@ -176,19 +177,7 @@ static const InterfaceInfo sgx_epc_interfaces[] = {
     { }
 };
 
-static const TypeInfo sgx_epc_info = {
-    .name          = TYPE_SGX_EPC,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SGXEPCDevice),
-    .instance_init = sgx_epc_init,
-    .class_size    = sizeof(DeviceClass),
-    .class_init    = sgx_epc_class_init,
-    .interfaces = sgx_epc_interfaces,
-};
-
-static void sgx_epc_register_types(void)
-{
-    type_register_static(&sgx_epc_info);
-}
-
-type_init(sgx_epc_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(SGXEPCDevice, DeviceClass,
+                                       TYPE_SGX_EPC, TYPE_DEVICE,
+                                       sgx_epc_class_init,
+                                       sgx_epc_interfaces)

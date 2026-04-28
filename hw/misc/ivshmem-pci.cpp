@@ -1223,11 +1223,9 @@ static const TypeInfo ivshmem_doorbell_info = {
     .class_init    = IVShmemState::doorbellClassInit,
 };
 
-static void ivshmem_register_types(void)
+static void __attribute__((constructor)) ivshmem_register_types(void)
 {
     type_register_static(&ivshmem_common_info);
     type_register_static(&ivshmem_plain_info);
     type_register_static(&ivshmem_doorbell_info);
 }
-
-type_init(ivshmem_register_types)

@@ -14,6 +14,7 @@
 #include "system/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 static bool kvm_s390_skeys_are_enabled(S390SKeysState *ss)
 {
@@ -65,17 +66,6 @@ static void kvm_s390_skeys_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo kvm_s390_skeys_info = {
-    .name          = TYPE_KVM_S390_SKEYS,
-    .parent        = TYPE_S390_SKEYS,
-    .instance_size = sizeof(S390SKeysState),
-    .class_init    = kvm_s390_skeys_class_init,
-    .class_size    = sizeof(S390SKeysClass),
-};
-
-static void kvm_s390_skeys_register_types(void)
-{
-    type_register_static(&kvm_s390_skeys_info);
-}
-
-type_init(kvm_s390_skeys_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(S390SKeysState, S390SKeysClass,
+                                TYPE_KVM_S390_SKEYS, TYPE_S390_SKEYS,
+                                kvm_s390_skeys_class_init)

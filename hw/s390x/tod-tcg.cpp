@@ -17,8 +17,6 @@
 #include "cpu.h"
 #include "tcg/tcg_s390x.h"
 #include "system/rtc.h"
-#include "qom/cpp/object.h"
-
 static void qemu_s390_tod_get(const S390TODState *td, S390TOD *tod,
                               Error **errp)
 {

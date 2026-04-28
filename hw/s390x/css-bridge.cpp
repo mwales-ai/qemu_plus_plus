@@ -20,6 +20,7 @@
 #include "hw/s390x/css.h"
 #include "ccw-device.h"
 #include "hw/s390x/css-bridge.h"
+#include "qom/cpp/object.h"
 
 /*
  * Invoke device-specific unplug handler, disable the subchannel
@@ -79,12 +80,7 @@ static void virtual_css_bus_class_init(ObjectClass *klass, const void *data)
     k->get_dev_path = virtual_css_bus_get_dev_path;
 }
 
-static const TypeInfo virtual_css_bus_info = {
-    .name = TYPE_VIRTUAL_CSS_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(VirtualCssBus),
-    .class_init = virtual_css_bus_class_init,
-};
+/* VirtualCssBus registered below via REGISTER_QEMU_BUS_CI */
 
 VirtualCssBus *virtual_css_bus_init(void)
 {
@@ -131,21 +127,16 @@ static void virtual_css_bridge_class_init(ObjectClass *klass, const void *data)
             " or not (read only, always true)");
 }
 
-static const TypeInfo virtual_css_bridge_info = {
-    .name          = TYPE_VIRTUAL_CSS_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VirtualCssBridge),
-    .class_init    = virtual_css_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+static const InterfaceInfo virtual_css_bridge_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-static void virtual_css_register(void)
-{
-    type_register_static(&virtual_css_bridge_info);
-    type_register_static(&virtual_css_bus_info);
-}
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(VirtualCssBridge, DeviceClass,
+                                       TYPE_VIRTUAL_CSS_BRIDGE,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       virtual_css_bridge_class_init,
+                                       virtual_css_bridge_interfaces)
 
-type_init(virtual_css_register)
+REGISTER_QEMU_BUS_CI(VirtualCssBus, TYPE_VIRTUAL_CSS_BUS,
+                     virtual_css_bus_class_init)
