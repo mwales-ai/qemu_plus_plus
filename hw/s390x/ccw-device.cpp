@@ -17,6 +17,7 @@
 #include "qapi/visitor.h"
 #include "qemu/ctype.h"
 #include "qapi/error.h"
+#include "qom/cpp/object.h"
 
 static void ccw_device_refill_ids(CcwDevice *dev)
 {
@@ -94,9 +95,9 @@ static void ccw_device_reset_hold(Object *obj, ResetType type)
     css_reset_sch(ccw_dev->sch);
 }
 
-static void ccw_device_class_init(ObjectClass *klass, const void *data)
+void CcwDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = OBJECT_CLASS(dc);
     CCWDeviceClass *k = CCW_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -117,18 +118,5 @@ const VMStateDescription vmstate_ccw_dev = {
     }
 };
 
-static const TypeInfo ccw_device_info = {
-    .name = TYPE_CCW_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(CcwDevice),
-    .class_size = sizeof(CCWDeviceClass),
-    .class_init = ccw_device_class_init,
-    .is_abstract = true,
-};
-
-static void ccw_device_register(void)
-{
-    type_register_static(&ccw_device_info);
-}
-
-type_init(ccw_device_register)
+REGISTER_QEMU_DEVICE_ABSTRACT(CcwDevice, CCWDeviceClass,
+                              TYPE_CCW_DEVICE, TYPE_DEVICE)

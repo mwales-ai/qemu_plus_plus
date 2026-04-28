@@ -18,6 +18,10 @@
 
 struct APDevice {
     DeviceState parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct APDevice APDevice;
 

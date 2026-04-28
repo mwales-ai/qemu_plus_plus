@@ -28,6 +28,10 @@ struct CcwDevice {
     CssDevId subch_id;
     /* If set, use this loadparm value when device is boot target */
     uint8_t loadparm[8];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct CcwDevice CcwDevice;
 

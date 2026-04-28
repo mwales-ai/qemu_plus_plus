@@ -27,6 +27,11 @@ struct S390CCWDevice {
     CssDevId hostid;
     char *mdevid;
     int32_t bootindex;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct S390CCWDeviceClass {

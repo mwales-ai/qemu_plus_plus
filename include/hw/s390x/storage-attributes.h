@@ -29,6 +29,10 @@ OBJECT_DECLARE_TYPE(S390StAttribState, S390StAttribClass, S390_STATTRIB)
 struct S390StAttribState {
     DeviceState parent_obj;
     uint64_t migration_cur_gfn;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 
@@ -53,6 +57,10 @@ DECLARE_INSTANCE_CHECKER(QEMUS390StAttribState, QEMU_S390_STATTRIB,
 
 struct QEMUS390StAttribState {
     S390StAttribState parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct KVMS390StAttribState KVMS390StAttribState;

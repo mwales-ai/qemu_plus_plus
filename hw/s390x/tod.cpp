@@ -18,6 +18,7 @@
 #include "system/qtest.h"
 #include "migration/qemu-file-types.h"
 #include "migration/register.h"
+#include "qom/cpp/object.h"
 
 void s390_init_tod(void)
 {
@@ -55,7 +56,7 @@ S390TODState *s390_get_todstate(void)
 
 static void s390_tod_save(QEMUFile *f, void *opaque)
 {
-    S390TODState *td = opaque;
+    S390TODState *td = static_cast<S390TODState *>(opaque);
     S390TODClass *tdc = S390_TOD_GET_CLASS(td);
     Error *err = NULL;
     S390TOD tod;
@@ -76,7 +77,7 @@ static void s390_tod_save(QEMUFile *f, void *opaque)
 
 static int s390_tod_load(QEMUFile *f, void *opaque, int version_id)
 {
-    S390TODState *td = opaque;
+    S390TODState *td = static_cast<S390TODState *>(opaque);
     S390TODClass *tdc = S390_TOD_GET_CLASS(td);
     Error *err = NULL;
     S390TOD tod;
@@ -111,10 +112,8 @@ static void s390_tod_realize(DeviceState *dev, Error **errp)
     register_savevm_live("todclock", 0, 1, &savevm_tod, td);
 }
 
-static void s390_tod_class_init(ObjectClass *oc, const void *data)
+void S390TODState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->desc = "TOD (Time Of Day) Clock";
     dc->realize = s390_tod_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
@@ -123,17 +122,5 @@ static void s390_tod_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo s390_tod_info = {
-    .name = TYPE_S390_TOD,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(S390TODState),
-    .class_init = s390_tod_class_init,
-    .class_size = sizeof(S390TODClass),
-    .is_abstract = true,
-};
-
-static void register_types(void)
-{
-    type_register_static(&s390_tod_info);
-}
-type_init(register_types);
+REGISTER_QEMU_DEVICE_ABSTRACT(S390TODState, S390TODClass,
+                              TYPE_S390_TOD, TYPE_DEVICE)

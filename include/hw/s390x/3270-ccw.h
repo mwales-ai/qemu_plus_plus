@@ -35,6 +35,10 @@ OBJECT_DECLARE_TYPE(EmulatedCcw3270Device, EmulatedCcw3270Class, EMULATED_CCW_32
 
 struct EmulatedCcw3270Device {
     CcwDevice parent_obj;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct EmulatedCcw3270Class {

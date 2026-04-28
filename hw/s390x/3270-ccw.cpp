@@ -17,6 +17,7 @@
 #include "hw/s390x/css-bridge.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/3270-ccw.h"
+#include "qom/cpp/object.h"
 
 /* Handle READ ccw commands from guest */
 static int handle_payload_3270_read(EmulatedCcw3270Device *dev, CCW1 *ccw)
@@ -62,7 +63,7 @@ static int handle_payload_3270_write(EmulatedCcw3270Device *dev, CCW1 *ccw)
 static int emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
 {
     int rc = 0;
-    EmulatedCcw3270Device *dev = sch->driver_data;
+    EmulatedCcw3270Device *dev = static_cast<EmulatedCcw3270Device *>(sch->driver_data);
 
     switch (ccw.cmd_code) {
     case TC_WRITESF:
@@ -150,27 +151,12 @@ out_err:
     g_free(sch);
 }
 
-static void emulated_ccw_3270_class_init(ObjectClass *klass, const void *data)
+void EmulatedCcw3270Device::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = emulated_ccw_3270_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo emulated_ccw_3270_info = {
-    .name = TYPE_EMULATED_CCW_3270,
-    .parent = TYPE_CCW_DEVICE,
-    .instance_size = sizeof(EmulatedCcw3270Device),
-    .class_init = emulated_ccw_3270_class_init,
-    .class_size = sizeof(EmulatedCcw3270Class),
-    .is_abstract = true,
-};
-
-static void emulated_ccw_register(void)
-{
-    type_register_static(&emulated_ccw_3270_info);
-}
-
-type_init(emulated_ccw_register)
+REGISTER_QEMU_DEVICE_ABSTRACT(EmulatedCcw3270Device, EmulatedCcw3270Class,
+                              TYPE_EMULATED_CCW_3270, TYPE_CCW_DEVICE)

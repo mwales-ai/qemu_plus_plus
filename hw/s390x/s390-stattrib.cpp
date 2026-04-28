@@ -20,6 +20,7 @@
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "cpu.h"
+#include "qom/cpp/object.h"
 
 /* 512KiB cover 2GB of guest memory */
 #define CMMA_BLOCK_SIZE  (512 * KiB)
@@ -275,10 +276,6 @@ static bool cmma_active(void *opaque)
 
 /* QEMU object: */
 
-static void qemu_s390_stattrib_instance_init(Object *obj)
-{
-}
-
 static int qemu_s390_peek_stattr_stub(S390StAttribState *sa, uint64_t start_gfn,
                                      uint32_t count, uint8_t *values)
 {
@@ -307,10 +304,10 @@ static int qemu_s390_get_active(S390StAttribState *sa)
     return true;
 }
 
-static void qemu_s390_stattrib_class_init(ObjectClass *oc, const void *data)
+void QEMUS390StAttribState::classInit(DeviceClass *dc)
 {
+    ObjectClass *oc = OBJECT_CLASS(dc);
     S390StAttribClass *sa_cl = S390_STATTRIB_CLASS(oc);
-    DeviceClass *dc = DEVICE_CLASS(oc);
 
     sa_cl->synchronize = qemu_s390_synchronize_stub;
     sa_cl->get_stattr = qemu_s390_get_stattr_stub;
@@ -323,15 +320,6 @@ static void qemu_s390_stattrib_class_init(ObjectClass *oc, const void *data)
     /* Reason: Can only be instantiated one time (internally) */
     dc->user_creatable = false;
 }
-
-static const TypeInfo qemu_s390_stattrib_info = {
-    .name          = TYPE_QEMU_S390_STATTRIB,
-    .parent        = TYPE_S390_STATTRIB,
-    .instance_init = qemu_s390_stattrib_instance_init,
-    .instance_size = sizeof(QEMUS390StAttribState),
-    .class_init    = qemu_s390_stattrib_class_init,
-    .class_size    = sizeof(S390StAttribClass),
-};
 
 /* Generic abstract object: */
 
@@ -360,36 +348,15 @@ static void s390_stattrib_realize(DeviceState *dev, Error **errp)
                          &savevm_s390_stattrib_handlers, dev);
 }
 
-static void s390_stattrib_class_init(ObjectClass *oc, const void *data)
+void S390StAttribState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = s390_stattrib_realize;
 }
 
-static void s390_stattrib_instance_init(Object *obj)
-{
-    S390StAttribState *sas = S390_STATTRIB(obj);
+REGISTER_QEMU_DEVICE_ABSTRACT(S390StAttribState, S390StAttribClass,
+                              TYPE_S390_STATTRIB, TYPE_DEVICE)
 
-    sas->migration_cur_gfn = 0;
-}
-
-static const TypeInfo s390_stattrib_info = {
-    .name          = TYPE_S390_STATTRIB,
-    .parent        = TYPE_DEVICE,
-    .instance_init = s390_stattrib_instance_init,
-    .instance_size = sizeof(S390StAttribState),
-    .class_init    = s390_stattrib_class_init,
-    .class_size    = sizeof(S390StAttribClass),
-    .is_abstract      = true,
-};
-
-static void s390_stattrib_register_types(void)
-{
-    type_register_static(&s390_stattrib_info);
-    type_register_static(&qemu_s390_stattrib_info);
-}
-
-type_init(s390_stattrib_register_types)
+REGISTER_QEMU_DEVICE_CLASS_SIZE(QEMUS390StAttribState, S390StAttribClass,
+                                TYPE_QEMU_S390_STATTRIB, TYPE_S390_STATTRIB)

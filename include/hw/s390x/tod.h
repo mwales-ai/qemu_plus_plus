@@ -36,6 +36,10 @@ struct S390TODState {
     S390TOD base;
     /* Used by KVM to remember if the TOD is stopped and base is valid. */
     bool stopped;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct S390TODClass {

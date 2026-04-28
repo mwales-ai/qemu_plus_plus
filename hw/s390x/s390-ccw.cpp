@@ -19,10 +19,11 @@
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-ccw.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
 {
-    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(static_cast<S390CCWDevice *>(sch->driver_data));
 
     if (!cdc->handle_request) {
         return IOINST_CC_STATUS_PRESENT;
@@ -32,7 +33,7 @@ IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
 
 int s390_ccw_halt(SubchDev *sch)
 {
-    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(static_cast<S390CCWDevice *>(sch->driver_data));
 
     if (!cdc->handle_halt) {
         return -ENOSYS;
@@ -42,7 +43,7 @@ int s390_ccw_halt(SubchDev *sch)
 
 int s390_ccw_clear(SubchDev *sch)
 {
-    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(static_cast<S390CCWDevice *>(sch->driver_data));
 
     if (!cdc->handle_clear) {
         return -ENOSYS;
@@ -53,7 +54,7 @@ int s390_ccw_clear(SubchDev *sch)
 IOInstEnding s390_ccw_store(SubchDev *sch)
 {
     S390CCWDeviceClass *cdc = NULL;
-    int ret = IOINST_CC_EXPECTED;
+    IOInstEnding ret = IOINST_CC_EXPECTED;
 
     /*
      * This code is called for both virtual and passthrough devices,
@@ -61,7 +62,7 @@ IOInstEnding s390_ccw_store(SubchDev *sch)
      * distinction for us.
      */
     if (object_dynamic_cast(OBJECT(sch->driver_data), TYPE_S390_CCW)) {
-        cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+        cdc = S390_CCW_DEVICE_GET_CLASS(static_cast<S390CCWDevice *>(sch->driver_data));
     }
 
     if (cdc && cdc->handle_store) {
@@ -167,35 +168,21 @@ static void s390_ccw_unrealize(S390CCWDevice *cdev)
     g_free(cdev->mdevid);
 }
 
-static void s390_ccw_instance_init(Object *obj)
+void S390CCWDevice::init()
 {
-    S390CCWDevice *dev = S390_CCW_DEVICE(obj);
-
-    device_add_bootindex_property(obj, &dev->bootindex, "bootindex",
+    Object *obj = OBJECT(this);
+    device_add_bootindex_property(obj, &bootindex, "bootindex",
                                   "/disk@0,0", DEVICE(obj));
 }
 
-static void s390_ccw_class_init(ObjectClass *klass, const void *data)
+void S390CCWDevice::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = OBJECT_CLASS(dc);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_CLASS(klass);
 
     cdc->realize = s390_ccw_realize;
     cdc->unrealize = s390_ccw_unrealize;
 }
 
-static const TypeInfo s390_ccw_info = {
-    .name          = TYPE_S390_CCW,
-    .parent        = TYPE_CCW_DEVICE,
-    .instance_init = s390_ccw_instance_init,
-    .instance_size = sizeof(S390CCWDevice),
-    .class_size    = sizeof(S390CCWDeviceClass),
-    .class_init    = s390_ccw_class_init,
-    .is_abstract      = true,
-};
-
-static void register_s390_ccw_type(void)
-{
-    type_register_static(&s390_ccw_info);
-}
-
-type_init(register_s390_ccw_type)
+REGISTER_QEMU_DEVICE_ABSTRACT(S390CCWDevice, S390CCWDeviceClass,
+                              TYPE_S390_CCW, TYPE_CCW_DEVICE)
