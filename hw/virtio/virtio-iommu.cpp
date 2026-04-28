@@ -1528,7 +1528,7 @@ static int virtio_iommu_set_status(VirtIODevice *vdev, uint8_t status)
     return 0;
 }
 
-static void virtio_iommu_instance_init(Object *obj)
+void VirtIOIOMMU::init()
 {
 }
 
@@ -1675,9 +1675,9 @@ static const Property virtio_iommu_properties[] = {
     DEFINE_PROP_UINT8("aw-bits", VirtIOIOMMU, aw_bits, 64),
 };
 
-static void virtio_iommu_class_init(ObjectClass *klass, const void *data)
+void VirtIOIOMMU::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
@@ -1710,24 +1710,15 @@ static void virtio_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->notify_flag_changed = virtio_iommu_notify_flag_changed;
 }
 
-static const TypeInfo virtio_iommu_info = {
-    .name = TYPE_VIRTIO_IOMMU,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOIOMMU),
-    .instance_init = virtio_iommu_instance_init,
-    .class_init = virtio_iommu_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIOIOMMU, TYPE_VIRTIO_IOMMU, TYPE_VIRTIO_DEVICE)
 
-static const TypeInfo virtio_iommu_memory_region_info = {
-    .name = TYPE_VIRTIO_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = virtio_iommu_memory_region_class_init,
-};
-
-static void virtio_register_types(void)
+static void __attribute__((constructor)) register_virtio_iommu_memory_region(void)
 {
-    type_register_static(&virtio_iommu_info);
+    static const TypeInfo virtio_iommu_memory_region_info = {
+        .name = TYPE_VIRTIO_IOMMU_MEMORY_REGION,
+        .parent = TYPE_IOMMU_MEMORY_REGION,
+        .class_init = virtio_iommu_memory_region_class_init,
+    };
     type_register_static(&virtio_iommu_memory_region_info);
 }
-
-type_init(virtio_register_types)

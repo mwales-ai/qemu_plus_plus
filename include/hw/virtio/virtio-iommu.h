@@ -70,6 +70,11 @@ struct VirtIOIOMMU {
     bool granule_frozen;
     GranuleMode granule_mode;
     uint8_t aw_bits;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
