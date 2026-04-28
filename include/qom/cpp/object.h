@@ -435,11 +435,13 @@ type_init(ClassName##_cpp_register_types)
 static void ClassName##_cpp_register_types(void)                             \
 {                                                                            \
     static const TypeInfo info = {                                           \
-        .name           = type_name_str,                                     \
-        .parent         = parent_type_str,                                   \
-        .instance_size  = sizeof(ClassName),                                 \
-        .is_abstract    = true,                                              \
-        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \
@@ -456,12 +458,14 @@ type_init(ClassName##_cpp_register_types)
 static void ClassName##_cpp_register_types(void)                             \
 {                                                                            \
     static const TypeInfo info = {                                           \
-        .name           = type_name_str,                                     \
-        .parent         = parent_type_str,                                   \
-        .instance_size  = sizeof(ClassName),                                 \
-        .is_abstract    = true,                                              \
-        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
-        .interfaces     = ifaces_array,                                      \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .interfaces        = ifaces_array,                                   \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \
@@ -532,13 +536,15 @@ type_init(ClassName##_cpp_register_types)
 static void ClassName##_cpp_register_types(void)                             \
 {                                                                            \
     static const TypeInfo info = {                                           \
-        .name           = type_name_str,                                     \
-        .parent         = parent_type_str,                                   \
-        .instance_size  = sizeof(ClassName),                                 \
-        .is_abstract    = true,                                              \
-        .class_size     = sizeof(ClassStruct),                               \
-        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
-        .interfaces     = ifaces_array,                                      \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .interfaces        = ifaces_array,                                   \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \
@@ -560,12 +566,14 @@ type_init(ClassName##_cpp_register_types)
 static void ClassName##_cpp_register_types(void)                             \
 {                                                                            \
     static const TypeInfo info = {                                           \
-        .name           = type_name_str,                                     \
-        .parent         = parent_type_str,                                   \
-        .instance_size  = sizeof(ClassName),                                 \
-        .is_abstract    = true,                                              \
-        .class_size     = sizeof(ClassStruct),                               \
-        .class_init     = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \

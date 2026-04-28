@@ -508,11 +508,9 @@ static void arm_gicv3_common_realize(DeviceState *dev, Error **errp)
     s->itslist = g_ptr_array_new();
 }
 
-static void arm_gicv3_finalize(Object *obj)
+void GICv3State::finalize()
 {
-    GICv3State *s = ARM_GICV3_COMMON(obj);
-
-    g_free(s->redist_region_count);
+    g_free(redist_region_count);
 }
 
 static void arm_gicv3_common_reset_hold(Object *obj, ResetType type)
@@ -658,9 +656,9 @@ static void arm_gicv3_common_class_init_impl(DeviceClass *dc)
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
-static void arm_gicv3_common_class_init(ObjectClass *klass, const void *data)
+void GICv3State::classInit(DeviceClass *dc)
 {
-    arm_gicv3_common_class_init_impl(DEVICE_CLASS(klass));
+    arm_gicv3_common_class_init_impl(dc);
 }
 
 static const InterfaceInfo arm_gicv3_common_interfaces[] = {
@@ -668,22 +666,10 @@ static const InterfaceInfo arm_gicv3_common_interfaces[] = {
     { },
 };
 
-static void arm_gicv3_common_register_types(void)
-{
-    static const TypeInfo info = {
-        .name              = TYPE_ARM_GICV3_COMMON,
-        .parent            = TYPE_SYS_BUS_DEVICE,
-        .instance_size     = sizeof(GICv3State),
-        .instance_finalize = arm_gicv3_finalize,
-        .is_abstract       = true,
-        .class_size        = sizeof(ARMGICv3CommonClass),
-        .class_init        = arm_gicv3_common_class_init,
-        .interfaces        = arm_gicv3_common_interfaces,
-    };
-    type_register_static(&info);
-}
-
-type_init(arm_gicv3_common_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(GICv3State, ARMGICv3CommonClass,
+                                      TYPE_ARM_GICV3_COMMON, TYPE_SYS_BUS_DEVICE,
+                                      arm_gicv3_common_interfaces)
 
 const char *gicv3_class_name(void)
 {

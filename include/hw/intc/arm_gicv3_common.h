@@ -288,6 +288,7 @@ struct GICv3State {
     void update(int start, int len);
     void fullUpdateNoirqset();
     void fullUpdate();
+    void finalize();
     static void classInit(DeviceClass *dc);
 #endif
 };
