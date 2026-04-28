@@ -253,25 +253,12 @@ static const Property pci_host_properties_common[] = {
     DEFINE_PROP_BOOL(PCI_HOST_BYPASS_IOMMU, PCIHostState, bypass_iommu, false),
 };
 
-static void pci_host_class_init(ObjectClass *klass, const void *data)
+void PCIHostState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, pci_host_properties_common);
     dc->vmsd = &vmstate_pcihost;
 }
 
-static const TypeInfo pci_host_type_info = {
-    .name = TYPE_PCI_HOST_BRIDGE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PCIHostState),
-    .is_abstract = true,
-    .class_size = sizeof(PCIHostBridgeClass),
-    .class_init = pci_host_class_init,
-};
-
-static void pci_host_register_types(void)
-{
-    type_register_static(&pci_host_type_info);
-}
-
-type_init(pci_host_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(PCIHostState, PCIHostBridgeClass,
+                               TYPE_PCI_HOST_BRIDGE, TYPE_SYS_BUS_DEVICE)

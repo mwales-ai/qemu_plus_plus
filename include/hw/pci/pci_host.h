@@ -52,6 +52,10 @@ struct PCIHostState {
     bool bypass_iommu;
 
     QLIST_ENTRY(PCIHostState) next;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct PCIHostBridgeClass {

@@ -151,25 +151,15 @@ static void gicv3_its_common_class_init_impl(DeviceClass *dc)
     dc->vmsd = &vmstate_its;
 }
 
-static void gicv3_its_common_class_init(ObjectClass *klass, const void *data)
+void GICv3ITSState::classInit(DeviceClass *dc)
 {
-    gicv3_its_common_class_init_impl(DEVICE_CLASS(klass));
+    gicv3_its_common_class_init_impl(dc);
 }
 
-static void gicv3_its_common_register_types(void)
-{
-    static const TypeInfo info = {
-        .name       = TYPE_ARM_GICV3_ITS_COMMON,
-        .parent     = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(GICv3ITSState),
-        .is_abstract = true,
-        .class_size = sizeof(GICv3ITSCommonClass),
-        .class_init = gicv3_its_common_class_init,
-    };
-    type_register_static(&info);
-}
-
-type_init(gicv3_its_common_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(GICv3ITSState, GICv3ITSCommonClass,
+                               TYPE_ARM_GICV3_ITS_COMMON,
+                               TYPE_SYS_BUS_DEVICE)
 
 extern "C"
 const char *its_class_name(void)

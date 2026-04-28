@@ -86,6 +86,10 @@ struct PCIBridge {
 
     /* SLT is RO for PCIE to PCIE bridges, but old QEMU versions had it RW */
     bool pcie_writeable_slt_bug;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define PCI_BRIDGE_DEV_PROP_CHASSIS_NR "chassis_nr"

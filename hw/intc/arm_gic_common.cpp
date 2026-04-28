@@ -384,9 +384,9 @@ static void arm_gic_common_class_init_impl(DeviceClass *dc)
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
-static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
+void GICState::classInit(DeviceClass *dc)
 {
-    arm_gic_common_class_init_impl(DEVICE_CLASS(klass));
+    arm_gic_common_class_init_impl(dc);
 }
 
 static const InterfaceInfo arm_gic_common_interfaces[] = {
@@ -394,21 +394,11 @@ static const InterfaceInfo arm_gic_common_interfaces[] = {
     { },
 };
 
-static void arm_gic_common_register_types(void)
-{
-    static const TypeInfo info = {
-        .name       = TYPE_ARM_GIC_COMMON,
-        .parent     = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(GICState),
-        .is_abstract = true,
-        .class_size = sizeof(ARMGICCommonClass),
-        .class_init = arm_gic_common_class_init,
-        .interfaces = arm_gic_common_interfaces,
-    };
-    type_register_static(&info);
-}
-
-type_init(arm_gic_common_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(GICState, ARMGICCommonClass,
+                                      TYPE_ARM_GIC_COMMON,
+                                      TYPE_SYS_BUS_DEVICE,
+                                      arm_gic_common_interfaces)
 
 const char *gic_class_name(void)
 {

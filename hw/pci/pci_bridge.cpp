@@ -482,12 +482,12 @@ static const Property pci_bridge_properties[] = {
                      pcie_writeable_slt_bug, false),
 };
 
-static void pci_bridge_class_init(ObjectClass *klass, const void *data)
+void PCIBridge::classInit(DeviceClass *dc)
 {
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
-    DeviceClass *k = DEVICE_CLASS(klass);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
-    device_class_set_props(k, pci_bridge_properties);
+    device_class_set_props(dc, pci_bridge_properties);
     adevc->build_dev_aml = build_pci_bridge_aml;
 }
 
@@ -496,18 +496,7 @@ static const InterfaceInfo pci_bridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo pci_bridge_type_info = {
-    .name = TYPE_PCI_BRIDGE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIBridge),
-    .is_abstract = true,
-    .class_init = pci_bridge_class_init,
-    .interfaces = pci_bridge_interfaces,
-};
-
-static void pci_bridge_register_types(void)
-{
-    type_register_static(&pci_bridge_type_info);
-}
-
-type_init(pci_bridge_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(PCIBridge, TYPE_PCI_BRIDGE,
+                                            TYPE_PCI_DEVICE,
+                                            pci_bridge_interfaces)
