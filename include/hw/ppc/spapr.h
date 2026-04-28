@@ -290,6 +290,8 @@ struct SpaprMachineState {
 
 #ifdef __cplusplus
     /* C++ methods */
+    void init();
+    void finalize();
     static void classInit(ObjectClass *oc, const void *data);
 #endif
 };

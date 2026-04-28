@@ -3528,6 +3528,16 @@ static void spapr_machine_finalizefn(Object *obj)
     g_free(spapr->kvm_type);
 }
 
+void SpaprMachineState::init()
+{
+    spapr_instance_init(OBJECT(this));
+}
+
+void SpaprMachineState::finalize()
+{
+    spapr_machine_finalizefn(OBJECT(this));
+}
+
 void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
@@ -4724,17 +4734,6 @@ static const InterfaceInfo spapr_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo spapr_machine_info = {
-    .name          = TYPE_SPAPR_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(SpaprMachineState),
-    .instance_init = spapr_instance_init,
-    .instance_finalize = spapr_machine_finalizefn,
-    .is_abstract   = true,
-    .class_size    = sizeof(SpaprMachineClass),
-    .class_init    = SpaprMachineState::classInit,
-    .interfaces    = spapr_machine_interfaces,
-};
 
 static void spapr_machine_latest_class_options(MachineClass *mc)
 {
@@ -4991,9 +4990,8 @@ static void spapr_machine_5_0_class_options(MachineClass *mc)
 
 DEFINE_SPAPR_MACHINE(5, 0);
 
-static void spapr_machine_register_types(void)
-{
-    type_register_static(&spapr_machine_info);
-}
-
-type_init(spapr_machine_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_MACHINE_ABSTRACT_IFACES(SpaprMachineState, SpaprMachineClass,
+                                       TYPE_SPAPR_MACHINE, TYPE_MACHINE,
+                                       SpaprMachineState::classInit,
+                                       spapr_machine_interfaces)

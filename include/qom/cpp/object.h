@@ -581,6 +581,62 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_MACHINE_ABSTRACT: register an abstract MachineClass-rooted type.
+ * Many SoC/board machine families share a base class (e.g.
+ * SpaprMachineClass) with subclasses for individual machine versions.
+ *
+ * Wires init()/finalize() via SFINAE; class_init is a user-supplied free
+ * function with `(ObjectClass *, const void *)` signature since machines
+ * extend MachineClass not DeviceClass.
+ */
+#define REGISTER_QEMU_MACHINE_ABSTRACT(ClassName, ClassStruct,               \
+                                        type_name_str, parent_type_str,      \
+                                        class_init_fn)                       \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_MACHINE_ABSTRACT_IFACES: like the abstract machine variant
+ * but with InterfaceInfo array.
+ */
+#define REGISTER_QEMU_MACHINE_ABSTRACT_IFACES(ClassName, ClassStruct,        \
+                                               type_name_str,                \
+                                               parent_type_str,              \
+                                               class_init_fn,                \
+                                               ifaces_array)                 \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+        .interfaces        = ifaces_array,                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT: register a QOM type rooted at TYPE_OBJECT (or any
  * non-Device, non-Bus, non-Interface base). For things like Clock, IRQState,
  * RemoteObject — types that aren't devices but live in the QOM hierarchy.
