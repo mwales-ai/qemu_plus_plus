@@ -204,29 +204,23 @@ void PIIX3IDE::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE(PIIX3IDE, TYPE_PIIX3_IDE, TYPE_PCI_IDE)
 
 /* NOTE: for the PIIX4, the IRQs and IOports are hardcoded */
-static void piix4_ide_class_init(ObjectClass *klass, const void *data)
+struct PIIX4IDE : PCIIDEState
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    static void classInit(DeviceClass *dc)
+    {
+        ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, piix_ide_reset);
-    dc->vmsd = &vmstate_ide_pci;
-    k->realize = pci_piix_ide_realize;
-    k->exit = pci_piix_ide_exitfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371AB;
-    k->class_id = PCI_CLASS_STORAGE_IDE;
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    dc->hotpluggable = false;
-}
+        device_class_set_legacy_reset(dc, piix_ide_reset);
+        dc->vmsd = &vmstate_ide_pci;
+        k->realize = pci_piix_ide_realize;
+        k->exit = pci_piix_ide_exitfn;
+        k->vendor_id = PCI_VENDOR_ID_INTEL;
+        k->device_id = PCI_DEVICE_ID_INTEL_82371AB;
+        k->class_id = PCI_CLASS_STORAGE_IDE;
+        set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+        dc->hotpluggable = false;
+    }
+};
 
-static void piix4_ide_register(void) __attribute__((constructor));
-static void piix4_ide_register(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_PIIX4_IDE,
-        .parent        = TYPE_PCI_IDE,
-        .class_init    = piix4_ide_class_init,
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_DEVICE(PIIX4IDE, TYPE_PIIX4_IDE, TYPE_PCI_IDE)

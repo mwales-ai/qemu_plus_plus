@@ -414,22 +414,5 @@ static void __attribute__((constructor)) allwinner_wdt_subtypes_register(void)
 }
 
 #include "qom/cpp/object.h"
-/*
- * allwinner_wdt abstract base has instance_init + class_init; use manual
- * registration with trampolines to wire the init() member.
- */
-static void AwWdtState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_AW_WDT,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AwWdtState),
-        .instance_init = qemu_device_detail::trampoline_init<AwWdtState>,
-        .is_abstract   = true,
-        .class_size    = sizeof(AwWdtClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AwWdtState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AwWdtState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(AwWdtState, AwWdtClass, TYPE_AW_WDT,
+                              TYPE_SYS_BUS_DEVICE)

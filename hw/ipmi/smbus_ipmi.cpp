@@ -298,23 +298,25 @@ static int ipmi_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
     return ret;
 }
 
+static const VMStateField vmstate_smbus_ipmi_fields[] = {
+    VMSTATE_SMBUS_DEVICE(parent, SMBusIPMIDevice),
+    VMSTATE_UINT8(waiting_rsp, SMBusIPMIDevice),
+    VMSTATE_UINT32(outlen, SMBusIPMIDevice),
+    VMSTATE_UINT32(currblk, SMBusIPMIDevice),
+    VMSTATE_UINT8_ARRAY(outmsg, SMBusIPMIDevice, MAX_SSIF_IPMI_MSG_SIZE),
+    VMSTATE_UINT32(outpos, SMBusIPMIDevice),
+    VMSTATE_UINT8_ARRAY(outbuf, SMBusIPMIDevice,
+                        MAX_SSIF_IPMI_MSG_CHUNK + 1),
+    VMSTATE_UINT32(inlen, SMBusIPMIDevice),
+    VMSTATE_UINT8_ARRAY(inmsg, SMBusIPMIDevice, MAX_SSIF_IPMI_MSG_SIZE),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_smbus_ipmi = {
     .name = TYPE_SMBUS_IPMI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SMBUS_DEVICE(parent, SMBusIPMIDevice),
-        VMSTATE_UINT8(waiting_rsp, SMBusIPMIDevice),
-        VMSTATE_UINT32(outlen, SMBusIPMIDevice),
-        VMSTATE_UINT32(currblk, SMBusIPMIDevice),
-        VMSTATE_UINT8_ARRAY(outmsg, SMBusIPMIDevice, MAX_SSIF_IPMI_MSG_SIZE),
-        VMSTATE_UINT32(outpos, SMBusIPMIDevice),
-        VMSTATE_UINT8_ARRAY(outbuf, SMBusIPMIDevice,
-                            MAX_SSIF_IPMI_MSG_CHUNK + 1),
-        VMSTATE_UINT32(inlen, SMBusIPMIDevice),
-        VMSTATE_UINT8_ARRAY(inmsg, SMBusIPMIDevice, MAX_SSIF_IPMI_MSG_SIZE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_smbus_ipmi_fields,
 };
 
 static void smbus_ipmi_realize(DeviceState *dev, Error **errp)
