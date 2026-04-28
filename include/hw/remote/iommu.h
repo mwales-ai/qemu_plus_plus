@@ -35,6 +35,11 @@ struct RemoteIommu {
     GHashTable *elem_by_devfn;
 
     QemuMutex lock;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 void remote_iommu_setup(PCIBus *pci_bus);

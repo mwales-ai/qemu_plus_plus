@@ -110,6 +110,10 @@ struct RegisterInfoArray {
 
     bool debug;
     const char *prefix;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 /**

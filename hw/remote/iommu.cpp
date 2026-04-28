@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 
+#include "qom/cpp/object.h"
 #include "hw/remote/iommu.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci.h"
@@ -80,24 +81,17 @@ extern "C" void remote_iommu_unplug_dev(PCIDevice *pci_dev)
     elem->mr = NULL;
 }
 
-static void remote_iommu_init(Object *obj)
+void RemoteIommu::init()
 {
-    RemoteIommu *iommu = REMOTE_IOMMU(obj);
-
-    iommu->elem_by_devfn = g_hash_table_new_full(NULL, NULL, NULL, g_free);
-
-    qemu_mutex_init(&iommu->lock);
+    elem_by_devfn = g_hash_table_new_full(NULL, NULL, NULL, g_free);
+    qemu_mutex_init(&lock);
 }
 
-static void remote_iommu_finalize(Object *obj)
+void RemoteIommu::finalize()
 {
-    RemoteIommu *iommu = REMOTE_IOMMU(obj);
-
-    qemu_mutex_destroy(&iommu->lock);
-
-    g_hash_table_destroy(iommu->elem_by_devfn);
-
-    iommu->elem_by_devfn = NULL;
+    qemu_mutex_destroy(&lock);
+    g_hash_table_destroy(elem_by_devfn);
+    elem_by_devfn = NULL;
 }
 
 static const PCIIOMMUOps remote_iommu_ops = {
@@ -119,17 +113,4 @@ extern "C" void remote_iommu_setup(PCIBus *pci_bus)
     object_unref(OBJECT(iommu));
 }
 
-static const TypeInfo remote_iommu_info = {
-    .name = TYPE_REMOTE_IOMMU,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(RemoteIommu),
-    .instance_init = remote_iommu_init,
-    .instance_finalize = remote_iommu_finalize,
-};
-
-static void remote_iommu_register_types(void)
-{
-    type_register_static(&remote_iommu_info);
-}
-
-type_init(remote_iommu_register_types)
+REGISTER_QEMU_OBJECT(RemoteIommu, TYPE_REMOTE_IOMMU, TYPE_OBJECT)

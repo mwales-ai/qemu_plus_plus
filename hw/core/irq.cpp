@@ -26,6 +26,8 @@
 #include <liburing.h>
 #endif
 
+#include "qom/cpp/object.h"
+
 extern "C" {
 #include "qemu/main-loop.h"
 #include "hw/irq.h"
@@ -137,17 +139,6 @@ void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n)
     }
 }
 
-static const TypeInfo irq_type_info = {
-   .name = TYPE_IRQ,
-   .parent = TYPE_OBJECT,
-   .instance_size = sizeof(IRQState),
-};
-
-static void irq_register_types(void)
-{
-    type_register_static(&irq_type_info);
-}
-
-type_init(irq_register_types)
-
 } /* extern "C" */
+
+REGISTER_QEMU_OBJECT(IRQState, TYPE_IRQ, TYPE_OBJECT)

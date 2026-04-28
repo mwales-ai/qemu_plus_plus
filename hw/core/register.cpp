@@ -20,6 +20,8 @@
 #include <liburing.h>
 #endif
 
+#include "qom/cpp/object.h"
+
 extern "C" {
 #include "hw/register.h"
 #include "qemu/log.h"
@@ -320,25 +322,11 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                data, ops, debug_enabled, memory_size, 64);
 }
 
-static void register_array_finalize(Object *obj)
-{
-    RegisterInfoArray *r_array = REGISTER_ARRAY(obj);
-
-    g_free(r_array->r);
-}
-
-static const TypeInfo register_array_info = {
-    .name  = TYPE_REGISTER_ARRAY,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(RegisterInfoArray),
-    .instance_finalize = register_array_finalize,
-};
-
-static void register_register_types(void)
-{
-    type_register_static(&register_array_info);
-}
-
-type_init(register_register_types)
-
 } /* extern "C" */
+
+void RegisterInfoArray::finalize()
+{
+    g_free(r);
+}
+
+REGISTER_QEMU_OBJECT(RegisterInfoArray, TYPE_REGISTER_ARRAY, TYPE_OBJECT)
