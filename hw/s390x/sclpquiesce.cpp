@@ -134,17 +134,7 @@ static void quiesce_class_init(ObjectClass *klass, const void *data)
     k->write_event_data = NULL;
 }
 
-static const TypeInfo sclp_quiesce_info = {
-    .name          = TYPE_SCLP_QUIESCE,
-    .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPEvent),
-    .class_init    = quiesce_class_init,
-    .class_size    = sizeof(SCLPEventClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&sclp_quiesce_info);
-}
-
-type_init(register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(SCLPEvent, SCLPEventClass,
+                               TYPE_SCLP_QUIESCE, TYPE_SCLP_EVENT,
+                               quiesce_class_init)

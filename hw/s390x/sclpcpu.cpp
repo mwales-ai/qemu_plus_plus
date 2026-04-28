@@ -90,17 +90,7 @@ static void sclp_cpu_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo sclp_cpu_info = {
-    .name          = TYPE_SCLP_CPU_HOTPLUG,
-    .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPEvent),
-    .class_init    = sclp_cpu_class_init,
-    .class_size    = sizeof(SCLPEventClass),
-};
-
-static void sclp_cpu_register_types(void)
-{
-    type_register_static(&sclp_cpu_info);
-}
-
-type_init(sclp_cpu_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(SCLPEvent, SCLPEventClass,
+                               TYPE_SCLP_CPU_HOTPLUG, TYPE_SCLP_EVENT,
+                               sclp_cpu_class_init)
