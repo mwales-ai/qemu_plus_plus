@@ -132,6 +132,7 @@ struct USBSerialState {
     static void devClassInit(ObjectClass *klass, const void *data);
     static void serialClassInit(ObjectClass *klass, const void *data);
     static void brailleClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
@@ -683,13 +684,10 @@ void USBSerialState::devClassInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo usb_serial_dev_type_info = {
-    .name = TYPE_USB_SERIAL,
-    .parent = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBSerialState),
-    .is_abstract = true,
-    .class_init = USBSerialState::devClassInit,
-};
+void USBSerialState::classInit(DeviceClass *dc)
+{
+    devClassInit(reinterpret_cast<ObjectClass *>(dc), nullptr);
+}
 
 void USBSerialState::serialClassInit(ObjectClass *klass, const void *data)
 {
@@ -729,10 +727,14 @@ static const TypeInfo braille_info = {
 
 static void usb_serial_register_types(void)
 {
-    type_register_static(&usb_serial_dev_type_info);
     type_register_static(&serial_info);
     type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }
 
 type_init(usb_serial_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(USBSerialState, TYPE_USB_SERIAL,
+                                     TYPE_USB_DEVICE)

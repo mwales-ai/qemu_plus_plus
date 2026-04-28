@@ -359,7 +359,6 @@ struct USBCCIDState {
     static void handleData(USBDevice *dev, USBPacket *p);
     static void unrealize(USBDevice *dev);
     static void classInit(DeviceClass *dc);
-    static void ccidCardClassInit(ObjectClass *klass, const void *data);
     static int postLoad(void *opaque, int version_id);
     static int preSave(void *opaque);
 };
@@ -1523,32 +1522,18 @@ static const InterfaceInfo ccid_interfaces[] = {
     { }
 };
 
-void USBCCIDState::ccidCardClassInit(ObjectClass *klass, const void *data)
+void CCIDCardState::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
-    k->bus_type = TYPE_CCID_BUS;
-    k->realize = ccid_card_realize;
-    k->unrealize = ccid_card_unrealize;
-    device_class_set_props(k, ccid_props);
+    dc->bus_type = TYPE_CCID_BUS;
+    dc->realize = ccid_card_realize;
+    dc->unrealize = ccid_card_unrealize;
+    device_class_set_props(dc, ccid_props);
 }
-
-static const TypeInfo ccid_card_type_info = {
-    .name = TYPE_CCID_CARD,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(CCIDCardState),
-    .is_abstract = true,
-    .class_size = sizeof(CCIDCardClass),
-    .class_init = USBCCIDState::ccidCardClassInit,
-};
-
-static void ccid_register_types(void)
-{
-    type_register_static(&ccid_card_type_info);
-}
-
-type_init(ccid_register_types)
 
 REGISTER_QEMU_BUS(CCIDBus, TYPE_CCID_BUS)
+
+REGISTER_QEMU_DEVICE_ABSTRACT(CCIDCardState, CCIDCardClass, TYPE_CCID_CARD,
+                               TYPE_DEVICE)
 
 REGISTER_QEMU_DEVICE_IFACES(USBCCIDState, TYPE_USB_CCID_DEV, TYPE_USB_DEVICE,
                              ccid_interfaces)

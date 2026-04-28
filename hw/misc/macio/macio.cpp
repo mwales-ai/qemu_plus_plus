@@ -361,18 +361,18 @@ static void macio_newworld_init(Object *obj)
     }
 }
 
-static void macio_instance_init(Object *obj)
+void MacIOState::init()
 {
-    MacIOState *s = MACIO(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    memory_region_init(&s->bar, obj, "macio", 0x80000);
+    memory_region_init(&bar, obj, "macio", 0x80000);
 
-    qbus_init(&s->macio_bus, sizeof(s->macio_bus), TYPE_MACIO_BUS,
+    qbus_init(&macio_bus, sizeof(macio_bus), TYPE_MACIO_BUS,
               DEVICE(obj), "macio.0");
 
-    object_initialize_child(obj, "dbdma", &s->dbdma, TYPE_MAC_DBDMA);
+    object_initialize_child(obj, "dbdma", &dbdma, TYPE_MAC_DBDMA);
 
-    object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
+    object_initialize_child(obj, "escc", &escc, TYPE_ESCC);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
@@ -425,10 +425,10 @@ static const Property macio_properties[] = {
     DEFINE_PROP_UINT64("frequency", MacIOState, frequency, 0),
 };
 
-static void macio_class_init(ObjectClass *klass, const void *data)
+void MacIOState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->class_id = PCI_CLASS_OTHERS << 8;
@@ -458,25 +458,22 @@ static const TypeInfo macio_newworld_type_info = {
     .class_init    = macio_newworld_class_init,
 };
 
-static const TypeInfo macio_type_info = {
-    .name          = TYPE_MACIO,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MacIOState),
-    .instance_init = macio_instance_init,
-    .is_abstract      = true,
-    .class_init    = macio_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
 static void macio_register_types(void)
 {
     type_register_static(&macio_bus_info);
-    type_register_static(&macio_type_info);
     type_register_static(&macio_oldworld_type_info);
     type_register_static(&macio_newworld_type_info);
 }
 
 type_init(macio_register_types)
+
+#include "qom/cpp/object.h"
+
+static const InterfaceInfo macio_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(MacIOState, TYPE_MACIO,
+                                            TYPE_PCI_DEVICE,
+                                            macio_interfaces)

@@ -44,6 +44,10 @@ struct CCIDCardClass {
 struct CCIDCardState {
     DeviceState qdev;
     uint32_t    slot; /* For future use with multiple slot reader. */
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /*

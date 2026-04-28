@@ -1888,19 +1888,10 @@ static void m25p80_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Serial Flash";
 }
 
-static const TypeInfo m25p80_info = {
-    .name           = TYPE_M25P80,
-    .parent         = TYPE_SSI_PERIPHERAL,
-    .instance_size  = sizeof(Flash),
-    .is_abstract    = true,
-    .class_size     = sizeof(M25P80Class),
-};
-
-static void m25p80_register_types(void)
+static void m25p80_register_concretes(void)
 {
     size_t i;
 
-    type_register_static(&m25p80_info);
     for (i = 0; i < ARRAY_SIZE(known_devices); ++i) {
         const TypeInfo ti = {
             .name       = known_devices[i].part_name,
@@ -1912,7 +1903,11 @@ static void m25p80_register_types(void)
     }
 }
 
-type_init(m25p80_register_types)
+type_init(m25p80_register_concretes)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT(Flash, M25P80Class, TYPE_M25P80, TYPE_SSI_PERIPHERAL)
 
 BlockBackend *m25p80_get_blk(DeviceState *dev)
 {

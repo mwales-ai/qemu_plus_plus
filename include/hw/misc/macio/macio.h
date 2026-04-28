@@ -124,6 +124,11 @@ struct MacIOState {
     DBDMAState dbdma;
     ESCCState escc;
     uint64_t frequency;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"

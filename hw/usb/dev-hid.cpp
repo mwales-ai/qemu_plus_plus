@@ -60,6 +60,7 @@ struct USBHIDState {
     static void tabletClassInit(ObjectClass *klass, const void *data);
     static void mouseClassInit(ObjectClass *klass, const void *data);
     static void keyboardClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
 private:
     static void initfn(USBDevice *dev, int kind,
@@ -853,13 +854,10 @@ void USBHIDState::hidClassInit(ObjectClass *klass, const void *data)
     uc->handle_attach  = usb_desc_attach;
 }
 
-static const TypeInfo usb_hid_type_info = {
-    .name = TYPE_USB_HID,
-    .parent = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHIDState),
-    .is_abstract = true,
-    .class_init = USBHIDState::hidClassInit,
-};
+void USBHIDState::classInit(DeviceClass *dc)
+{
+    hidClassInit(reinterpret_cast<ObjectClass *>(dc), nullptr);
+}
 
 static const Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
@@ -932,7 +930,6 @@ static const TypeInfo usb_keyboard_info = {
 
 static void usb_hid_register_types(void)
 {
-    type_register_static(&usb_hid_type_info);
     type_register_static(&usb_tablet_info);
     usb_legacy_register("usb-tablet", "tablet", NULL);
     type_register_static(&usb_mouse_info);
@@ -942,3 +939,7 @@ static void usb_hid_register_types(void)
 }
 
 type_init(usb_hid_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(USBHIDState, TYPE_USB_HID, TYPE_USB_DEVICE)
