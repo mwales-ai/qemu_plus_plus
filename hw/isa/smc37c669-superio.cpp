@@ -82,16 +82,7 @@ static void smc37c669_class_init(ObjectClass *klass, const void *data)
     sc->ide.count = 0;
 }
 
-static const TypeInfo smc37c669_type_info = {
-    .name          = TYPE_SMC37C669_SUPERIO,
-    .parent        = TYPE_ISA_SUPERIO,
-    .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = smc37c669_class_init,
-};
-
-static void smc37c669_register_types(void)
-{
-    type_register_static(&smc37c669_type_info);
-}
-
-type_init(smc37c669_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(ISASuperIODevice, ISASuperIOClass,
+                               TYPE_SMC37C669_SUPERIO, TYPE_ISA_SUPERIO,
+                               smc37c669_class_init)
