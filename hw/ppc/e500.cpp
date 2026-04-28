@@ -1266,33 +1266,15 @@ void ppce500_init(MachineState *machine)
     boot_info->dt_size = dt_size;
 }
 
-static void e500_ccsr_initfn(Object *obj)
+void PPCE500CCSRState::init()
 {
-    PPCE500CCSRState *ccsr = CCSR(obj);
-    memory_region_init(&ccsr->ccsr_space, obj, "e500-ccsr",
+    memory_region_init(&ccsr_space, OBJECT(this), "e500-ccsr",
                        MPC8544_CCSRBAR_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(ccsr), &ccsr->ccsr_space);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &ccsr_space);
 }
 
-static const TypeInfo e500_ccsr_info = {
-    .name          = TYPE_CCSR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PPCE500CCSRState),
-    .instance_init = e500_ccsr_initfn,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PPCE500CCSRState, TYPE_CCSR, TYPE_SYS_BUS_DEVICE)
 
-static const TypeInfo ppce500_info = {
-    .name          = TYPE_PPCE500_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(PPCE500MachineState),
-    .is_abstract   = true,
-    .class_size    = sizeof(PPCE500MachineClass),
-};
-
-static void e500_register_types(void)
-{
-    type_register_static(&e500_ccsr_info);
-    type_register_static(&ppce500_info);
-}
-
-type_init(e500_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(PPCE500MachineState, PPCE500MachineClass,
+                              TYPE_PPCE500_MACHINE, TYPE_MACHINE)

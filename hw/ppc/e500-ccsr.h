@@ -10,6 +10,10 @@ struct PPCE500CCSRState {
     /*< public >*/
 
     MemoryRegion ccsr_space;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 #define TYPE_CCSR "e500-ccsr"
