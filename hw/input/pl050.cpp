@@ -237,41 +237,29 @@ static const TypeInfo pl050_mouse_info = {
     .class_init    = pl050_mouse_class_init,
 };
 
-static void pl050_init(Object *obj)
+void PL050State::init()
 {
-    PL050State *s = PL050(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &pl050_ops, s, "pl050", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, OBJECT(this), &pl050_ops, this, "pl050", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 
-    qdev_init_gpio_in_named(DEVICE(obj), pl050_set_irq, "ps2-input-irq", 1);
+    qdev_init_gpio_in_named(DEVICE(this), pl050_set_irq, "ps2-input-irq", 1);
 }
 
-static void pl050_class_init(ObjectClass *oc, const void *data)
+void PL050State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->realize = pl050_realize;
     dc->vmsd = &vmstate_pl050;
 }
 
-static const TypeInfo pl050_type_info = {
-    .name          = TYPE_PL050,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL050State),
-    .instance_init = pl050_init,
-    .is_abstract   = true,
-    .class_size    = sizeof(PL050DeviceClass),
-    .class_init    = pl050_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(PL050State, PL050DeviceClass,
+                              TYPE_PL050, TYPE_SYS_BUS_DEVICE)
 
-static void pl050_register_types(void)
+static void __attribute__((constructor)) register_pl050_concrete(void)
 {
-    type_register_static(&pl050_type_info);
     type_register_static(&pl050_kbd_info);
     type_register_static(&pl050_mouse_info);
 }
-
-type_init(pl050_register_types)

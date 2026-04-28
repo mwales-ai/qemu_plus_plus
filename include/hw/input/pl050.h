@@ -35,6 +35,11 @@ struct PL050State {
     int pending;
     qemu_irq irq;
     bool is_mouse;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_PL050_KBD_DEVICE "pl050_keyboard"
