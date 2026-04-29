@@ -526,16 +526,4 @@ void MiscState::classInit(DeviceClass *dc)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(MiscState, TYPE_SLAVIO_MISC, TYPE_SYS_BUS_DEVICE)
 
-static void apc_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_APC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(APCState),
-        .instance_init = qemu_device_detail::trampoline_init<APCState>,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<APCState>();
-    type_register_static(&info);
-}
-
-type_init(apc_register_types)
+REGISTER_QEMU_DEVICE(APCState, TYPE_APC, TYPE_SYS_BUS_DEVICE)

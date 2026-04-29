@@ -154,6 +154,10 @@ struct MOS6522State {
     uint8_t last_irq_levels;
 
 #ifdef __cplusplus
+    /* Lifecycle */
+    void init();
+    void finalize();
+
     /* Virtual method dispatch wrappers — defined after OBJECT_DECLARE_TYPE */
     inline void portBWrite();
     inline void portAWrite();

@@ -799,17 +799,17 @@ static const MemoryRegionOps aspeed_tsp_intcio_ops = {
     .impl = { .min_access_size = 4, }
 };
 
-static void aspeed_intc_instance_init(Object *obj)
+void AspeedINTCState::init()
 {
-    AspeedINTCState *s = ASPEED_INTC(obj);
-    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(s);
+    Object *obj = reinterpret_cast<Object *>(this);
+    AspeedINTCClass *aic = ASPEED_INTC_GET_CLASS(this);
     int i;
 
     assert(aic->num_inpins <= ASPEED_INTC_MAX_INPINS);
     for (i = 0; i < aic->num_inpins; i++) {
-        object_initialize_child(obj, "intc-orgates[*]", &s->orgates[i],
+        object_initialize_child(obj, "intc-orgates[*]", &orgates[i],
                                 TYPE_OR_IRQ);
-        object_property_set_int(OBJECT(&s->orgates[i]), "num-lines",
+        object_property_set_int(OBJECT(&orgates[i]), "num-lines",
                                 aic->num_lines, &error_abort);
     }
 }
@@ -1096,23 +1096,5 @@ static void __attribute__((constructor)) register_aspeed_intc_concretes(void)
 }
 
 #include "qom/cpp/object.h"
-/*
- * aspeed_intc_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
- * register manually with C++ trampolines.
- */
-static void AspeedINTCState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_ASPEED_INTC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedINTCState),
-        .instance_init = aspeed_intc_instance_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(AspeedINTCClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AspeedINTCState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AspeedINTCState_cpp_register_types);
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedINTCState, AspeedINTCClass,
+                               TYPE_ASPEED_INTC, TYPE_SYS_BUS_DEVICE)

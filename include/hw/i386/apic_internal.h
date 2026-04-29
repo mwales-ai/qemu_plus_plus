@@ -191,6 +191,7 @@ struct APICCommonState {
     uint32_t extended_log_dest;
 
 #ifdef __cplusplus
+    void init();
     static void classInit(DeviceClass *dc);
 #endif
 };

@@ -844,17 +844,8 @@ static const InterfaceInfo cframe_reg_interfaces[] = {
     { }
 };
 
-static void __attribute__((constructor)) cframe_bcast_reg_register(void)
-{
-    static const TypeInfo cframe_bcast_reg_info = {
-        .name          = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(XlnxVersalCFrameBcastReg),
-        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFrameBcastReg>(),
-        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFrameBcastReg>,
-    };
-    type_register_static(&cframe_bcast_reg_info);
-}
+REGISTER_QEMU_DEVICE(XlnxVersalCFrameBcastReg, TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
+                     TYPE_SYS_BUS_DEVICE)
 
 REGISTER_QEMU_DEVICE_IFACES(XlnxVersalCFrameReg, TYPE_XLNX_VERSAL_CFRAME_REG,
                              TYPE_SYS_BUS_DEVICE, cframe_reg_interfaces)

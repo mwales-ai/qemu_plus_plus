@@ -447,11 +447,11 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
     s->id = (uint8_t)value;
 }
 
-static void apic_common_initfn(Object *obj)
+void APICCommonState::init()
 {
-    APICCommonState *s = APIC_COMMON(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    s->id = s->initial_apic_id = -1;
+    id = initial_apic_id = -1;
     object_property_add(obj, "id", "uint32",
                         apic_common_get_id,
                         apic_common_set_id, NULL, NULL);
@@ -471,23 +471,5 @@ void APICCommonState::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
-/*
- * apic_common_type: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
- * register manually with C++ trampolines.
- */
-static void APICCommonState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_APIC_COMMON,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(APICCommonState),
-        .instance_init = apic_common_initfn,
-        .is_abstract   = true,
-        .class_size    = sizeof(APICCommonClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<APICCommonState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(APICCommonState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(APICCommonState, APICCommonClass,
+                               TYPE_APIC_COMMON, TYPE_DEVICE)

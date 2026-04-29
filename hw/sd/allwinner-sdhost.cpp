@@ -975,23 +975,5 @@ static void __attribute__((constructor)) allwinner_sdhost_subtypes_register(void
 }
 
 #include "qom/cpp/object.h"
-/*
- * allwinner_sdhost_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
- * the base type manually with the C++ trampolines.
- */
-static void AwSdHostState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_AW_SDHOST,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AwSdHostState),
-        .instance_init = qemu_device_detail::trampoline_init<AwSdHostState>,
-        .is_abstract   = true,
-        .class_size    = sizeof(AwSdHostClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AwSdHostState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AwSdHostState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(AwSdHostState, AwSdHostClass,
+                               TYPE_AW_SDHOST, TYPE_SYS_BUS_DEVICE)

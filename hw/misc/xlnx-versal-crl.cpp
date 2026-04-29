@@ -799,26 +799,9 @@ void XlnxVersal2CRL::classInit(DeviceClass *dc)
     xvcc->decode_periph_rst = versal2_decode_periph_rst;
 }
 
-static const TypeInfo crl_base_info = {
-    .name          = TYPE_XLNX_VERSAL_CRL_BASE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCRLBase),
-    .is_abstract   = true,
-    .class_size    = sizeof(XlnxVersalCRLBaseClass),
-};
+REGISTER_QEMU_DEVICE_ABSTRACT(XlnxVersalCRLBase, XlnxVersalCRLBaseClass,
+                               TYPE_XLNX_VERSAL_CRL_BASE, TYPE_SYS_BUS_DEVICE)
 
-static void __attribute__((constructor)) crl_register_base_and_versal2(void)
-{
-    type_register_static(&crl_base_info);
-
-    static TypeInfo versal2_crl_info = {
-        .name          = TYPE_XLNX_VERSAL2_CRL,
-        .parent        = TYPE_XLNX_VERSAL_CRL_BASE,
-        .instance_size = sizeof(XlnxVersal2CRL),
-        .instance_init = qemu_device_detail::get_instance_init<XlnxVersal2CRL>(),
-        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersal2CRL>,
-    };
-    type_register_static(&versal2_crl_info);
-}
+REGISTER_QEMU_DEVICE(XlnxVersal2CRL, TYPE_XLNX_VERSAL2_CRL, TYPE_XLNX_VERSAL_CRL_BASE)
 
 REGISTER_QEMU_DEVICE(XlnxVersalCRL, TYPE_XLNX_VERSAL_CRL, TYPE_XLNX_VERSAL_CRL_BASE)

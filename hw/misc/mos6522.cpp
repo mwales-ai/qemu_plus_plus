@@ -683,33 +683,31 @@ static void mos6522_reset_hold(Object *obj, ResetType type)
     timer_del(s->timers[1].timer);
 }
 
-static void mos6522_init(Object *obj)
+void MOS6522State::init()
 {
+    Object *obj = reinterpret_cast<Object *>(this);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MOS6522State *s = MOS6522(obj);
     int i;
 
-    memory_region_init_io(&s->mem, obj, &mos6522_ops, s, "mos6522",
+    memory_region_init_io(&mem, obj, &mos6522_ops, this, "mos6522",
                           MOS6522_NUM_REGS);
-    sysbus_init_mmio(sbd, &s->mem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &mem);
+    sysbus_init_irq(sbd, &irq);
 
-    for (i = 0; i < ARRAY_SIZE(s->timers); i++) {
-        s->timers[i].index = i;
+    for (i = 0; i < ARRAY_SIZE(timers); i++) {
+        timers[i].index = i;
     }
 
-    s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer1, s);
-    s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer2, s);
+    timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer1, this);
+    timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer2, this);
 
     qdev_init_gpio_in(DEVICE(obj), mos6522_set_irq, VIA_NUM_INTS);
 }
 
-static void mos6522_finalize(Object *obj)
+void MOS6522State::finalize()
 {
-    MOS6522State *s = MOS6522(obj);
-
-    timer_free(s->timers[0].timer);
-    timer_free(s->timers[1].timer);
+    timer_free(timers[0].timer);
+    timer_free(timers[1].timer);
 }
 
 static const Property mos6522_properties[] = {
@@ -728,25 +726,5 @@ void MOS6522State::classInit(DeviceClass *dc)
     device_class_set_props(dc, mos6522_properties);
 }
 
-#include "qom/cpp/object.h"
-/*
- * mos6522_type_info: abstract base with instance_init + instance_finalize.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init/finalize, so we
- * register manually with C++ trampolines.
- */
-static void MOS6522State_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name              = TYPE_MOS6522,
-        .parent            = TYPE_SYS_BUS_DEVICE,
-        .instance_size     = sizeof(MOS6522State),
-        .instance_init     = mos6522_init,
-        .instance_finalize = mos6522_finalize,
-        .is_abstract       = true,
-        .class_size        = sizeof(MOS6522DeviceClass),
-        .class_init        = qemu_device_detail::trampoline_class_init<MOS6522State>,
-    };
-    type_register_static(&info);
-}
-
-type_init(MOS6522State_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(MOS6522State, MOS6522DeviceClass,
+                               TYPE_MOS6522, TYPE_SYS_BUS_DEVICE)

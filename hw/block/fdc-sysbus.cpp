@@ -55,6 +55,7 @@ struct FDCtrlSysBus {
     struct FDCtrl state;
     MemoryRegion iomem;
 
+    void init();
     static void classInit(DeviceClass *dc);
 };
 
@@ -130,13 +131,13 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     fdctrl_init_drives(&sys->state.bus, fds);
 }
 
-static void sysbus_fdc_common_instance_init(Object *obj)
+void FDCtrlSysBus::init()
 {
+    Object *obj = reinterpret_cast<Object *>(this);
     DeviceState *dev = DEVICE(obj);
     FDCtrlSysBusClass *sbdc = SYSBUS_FDC_GET_CLASS(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    FDCtrlSysBus *sys = SYSBUS_FDC(obj);
-    FDCtrl *fdctrl = &sys->state;
+    FDCtrl *fdctrl = &state;
 
     /*
      * DMA is not currently supported for sysbus floppy controllers.
@@ -150,11 +151,11 @@ static void sysbus_fdc_common_instance_init(Object *obj)
 
     qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
 
-    memory_region_init_io(&sys->iomem, obj,
+    memory_region_init_io(&iomem, obj,
                           sbdc->use_strict_io ? &fdctrl_mem_strict_ops
                                               : &fdctrl_mem_ops,
                           fdctrl, "fdc", 0x08);
-    sysbus_init_mmio(sbd, &sys->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
     sysbus_init_irq(sbd, &fdctrl->irq);
     qdev_init_gpio_in(dev, fdctrl_handle_tc, 1);
@@ -244,23 +245,5 @@ static void __attribute__((constructor)) register_sysbus_fdc_concretes(void)
 }
 
 #include "qom/cpp/object.h"
-/*
- * sysbus_fdc_common_typeinfo: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
- * register manually with C++ trampolines.
- */
-static void FDCtrlSysBus_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_SYSBUS_FDC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(FDCtrlSysBus),
-        .instance_init = sysbus_fdc_common_instance_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(FDCtrlSysBusClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<FDCtrlSysBus>,
-    };
-    type_register_static(&info);
-}
-
-type_init(FDCtrlSysBus_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(FDCtrlSysBus, FDCtrlSysBusClass,
+                               TYPE_SYSBUS_FDC, TYPE_SYS_BUS_DEVICE)

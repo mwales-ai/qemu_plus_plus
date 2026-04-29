@@ -693,23 +693,5 @@ static void __attribute__((constructor)) aspeed_sdmc_subtypes_register(void)
 }
 
 #include "qom/cpp/object.h"
-/*
- * aspeed_sdmc_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
- * the base type manually with the C++ classInit trampoline.
- */
-static void AspeedSDMCState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_ASPEED_SDMC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedSDMCState),
-        .instance_init = qemu_device_detail::trampoline_init<AspeedSDMCState>,
-        .is_abstract   = true,
-        .class_size    = sizeof(AspeedSDMCClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AspeedSDMCState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AspeedSDMCState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(AspeedSDMCState, AspeedSDMCClass,
+                               TYPE_ASPEED_SDMC, TYPE_SYS_BUS_DEVICE)

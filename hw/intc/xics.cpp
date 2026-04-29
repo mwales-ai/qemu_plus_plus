@@ -737,8 +737,9 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 REGISTER_QEMU_DEVICE_CLASS_SIZE(ICPState, ICPStateClass, TYPE_ICP, TYPE_DEVICE)
 
 /*
- * ICSState: non-abstract, has instance_init + class_init.
- * Use manual registration with trampolines to wire init().
+ * ICSState: non-abstract, has instance_init + class_size.
+ * Uses SFINAE helpers inline since xics_fabric_info must be registered
+ * in the same type_init call.
  */
 static void ICSState_cpp_register_types(void)
 {
@@ -746,7 +747,8 @@ static void ICSState_cpp_register_types(void)
         .name          = TYPE_ICS,
         .parent        = TYPE_DEVICE,
         .instance_size = sizeof(ICSState),
-        .instance_init = qemu_device_detail::trampoline_init<ICSState>,
+        .instance_init = qemu_device_detail::get_instance_init<ICSState>(),
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ICSState>(),
         .class_size    = sizeof(ICSStateClass),
         .class_init    = qemu_device_detail::trampoline_class_init<ICSState>,
     };

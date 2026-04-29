@@ -409,23 +409,5 @@ static void __attribute__((constructor)) allwinner_rtc_subtypes_register(void)
 }
 
 #include "qom/cpp/object.h"
-/*
- * allwinner_rtc_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we register
- * the base type manually with the C++ trampolines.
- */
-static void AwRtcState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_AW_RTC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AwRtcState),
-        .instance_init = qemu_device_detail::trampoline_init<AwRtcState>,
-        .is_abstract   = true,
-        .class_size    = sizeof(AwRtcClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AwRtcState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AwRtcState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(AwRtcState, AwRtcClass,
+                               TYPE_AW_RTC, TYPE_SYS_BUS_DEVICE)

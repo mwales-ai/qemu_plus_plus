@@ -541,27 +541,11 @@ static const InterfaceInfo cfu_fdro_interfaces[] = {
     { }
 };
 
-static void __attribute__((constructor)) cfu_fdro_sfr_register(void)
-{
-    static TypeInfo cfu_fdro_info = {
-        .name          = TYPE_XLNX_VERSAL_CFU_FDRO,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(XlnxVersalCFUFDRO),
-        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFUFDRO>(),
-        .instance_finalize = qemu_device_detail::get_instance_finalize<XlnxVersalCFUFDRO>(),
-        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFUFDRO>,
-        .interfaces    = cfu_fdro_interfaces,
-    };
-    static TypeInfo cfu_sfr_info = {
-        .name          = TYPE_XLNX_VERSAL_CFU_SFR,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(XlnxVersalCFUSFR),
-        .instance_init = qemu_device_detail::get_instance_init<XlnxVersalCFUSFR>(),
-        .class_init    = qemu_device_detail::trampoline_class_init<XlnxVersalCFUSFR>,
-    };
-    type_register_static(&cfu_fdro_info);
-    type_register_static(&cfu_sfr_info);
-}
+REGISTER_QEMU_DEVICE_IFACES(XlnxVersalCFUFDRO, TYPE_XLNX_VERSAL_CFU_FDRO,
+                             TYPE_SYS_BUS_DEVICE, cfu_fdro_interfaces)
+
+REGISTER_QEMU_DEVICE(XlnxVersalCFUSFR, TYPE_XLNX_VERSAL_CFU_SFR,
+                     TYPE_SYS_BUS_DEVICE)
 
 REGISTER_QEMU_DEVICE_IFACES(XlnxVersalCFUAPB, TYPE_XLNX_VERSAL_CFU_APB,
                              TYPE_SYS_BUS_DEVICE, cfu_apb_interfaces)
