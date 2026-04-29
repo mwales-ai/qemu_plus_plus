@@ -45,6 +45,9 @@ struct RemoteObject {
 
     DeviceState *dev;
     DeviceListener listener;
+
+    void init();
+    void finalize();
 };
 
 static void remote_object_set_fd(Object *obj, const char *str, Error **errp)
@@ -165,6 +168,9 @@ static void remote_object_finalize(Object *obj)
     g_free(o->devid);
 }
 
+void RemoteObject::init() { remote_object_init(reinterpret_cast<Object *>(this)); }
+void RemoteObject::finalize() { remote_object_finalize(reinterpret_cast<Object *>(this)); }
+
 static void remote_object_class_init(ObjectClass *klass, const void *data)
 {
     RemoteObjectClass *k = REMOTE_OBJECT_CLASS(klass);
@@ -182,23 +188,13 @@ static void remote_object_class_init(ObjectClass *klass, const void *data)
                                   remote_object_set_devid);
 }
 
-static const TypeInfo remote_object_info = {
-    .name = TYPE_REMOTE_OBJECT,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(RemoteObject),
-    .instance_init = remote_object_init,
-    .instance_finalize = remote_object_finalize,
-    .class_size = sizeof(RemoteObjectClass),
-    .class_init = remote_object_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+static const InterfaceInfo remote_object_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
 };
 
-static void register_types(void)
-{
-    type_register_static(&remote_object_info);
-}
-
-type_init(register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(RemoteObject, RemoteObjectClass,
+                                   TYPE_REMOTE_OBJECT, TYPE_OBJECT,
+                                   remote_object_class_init,
+                                   remote_object_interfaces)
