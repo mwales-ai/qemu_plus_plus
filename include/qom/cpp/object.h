@@ -581,6 +581,54 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_MACHINE: register a concrete MachineClass-rooted type.
+ * For machines that derive from TYPE_MACHINE directly (or any abstract
+ * machine base) without adding their own class struct extension.
+ *
+ * Wires init()/finalize() via SFINAE; class_init is a user-supplied
+ * free function with the canonical (ObjectClass *, const void *)
+ * signature since machines extend MachineClass not DeviceClass.
+ */
+#define REGISTER_QEMU_MACHINE(ClassName, type_name_str, parent_type_str,     \
+                               class_init_fn)                                \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_MACHINE_IFACES: concrete machine + interfaces.
+ */
+#define REGISTER_QEMU_MACHINE_IFACES(ClassName, type_name_str,               \
+                                      parent_type_str, class_init_fn,        \
+                                      ifaces_array)                          \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_init        = class_init_fn,                                  \
+        .interfaces        = ifaces_array,                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_MACHINE_ABSTRACT: register an abstract MachineClass-rooted type.
  * Many SoC/board machine families share a base class (e.g.
  * SpaprMachineClass) with subclasses for individual machine versions.
