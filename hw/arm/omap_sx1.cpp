@@ -38,6 +38,7 @@
 #include "system/address-spaces.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qom/cpp/object.h"
 
 
 /*****************************************************************************/
@@ -203,6 +204,9 @@ static void sx1_init_v2(MachineState *machine)
     sx1_init(machine, 2);
 }
 
+typedef MachineState Sx1V2MachineState;
+typedef MachineState Sx1V1MachineState;
+
 static void sx1_machine_v2_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -216,12 +220,9 @@ static void sx1_machine_v2_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 }
 
-static const TypeInfo sx1_machine_v2_type = {
-    .name = MACHINE_TYPE_NAME("sx1"),
-    .parent = TYPE_MACHINE,
-    .class_init = sx1_machine_v2_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(Sx1V2MachineState, MACHINE_TYPE_NAME("sx1"),
+                             TYPE_MACHINE, sx1_machine_v2_class_init,
+                             arm_machine_interfaces)
 
 static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
 {
@@ -236,17 +237,6 @@ static void sx1_machine_v1_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 }
 
-static const TypeInfo sx1_machine_v1_type = {
-    .name = MACHINE_TYPE_NAME("sx1-v1"),
-    .parent = TYPE_MACHINE,
-    .class_init = sx1_machine_v1_class_init,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void sx1_machine_init(void)
-{
-    type_register_static(&sx1_machine_v1_type);
-    type_register_static(&sx1_machine_v2_type);
-}
-
-type_init(sx1_machine_init)
+REGISTER_QEMU_MACHINE_IFACES(Sx1V1MachineState, MACHINE_TYPE_NAME("sx1-v1"),
+                             TYPE_MACHINE, sx1_machine_v1_class_init,
+                             arm_machine_interfaces)

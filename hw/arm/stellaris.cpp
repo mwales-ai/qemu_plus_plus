@@ -35,6 +35,7 @@
 #include "hw/qdev-clock.h"
 #include "qom/object.h"
 #include "qobject/qlist.h"
+#include "qom/cpp/object.h"
 #include "ui/input.h"
 
 #define GPIO_A 0
@@ -1424,11 +1425,12 @@ static void lm3s6965evb_init(MachineState *machine)
  * Stellaris LM3S811 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu030.pdf
  */
-struct LM3S811EVBMachine {
+struct LM3S811EVBMachineState {
+    MachineState parent;
     static void classInit(ObjectClass *oc, const void *data);
 };
 
-void LM3S811EVBMachine::classInit(ObjectClass *oc, const void *data)
+void LM3S811EVBMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
@@ -1438,22 +1440,21 @@ void LM3S811EVBMachine::classInit(ObjectClass *oc, const void *data)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
 }
 
-static const TypeInfo lm3s811evb_type = {
-    .name = MACHINE_TYPE_NAME("lm3s811evb"),
-    .parent = TYPE_MACHINE,
-    .class_init = LM3S811EVBMachine::classInit,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(LM3S811EVBMachineState,
+                             MACHINE_TYPE_NAME("lm3s811evb"),
+                             TYPE_MACHINE, LM3S811EVBMachineState::classInit,
+                             arm_machine_interfaces)
 
 /*
  * Stellaris: LM3S6965 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu029.pdf
  */
-struct LM3S6965EVBMachine {
+struct LM3S6965EVBMachineState {
+    MachineState parent;
     static void classInit(ObjectClass *oc, const void *data);
 };
 
-void LM3S6965EVBMachine::classInit(ObjectClass *oc, const void *data)
+void LM3S6965EVBMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
@@ -1464,20 +1465,10 @@ void LM3S6965EVBMachine::classInit(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 }
 
-static const TypeInfo lm3s6965evb_type = {
-    .name = MACHINE_TYPE_NAME("lm3s6965evb"),
-    .parent = TYPE_MACHINE,
-    .class_init = LM3S6965EVBMachine::classInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void stellaris_machine_init(void)
-{
-    type_register_static(&lm3s811evb_type);
-    type_register_static(&lm3s6965evb_type);
-}
-
-type_init(stellaris_machine_init)
+REGISTER_QEMU_MACHINE_IFACES(LM3S6965EVBMachineState,
+                             MACHINE_TYPE_NAME("lm3s6965evb"),
+                             TYPE_MACHINE, LM3S6965EVBMachineState::classInit,
+                             arm_machine_interfaces)
 
 void stellaris_i2c_state::classInit(DeviceClass *dc)
 {

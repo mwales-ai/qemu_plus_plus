@@ -37,6 +37,7 @@
 #include "hw/rtc/pl031.h"
 #include "hw/qdev-clock.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define MUSCA_NUMIRQ_MAX 96
 #define MUSCA_PPC_MAX 3
@@ -652,34 +653,24 @@ void MuscaMachineState::muscaB1ClassInit(ObjectClass *oc, const void *data)
     mmc->num_mpcs = ARRAY_SIZE(b1_mpc_info);
 }
 
-static const TypeInfo musca_info = {
-    .name = TYPE_MUSCA_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(MuscaMachineState),
-    .is_abstract = true,
-    .class_size = sizeof(MuscaMachineClass),
-    .class_init = MuscaMachineState::baseClassInit,
-};
+REGISTER_QEMU_MACHINE_ABSTRACT(MuscaMachineState, MuscaMachineClass,
+                               TYPE_MUSCA_MACHINE, TYPE_MACHINE,
+                               MuscaMachineState::baseClassInit)
 
-static const TypeInfo musca_a_info = {
-    .name = TYPE_MUSCA_A_MACHINE,
-    .parent = TYPE_MUSCA_MACHINE,
-    .class_init = MuscaMachineState::muscaAClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo musca_b1_info = {
-    .name = TYPE_MUSCA_B1_MACHINE,
-    .parent = TYPE_MUSCA_MACHINE,
-    .class_init = MuscaMachineState::muscaB1ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void musca_machine_init(void)
+static void __attribute__((constructor)) musca_concrete_machine_init(void)
 {
-    type_register_static(&musca_info);
+    static const TypeInfo musca_a_info = {
+        .name = TYPE_MUSCA_A_MACHINE,
+        .parent = TYPE_MUSCA_MACHINE,
+        .class_init = MuscaMachineState::muscaAClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo musca_b1_info = {
+        .name = TYPE_MUSCA_B1_MACHINE,
+        .parent = TYPE_MUSCA_MACHINE,
+        .class_init = MuscaMachineState::muscaB1ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
     type_register_static(&musca_a_info);
     type_register_static(&musca_b1_info);
 }
-
-type_init(musca_machine_init);

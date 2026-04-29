@@ -48,6 +48,7 @@
 #include "qom/object.h"
 #include "qemu/audio.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
@@ -190,6 +191,8 @@ struct VexpressMachineState {
     MemoryRegion a15sram;
     bool secure;
     bool virt;
+
+    void init();
 
     static void classInit(ObjectClass *oc, const void *data);
     static void a9ClassInit(ObjectClass *oc, const void *data);
@@ -761,12 +764,10 @@ static void vexpress_set_virt(Object *obj, bool value, Error **errp)
     vms->virt = value;
 }
 
-static void vexpress_instance_init(Object *obj)
+void VexpressMachineState::init()
 {
-    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
-
     /* EL3 is enabled by default on vexpress */
-    vms->secure = true;
+    secure = true;
 }
 
 static void vexpress_a15_instance_init(Object *obj)
@@ -846,37 +847,26 @@ void VexpressMachineState::a15ClassInit(ObjectClass *oc, const void *data)
 
 }
 
-static const TypeInfo vexpress_info = {
-    .name = TYPE_VEXPRESS_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(VexpressMachineState),
-    .instance_init = vexpress_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(VexpressMachineClass),
-    .class_init = VexpressMachineState::classInit,
-};
+REGISTER_QEMU_MACHINE_ABSTRACT(VexpressMachineState, VexpressMachineClass,
+                               TYPE_VEXPRESS_MACHINE, TYPE_MACHINE,
+                               VexpressMachineState::classInit)
 
-static const TypeInfo vexpress_a9_info = {
-    .name = TYPE_VEXPRESS_A9_MACHINE,
-    .parent = TYPE_VEXPRESS_MACHINE,
-    .instance_init = vexpress_a9_instance_init,
-    .class_init = VexpressMachineState::a9ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo vexpress_a15_info = {
-    .name = TYPE_VEXPRESS_A15_MACHINE,
-    .parent = TYPE_VEXPRESS_MACHINE,
-    .instance_init = vexpress_a15_instance_init,
-    .class_init = VexpressMachineState::a15ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void vexpress_machine_init(void)
+static void __attribute__((constructor)) vexpress_concrete_machine_init(void)
 {
-    type_register_static(&vexpress_info);
+    static const TypeInfo vexpress_a9_info = {
+        .name = TYPE_VEXPRESS_A9_MACHINE,
+        .parent = TYPE_VEXPRESS_MACHINE,
+        .instance_init = vexpress_a9_instance_init,
+        .class_init = VexpressMachineState::a9ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo vexpress_a15_info = {
+        .name = TYPE_VEXPRESS_A15_MACHINE,
+        .parent = TYPE_VEXPRESS_MACHINE,
+        .instance_init = vexpress_a15_instance_init,
+        .class_init = VexpressMachineState::a15ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
     type_register_static(&vexpress_a9_info);
     type_register_static(&vexpress_a15_info);
 }
-
-type_init(vexpress_machine_init);

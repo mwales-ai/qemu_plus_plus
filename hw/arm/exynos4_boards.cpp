@@ -36,6 +36,7 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 #define SMDK_LAN9118_BASE_ADDR      0x05000000
 
@@ -155,6 +156,9 @@ static const char * const valid_cpu_types[] = {
     NULL
 };
 
+typedef MachineState NuriMachineState;
+typedef MachineState Smdkc210MachineState;
+
 static void nuri_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -169,12 +173,9 @@ static void nuri_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 }
 
-static const TypeInfo nuri_type = {
-    .name = MACHINE_TYPE_NAME("nuri"),
-    .parent = TYPE_MACHINE,
-    .class_init = nuri_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(NuriMachineState, MACHINE_TYPE_NAME("nuri"),
+                             TYPE_MACHINE, nuri_class_init,
+                             arm_machine_interfaces)
 
 static void smdkc210_class_init(ObjectClass *oc, const void *data)
 {
@@ -190,17 +191,7 @@ static void smdkc210_class_init(ObjectClass *oc, const void *data)
     mc->auto_create_sdcard = true;
 }
 
-static const TypeInfo smdkc210_type = {
-    .name = MACHINE_TYPE_NAME("smdkc210"),
-    .parent = TYPE_MACHINE,
-    .class_init = smdkc210_class_init,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void exynos4_machines_init(void)
-{
-    type_register_static(&nuri_type);
-    type_register_static(&smdkc210_type);
-}
-
-type_init(exynos4_machines_init)
+REGISTER_QEMU_MACHINE_IFACES(Smdkc210MachineState,
+                             MACHINE_TYPE_NAME("smdkc210"),
+                             TYPE_MACHINE, smdkc210_class_init,
+                             arm_machine_interfaces)

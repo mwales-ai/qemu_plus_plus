@@ -52,6 +52,7 @@
 #include "hw/qdev-clock.h"
 #include "qobject/qlist.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
@@ -564,50 +565,38 @@ void MPS2MachineState::an511ClassInit(ObjectClass *oc, const void *data)
     mmc->has_block_ram = false;
 }
 
-static const TypeInfo mps2_info = {
-    .name = TYPE_MPS2_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(MPS2MachineState),
-    .is_abstract = true,
-    .class_size = sizeof(MPS2MachineClass),
-    .class_init = MPS2MachineState::mps2ClassInit,
-};
+REGISTER_QEMU_MACHINE_ABSTRACT(MPS2MachineState, MPS2MachineClass,
+                               TYPE_MPS2_MACHINE, TYPE_MACHINE,
+                               MPS2MachineState::mps2ClassInit)
 
-static const TypeInfo mps2_an385_info = {
-    .name = TYPE_MPS2_AN385_MACHINE,
-    .parent = TYPE_MPS2_MACHINE,
-    .class_init = MPS2MachineState::an385ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps2_an386_info = {
-    .name = TYPE_MPS2_AN386_MACHINE,
-    .parent = TYPE_MPS2_MACHINE,
-    .class_init = MPS2MachineState::an386ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps2_an500_info = {
-    .name = TYPE_MPS2_AN500_MACHINE,
-    .parent = TYPE_MPS2_MACHINE,
-    .class_init = MPS2MachineState::an500ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps2_an511_info = {
-    .name = TYPE_MPS2_AN511_MACHINE,
-    .parent = TYPE_MPS2_MACHINE,
-    .class_init = MPS2MachineState::an511ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void mps2_machine_init(void)
+static void __attribute__((constructor)) mps2_concrete_machine_init(void)
 {
-    type_register_static(&mps2_info);
+    static const TypeInfo mps2_an385_info = {
+        .name = TYPE_MPS2_AN385_MACHINE,
+        .parent = TYPE_MPS2_MACHINE,
+        .class_init = MPS2MachineState::an385ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps2_an386_info = {
+        .name = TYPE_MPS2_AN386_MACHINE,
+        .parent = TYPE_MPS2_MACHINE,
+        .class_init = MPS2MachineState::an386ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps2_an500_info = {
+        .name = TYPE_MPS2_AN500_MACHINE,
+        .parent = TYPE_MPS2_MACHINE,
+        .class_init = MPS2MachineState::an500ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps2_an511_info = {
+        .name = TYPE_MPS2_AN511_MACHINE,
+        .parent = TYPE_MPS2_MACHINE,
+        .class_init = MPS2MachineState::an511ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
     type_register_static(&mps2_an385_info);
     type_register_static(&mps2_an386_info);
     type_register_static(&mps2_an500_info);
     type_register_static(&mps2_an511_info);
 }
-
-type_init(mps2_machine_init);

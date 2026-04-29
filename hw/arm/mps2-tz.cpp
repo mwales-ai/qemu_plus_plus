@@ -65,6 +65,7 @@
 #include "net/net.h"
 #include "hw/qdev-clock.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #include "hw/irq.h"
 
 extern "C" {
@@ -1490,51 +1491,39 @@ static const InterfaceInfo mps2tz_info_interfaces[] = {
         { }
 };
 
-static const TypeInfo mps2tz_info = {
-    .name = TYPE_MPS2TZ_MACHINE,
-    .parent = TYPE_MACHINE,
-    .instance_size = sizeof(MPS2TZMachineState),
-    .is_abstract = true,
-    .class_size = sizeof(MPS2TZMachineClass),
-    .class_init = MPS2TZMachineClass::classInit,
-    .interfaces = mps2tz_info_interfaces,
-};
+REGISTER_QEMU_MACHINE_ABSTRACT_IFACES(MPS2TZMachineState, MPS2TZMachineClass,
+                                      TYPE_MPS2TZ_MACHINE, TYPE_MACHINE,
+                                      MPS2TZMachineClass::classInit,
+                                      mps2tz_info_interfaces)
 
-static const TypeInfo mps2tz_an505_info = {
-    .name = TYPE_MPS2TZ_AN505_MACHINE,
-    .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = MPS2TZMachineClass::an505ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps2tz_an521_info = {
-    .name = TYPE_MPS2TZ_AN521_MACHINE,
-    .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = MPS2TZMachineClass::an521ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps3tz_an524_info = {
-    .name = TYPE_MPS3TZ_AN524_MACHINE,
-    .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = MPS2TZMachineClass::an524ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static const TypeInfo mps3tz_an547_info = {
-    .name = TYPE_MPS3TZ_AN547_MACHINE,
-    .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = MPS2TZMachineClass::an547ClassInit,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void mps2tz_machine_init(void)
+static void __attribute__((constructor)) mps2tz_concrete_machine_init(void)
 {
-    type_register_static(&mps2tz_info);
+    static const TypeInfo mps2tz_an505_info = {
+        .name = TYPE_MPS2TZ_AN505_MACHINE,
+        .parent = TYPE_MPS2TZ_MACHINE,
+        .class_init = MPS2TZMachineClass::an505ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps2tz_an521_info = {
+        .name = TYPE_MPS2TZ_AN521_MACHINE,
+        .parent = TYPE_MPS2TZ_MACHINE,
+        .class_init = MPS2TZMachineClass::an521ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps3tz_an524_info = {
+        .name = TYPE_MPS3TZ_AN524_MACHINE,
+        .parent = TYPE_MPS2TZ_MACHINE,
+        .class_init = MPS2TZMachineClass::an524ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
+    static const TypeInfo mps3tz_an547_info = {
+        .name = TYPE_MPS3TZ_AN547_MACHINE,
+        .parent = TYPE_MPS2TZ_MACHINE,
+        .class_init = MPS2TZMachineClass::an547ClassInit,
+        .interfaces = arm_machine_interfaces,
+    };
     type_register_static(&mps2tz_an505_info);
     type_register_static(&mps2tz_an521_info);
     type_register_static(&mps3tz_an524_info);
     type_register_static(&mps3tz_an547_info);
 }
-
-type_init(mps2tz_machine_init);

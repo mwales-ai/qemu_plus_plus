@@ -29,6 +29,7 @@
 #include "qemu/audio.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
 #define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)
@@ -413,6 +414,9 @@ static void vab_init(MachineState *machine)
     versatile_init(machine, 0x25e);
 }
 
+typedef MachineState VersatilePBMachineState;
+typedef MachineState VersatileABMachineState;
+
 static void versatilepb_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -428,12 +432,10 @@ static void versatilepb_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo versatilepb_type = {
-    .name = MACHINE_TYPE_NAME("versatilepb"),
-    .parent = TYPE_MACHINE,
-    .class_init = versatilepb_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(VersatilePBMachineState,
+                             MACHINE_TYPE_NAME("versatilepb"),
+                             TYPE_MACHINE, versatilepb_class_init,
+                             arm_machine_interfaces)
 
 static void versatileab_class_init(ObjectClass *oc, const void *data)
 {
@@ -450,20 +452,10 @@ static void versatileab_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo versatileab_type = {
-    .name = MACHINE_TYPE_NAME("versatileab"),
-    .parent = TYPE_MACHINE,
-    .class_init = versatileab_class_init,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void versatile_machine_init(void)
-{
-    type_register_static(&versatilepb_type);
-    type_register_static(&versatileab_type);
-}
-
-type_init(versatile_machine_init)
+REGISTER_QEMU_MACHINE_IFACES(VersatileABMachineState,
+                             MACHINE_TYPE_NAME("versatileab"),
+                             TYPE_MACHINE, versatileab_class_init,
+                             arm_machine_interfaces)
 
 static void vpb_sic_class_init(ObjectClass *klass, const void *data)
 {

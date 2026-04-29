@@ -32,6 +32,7 @@
 #include "hw/sd/sd.h"
 #include "qemu/audio.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
@@ -414,6 +415,11 @@ static void realview_pbx_a9_init(MachineState *machine)
     realview_init(machine, BOARD_PBX_A9);
 }
 
+typedef MachineState RealviewEbMachineState;
+typedef MachineState RealviewEbMpcoreMachineState;
+typedef MachineState RealviewPbA8MachineState;
+typedef MachineState RealviewPbxA9MachineState;
+
 static void realview_eb_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -428,12 +434,10 @@ static void realview_eb_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo realview_eb_type = {
-    .name = MACHINE_TYPE_NAME("realview-eb"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_eb_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(RealviewEbMachineState,
+                             MACHINE_TYPE_NAME("realview-eb"),
+                             TYPE_MACHINE, realview_eb_class_init,
+                             arm_machine_interfaces)
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, const void *data)
 {
@@ -450,12 +454,10 @@ static void realview_eb_mpcore_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo realview_eb_mpcore_type = {
-    .name = MACHINE_TYPE_NAME("realview-eb-mpcore"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_eb_mpcore_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(RealviewEbMpcoreMachineState,
+                             MACHINE_TYPE_NAME("realview-eb-mpcore"),
+                             TYPE_MACHINE, realview_eb_mpcore_class_init,
+                             arm_machine_interfaces)
 
 static void realview_pb_a8_class_init(ObjectClass *oc, const void *data)
 {
@@ -470,12 +472,10 @@ static void realview_pb_a8_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo realview_pb_a8_type = {
-    .name = MACHINE_TYPE_NAME("realview-pb-a8"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_pb_a8_class_init,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(RealviewPbA8MachineState,
+                             MACHINE_TYPE_NAME("realview-pb-a8"),
+                             TYPE_MACHINE, realview_pb_a8_class_init,
+                             arm_machine_interfaces)
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, const void *data)
 {
@@ -491,19 +491,7 @@ static void realview_pbx_a9_class_init(ObjectClass *oc, const void *data)
     machine_add_audiodev_property(mc);
 }
 
-static const TypeInfo realview_pbx_a9_type = {
-    .name = MACHINE_TYPE_NAME("realview-pbx-a9"),
-    .parent = TYPE_MACHINE,
-    .class_init = realview_pbx_a9_class_init,
-    .interfaces = arm_machine_interfaces,
-};
-
-static void realview_machine_init(void)
-{
-    type_register_static(&realview_eb_type);
-    type_register_static(&realview_eb_mpcore_type);
-    type_register_static(&realview_pb_a8_type);
-    type_register_static(&realview_pbx_a9_type);
-}
-
-type_init(realview_machine_init)
+REGISTER_QEMU_MACHINE_IFACES(RealviewPbxA9MachineState,
+                             MACHINE_TYPE_NAME("realview-pbx-a9"),
+                             TYPE_MACHINE, realview_pbx_a9_class_init,
+                             arm_machine_interfaces)
