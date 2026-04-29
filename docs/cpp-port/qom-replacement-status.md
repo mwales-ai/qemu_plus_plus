@@ -8,7 +8,7 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures)
-**As of:** 2026-04-27
+**As of:** 2026-04-29
 
 ## What is QOM?
 
@@ -78,9 +78,19 @@ Each conversion:
 - `extract_vtable<T>()` falls back to `nullptr` for non-default-constructible
   types (unblocks SDHCIState-embedding SoCs: fsl-imx*, xlnx-zynqmp, raspi4b,
   bcm2838, etc.)
-- New `_CLASS_SIZE` and `_ABSTRACT` variants unblock dozens of devices that
-  have custom class structs (GIC family, Aspeed multi-variant timers/SCU/SDMC,
+- All four `_ABSTRACT*` variants now SFINAE-wire instance_init/finalize, since
+  QOM invokes those callbacks through inheritance chains when concrete
+  subclasses are instantiated (unblocked GICv3 family, etc.)
+- `_CLASS_SIZE` and `_ABSTRACT` variants unblock dozens of devices with
+  custom class structs (GIC family, Aspeed multi-variant timers/SCU/SDMC,
   PIT/PIC, ICP, mos6522, scsi-bus, scsi-disk, virtio-blk, virtio-mem, etc.)
+- `_CUSTOM_CI` variants accept caller-supplied class_init free functions
+  for devices needing parent_realize chaining or with classInit defined
+  elsewhere on the same struct (i8259/i8259_common, arm_gic_kvm, etc.)
+- `_OBJECT` variants cover TYPE_OBJECT-rooted types (Clock, IRQState,
+  RemoteIommu, RegisterInfoArray)
+- `_MACHINE_ABSTRACT` variants cover MachineClass-rooted abstract bases
+  like SpaprMachineState
 
 ### Deep Method Conversion — 183 devices
 
@@ -221,14 +231,34 @@ Files now converted: fsl-imx25/6/6ul/7, xlnx-zynqmp, xlnx-zcu102, raspi4b.
 
 ## What's Next
 
-1. **Convert remaining device files** — about 70-80 candidates remain that
-   require additional macro variants for parent_realize chaining (KVM GIC
-   variants, SPAPR XIVE, PnvXIVE, etc.) or for class_init functions that
-   take `data` as a per-variant configuration parameter (e1000 variants,
-   eepro100, megasas variants, m48t59, m25p80).
-2. **Add a parent_realize variant** — a `REGISTER_QEMU_DEVICE_PARENT_REALIZE`
-   macro that wraps `device_class_set_parent_realize` for the common case.
-3. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB).
-4. **Implement virtual-methods-plan.md Phase A** — vtable pointer in Object.
-5. **Phase B/C** — virtual realize()/reset() with `override` on pilot devices.
-6. **Phase E** — mass `override` addition to existing converted devices.
+The macro family now covers every fundamental QOM type pattern. The
+remaining ~80 unconverted hw/ files have structural blockers that need
+per-file refactoring rather than new macro variants:
+
+1. **Dynamic loop registrations** using `data` for per-variant configuration
+   (e1000, eepro100, megasas, m48t59, m25p80 concrete loop). Each variant
+   would need its own state struct or the macro family would need a new
+   `_DATA` variant that propagates the `data` pointer.
+
+2. **VirtioPCIDeviceTypeInfo helper paths** (virtio-vga variants,
+   virtio-input-pci, virtio-pci-test) generate families of types from a
+   single descriptor — incompatible with TypeInfo-based macros.
+
+3. **Multi-binary struct collisions** — files like tod-tcg.cpp and
+   tod-kvm.cpp both define methods on the same `S390TODState` struct.
+   When both KVM and TCG are enabled, the methods become duplicate
+   symbols. Stays manual.
+
+4. **Class_init bodies that operate on non-DeviceClass class structs**
+   (PCIDeviceClass-only, VirtIOInputClass, MachineClass for concrete
+   machines). Would benefit from a `_CUSTOM_CI` variant that doesn't
+   require class_size.
+
+5. **Concrete machine types** (TYPE_MACHINE parent, no class_size).
+   Would need a `REGISTER_QEMU_MACHINE` (concrete) variant.
+
+Future infrastructure work:
+6. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB).
+7. **Implement virtual-methods-plan.md Phase A** — vtable pointer in Object.
+8. **Phase B/C** — virtual realize()/reset() with `override` on pilot devices.
+9. **Phase E** — mass `override` addition to existing converted devices.
