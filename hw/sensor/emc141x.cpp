@@ -331,24 +331,11 @@ static const TypeInfo emc1414_info = {
 };
 
 #include "qom/cpp/object.h"
-/*
- * emc141x abstract base has instance_init; use manual registration with
- * trampoline_init so the init() member is called.
- */
-static void EMC141XState_cpp_register_types(void)
+REGISTER_QEMU_DEVICE_ABSTRACT(EMC141XState, EMC141XClass, TYPE_EMC141X,
+                              TYPE_I2C_SLAVE)
+
+static void __attribute__((constructor)) register_emc141x_concretes(void)
 {
-    static TypeInfo info = {
-        .name          = TYPE_EMC141X,
-        .parent        = TYPE_I2C_SLAVE,
-        .instance_size = sizeof(EMC141XState),
-        .instance_init = qemu_device_detail::trampoline_init<EMC141XState>,
-        .is_abstract   = true,
-        .class_size    = sizeof(EMC141XClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<EMC141XState>,
-    };
-    type_register_static(&info);
     type_register_static(&emc1413_info);
     type_register_static(&emc1414_info);
 }
-
-type_init(EMC141XState_cpp_register_types)
