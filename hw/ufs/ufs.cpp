@@ -1932,26 +1932,19 @@ static const InterfaceInfo ufs_interfaces[] = {
     {}
 };
 
-static const TypeInfo ufs_info = {
-    .name = TYPE_UFS,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UfsHc),
-    .class_init = ufs_class_init,
-    .interfaces = ufs_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(UfsHc, PCIDeviceClass, TYPE_UFS,
+                                       TYPE_PCI_DEVICE, ufs_class_init,
+                                       ufs_interfaces)
 
-static const TypeInfo ufs_bus_info = {
-    .name = TYPE_UFS_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(UfsBus),
-    .class_size = sizeof(UfsBusClass),
-    .class_init = ufs_bus_class_init,
-};
-
-static void ufs_register_types(void)
+static void __attribute__((constructor)) register_ufs_bus(void)
 {
-    type_register_static(&ufs_info);
+    static const TypeInfo ufs_bus_info = {
+        .name = TYPE_UFS_BUS,
+        .parent = TYPE_BUS,
+        .instance_size = sizeof(UfsBus),
+        .class_size = sizeof(UfsBusClass),
+        .class_init = ufs_bus_class_init,
+    };
     type_register_static(&ufs_bus_info);
 }
-
-type_init(ufs_register_types)
