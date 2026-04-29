@@ -17,6 +17,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #include "system/watchdog.h"
 
 #define OSMR0   0x00
@@ -468,10 +469,6 @@ void PXA2xxTimerInfo::init()
     sysbus_init_mmio(dev, &iomem);
 }
 
-static void pxa2xx_timer_init(Object *obj)
-{
-    reinterpret_cast<PXA2xxTimerInfo *>(obj)->init();
-}
 
 static void pxa2xx_timer_realize(DeviceState *dev, Error **errp)
 {
@@ -574,19 +571,8 @@ void PXA2xxTimerInfo::classInit(DeviceClass *dc)
     dc->vmsd = &vmstate_pxa2xx_timer_regs;
 }
 
-static void pxa2xx_timer_class_init(ObjectClass *oc, const void *data)
-{
-    PXA2xxTimerInfo::classInit(DEVICE_CLASS(oc));
-}
-
-static const TypeInfo pxa2xx_timer_type_info = {
-    .name          = TYPE_PXA2XX_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PXA2xxTimerInfo),
-    .instance_init = pxa2xx_timer_init,
-    .is_abstract      = true,
-    .class_init    = pxa2xx_timer_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(PXA2xxTimerInfo, TYPE_PXA2XX_TIMER,
+                                    TYPE_SYS_BUS_DEVICE)
 
 static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
 {
@@ -596,10 +582,8 @@ static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pxa25x_timer_dev_properties);
 }
 
-static void pxa2xx_timer_register_types(void)
+static void pxa2xx_timer_register_concrete_types(void)
 {
-    type_register_static(&pxa2xx_timer_type_info);
-
     static const TypeInfo pxa25x_timer_dev_info = {
         .name          = "pxa25x-timer",
         .parent        = TYPE_PXA2XX_TIMER,
@@ -609,4 +593,4 @@ static void pxa2xx_timer_register_types(void)
     type_register_static(&pxa25x_timer_dev_info);
 }
 
-type_init(pxa2xx_timer_register_types)
+type_init(pxa2xx_timer_register_concrete_types)

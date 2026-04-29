@@ -23,6 +23,7 @@
 #include "hw/scsi/emulation.h"
 #include "system/block-backend.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #ifdef __linux__
 
@@ -801,18 +802,8 @@ static void scsi_generic_class_initfn(ObjectClass *klass, const void *data)
     dc->vmsd  = &vmstate_scsi_device;
 }
 
-static const TypeInfo scsi_generic_info = {
-    .name          = "scsi-generic",
-    .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDevice),
-    .class_init    = scsi_generic_class_initfn,
-};
-
-static void scsi_generic_register_types(void)
-{
-    type_register_static(&scsi_generic_info);
-}
-
-type_init(scsi_generic_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(SCSIDevice, SCSIDeviceClass,
+                               "scsi-generic", TYPE_SCSI_DEVICE,
+                               scsi_generic_class_initfn)
 
 #endif /* __linux__ */

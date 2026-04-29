@@ -18,6 +18,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/vhost-user-base.h"
 #include "qemu/error-report.h"
+#include "qom/cpp/object.h"
 
 /*
  * The following is a concrete implementation of the base class which
@@ -46,15 +47,7 @@ static void vud_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vud_info = {
-    .name = TYPE_VHOST_USER_TEST_DEVICE,
-    .parent = TYPE_VHOST_USER_BASE,
-    .class_init = vud_class_init,
-};
-
-static void vu_register_types(void)
-{
-    type_register_static(&vud_info);
-}
-
-type_init(vu_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(VHostUserBase, VHostUserBaseClass,
+                               TYPE_VHOST_USER_TEST_DEVICE,
+                               TYPE_VHOST_USER_BASE,
+                               vud_class_init)

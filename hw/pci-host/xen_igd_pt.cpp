@@ -29,6 +29,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/i440fx.h"
 #include "qapi/error.h"
+#include "qom/cpp/object.h"
 
 typedef struct {
     uint8_t offset;
@@ -105,16 +106,7 @@ static void igd_passthrough_i440fx_class_init(ObjectClass *klass,
     dc->desc = "IGD Passthrough Host bridge";
 }
 
-static const TypeInfo igd_passthrough_i440fx_info = {
-    .name          = TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE,
-    .parent        = TYPE_I440FX_PCI_DEVICE,
-    .instance_size = sizeof(PCII440FXState),
-    .class_init    = igd_passthrough_i440fx_class_init,
-};
-
-static void igd_pt_i440fx_register_types(void)
-{
-    type_register_static(&igd_passthrough_i440fx_info);
-}
-
-type_init(igd_pt_i440fx_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(PCII440FXState, PCIDeviceClass,
+                               TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE,
+                               TYPE_I440FX_PCI_DEVICE,
+                               igd_passthrough_i440fx_class_init)

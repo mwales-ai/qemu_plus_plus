@@ -34,6 +34,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 
 static bool virtio_mmio_ioeventfd_enabled(DeviceState *d)
@@ -814,12 +815,9 @@ static void virtio_mmio_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_mmio_properties);
 }
 
-static const TypeInfo virtio_mmio_info = {
-    .name          = TYPE_VIRTIO_MMIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VirtIOMMIOProxy),
-    .class_init    = virtio_mmio_class_init,
-};
+REGISTER_QEMU_DEVICE_CUSTOM_CI(VirtIOMMIOProxy, DeviceClass,
+                               TYPE_VIRTIO_MMIO, TYPE_SYS_BUS_DEVICE,
+                               virtio_mmio_class_init)
 
 /* virtio-mmio-bus. */
 
@@ -903,10 +901,9 @@ static const TypeInfo virtio_mmio_bus_info = {
     .class_init    = virtio_mmio_bus_class_init,
 };
 
-static void virtio_mmio_register_types(void)
+static void virtio_mmio_register_bus(void)
 {
     type_register_static(&virtio_mmio_bus_info);
-    type_register_static(&virtio_mmio_info);
 }
 
-type_init(virtio_mmio_register_types)
+type_init(virtio_mmio_register_bus)
