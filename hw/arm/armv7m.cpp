@@ -25,6 +25,7 @@
 #include "target/arm/cpu-features.h"
 #include "target/arm/cpu-qom.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -96,14 +97,14 @@ static const MemoryRegionOps bitband_ops = {
     .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
-static void bitband_init(Object *obj)
+void BitBandState::init()
 {
-    BitBandState *s = BITBAND(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &bitband_ops, s,
+    memory_region_init_io(&iomem, obj, &bitband_ops, this,
                           "bitband", 0x02000000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
 }
 
 static void bitband_realize(DeviceState *dev, Error **errp)
@@ -243,35 +244,35 @@ static const MemoryRegionOps ppb_default_ops = {
     .valid = { .min_access_size = 1, .max_access_size = 8, },
 };
 
-static void armv7m_instance_init(Object *obj)
+void ARMv7MState::init()
 {
-    ARMv7MState *s = ARMV7M(obj);
+    Object *obj = OBJECT(this);
     int i;
 
     /* Can't init the cpu here, we don't yet know which model to use */
 
-    memory_region_init(&s->container, obj, "armv7m-container", UINT64_MAX);
+    memory_region_init(&container, obj, "armv7m-container", UINT64_MAX);
 
-    object_initialize_child(obj, "nvic", &s->nvic, TYPE_NVIC);
+    object_initialize_child(obj, "nvic", &nvic, TYPE_NVIC);
     object_property_add_alias(obj, "num-irq",
-                              OBJECT(&s->nvic), "num-irq");
+                              OBJECT(&nvic), "num-irq");
     object_property_add_alias(obj, "num-prio-bits",
-                              OBJECT(&s->nvic), "num-prio-bits");
+                              OBJECT(&nvic), "num-prio-bits");
 
-    object_initialize_child(obj, "systick-reg-ns", &s->systick[M_REG_NS],
+    object_initialize_child(obj, "systick-reg-ns", &systick[M_REG_NS],
                             TYPE_SYSTICK);
     /*
      * We can't initialize the secure systick here, as we don't know
      * yet if we need it.
      */
 
-    for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {
-        object_initialize_child(obj, "bitband[*]", &s->bitband[i],
+    for (i = 0; i < ARRAY_SIZE(bitband); i++) {
+        object_initialize_child(obj, "bitband[*]", &bitband[i],
                                 TYPE_BITBAND);
     }
 
-    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
-    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
+    refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
+    cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk", NULL, NULL, 0);
 }
 
 static void armv7m_realize(DeviceState *dev, Error **errp)
@@ -576,22 +577,12 @@ static const VMStateDescription vmstate_armv7m = {
     .fields = vmstate_armv7m_fields,
 };
 
-static void armv7m_class_init(ObjectClass *klass, const void *data)
+void ARMv7MState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = armv7m_realize;
     dc->vmsd = &vmstate_armv7m;
     device_class_set_props(dc, armv7m_properties);
 }
-
-static const TypeInfo armv7m_info = {
-    .name = TYPE_ARMV7M,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMv7MState),
-    .instance_init = armv7m_instance_init,
-    .class_init = armv7m_class_init,
-};
 
 static void armv7m_reset(void *opaque)
 {
@@ -647,26 +638,12 @@ static const Property bitband_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void bitband_class_init(ObjectClass *klass, const void *data)
+void BitBandState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->realize = bitband_realize;
     device_class_set_props(dc, bitband_properties);
 }
 
-static const TypeInfo bitband_info = {
-    .name          = TYPE_BITBAND,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BitBandState),
-    .instance_init = bitband_init,
-    .class_init    = bitband_class_init,
-};
+REGISTER_QEMU_DEVICE(BitBandState, TYPE_BITBAND, TYPE_SYS_BUS_DEVICE)
 
-static void armv7m_register_types(void)
-{
-    type_register_static(&bitband_info);
-    type_register_static(&armv7m_info);
-}
-
-type_init(armv7m_register_types)
+REGISTER_QEMU_DEVICE(ARMv7MState, TYPE_ARMV7M, TYPE_SYS_BUS_DEVICE)

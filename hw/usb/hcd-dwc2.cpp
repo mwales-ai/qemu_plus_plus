@@ -43,6 +43,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 #define USB_HZ_FS       12000000
 #define USB_HZ_HS       96000000
@@ -1397,21 +1398,21 @@ static void dwc2_realize(DeviceState *dev, Error **errp)
     reinterpret_cast<DWC2State *>(dev)->realizeImpl(dev, errp);
 }
 
-static void dwc2_init(Object *obj)
+void DWC2State::init()
 {
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-    DWC2State *s = reinterpret_cast<DWC2State *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    Object *obj = OBJECT(this);
 
-    memory_region_init(&s->container, obj, "dwc2", DWC2_MMIO_SIZE);
-    sysbus_init_mmio(sbd, &s->container);
+    memory_region_init(&container, obj, "dwc2", DWC2_MMIO_SIZE);
+    sysbus_init_mmio(sbd, &container);
 
-    memory_region_init_io(&s->hsotg, obj, &dwc2_mmio_hsotg_ops, s,
+    memory_region_init_io(&hsotg, obj, &dwc2_mmio_hsotg_ops, this,
                           "dwc2-io", 4 * KiB);
-    memory_region_add_subregion(&s->container, 0x0000, &s->hsotg);
+    memory_region_add_subregion(&container, 0x0000, &hsotg);
 
-    memory_region_init_io(&s->fifos, obj, &dwc2_mmio_hreg2_ops, s,
+    memory_region_init_io(&fifos, obj, &dwc2_mmio_hreg2_ops, this,
                           "dwc2-fifo", 64 * KiB);
-    memory_region_add_subregion(&s->container, 0x1000, &s->fifos);
+    memory_region_add_subregion(&container, 0x1000, &fifos);
 }
 
 static const VMStateField vmstate_dwc2_state_packet_fields[] = {
@@ -1492,18 +1493,5 @@ static void dwc2_class_init(ObjectClass *klass, const void *data)
                                        dwc2_reset_exit, &c->parent_phases);
 }
 
-static const TypeInfo dwc2_usb_type_info = {
-    .name          = TYPE_DWC2_USB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(DWC2State),
-    .instance_init = dwc2_init,
-    .class_size    = sizeof(DWC2Class),
-    .class_init    = dwc2_class_init,
-};
-
-static void dwc2_usb_register_types(void)
-{
-    type_register_static(&dwc2_usb_type_info);
-}
-
-type_init(dwc2_usb_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(DWC2State, DWC2Class, TYPE_DWC2_USB,
+                               TYPE_SYS_BUS_DEVICE, dwc2_class_init)

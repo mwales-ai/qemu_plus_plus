@@ -126,6 +126,10 @@ struct AcpiGedState {
     uint32_t ged_event_bitmap;
     qemu_irq irq;
     AcpiGhesState ghes_state;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 typedef struct AcpiGedClass {

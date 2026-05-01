@@ -29,6 +29,11 @@ struct BitBandState {
     MemoryRegion iomem;
     uint32_t base;
     MemoryRegion *source_memory;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_ARMV7M "armv7m"
@@ -108,6 +113,11 @@ struct ARMv7MState {
     bool start_powered_off;
     bool vfp;
     bool dsp;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

@@ -198,6 +198,7 @@ struct DWC2State {
     void hreg1Write(uint64_t addr, int index, uint64_t val, unsigned size);
     uint64_t pcgregRead(uint64_t addr, int index, unsigned size);
     void pcgregWrite(uint64_t addr, int index, uint64_t val, unsigned size);
+    void init();
     void resetEnterImpl(Object *obj, ResetType type);
     void resetHoldImpl(Object *obj, ResetType type);
     void resetExitImpl(Object *obj, ResetType type);

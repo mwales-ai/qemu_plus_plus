@@ -23,6 +23,7 @@
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "system/runstate.h"
+#include "qom/cpp/object.h"
 
 static const uint32_t ged_supported_events[] = {
     ACPI_GED_MEM_HOTPLUG_EVT,
@@ -546,31 +547,31 @@ static void acpi_ged_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void acpi_ged_initfn(Object *obj)
+void AcpiGedState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    AcpiGedState *s = ACPI_GED(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    GEDState *ged_st = &s->ged_state;
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    Object *obj = OBJECT(this);
+    GEDState *ged_st = &ged_state;
 
     memory_region_init_io(&ged_st->evt, obj, &ged_evt_ops, ged_st,
                           TYPE_ACPI_GED, ACPI_GED_EVT_SEL_LEN);
     sysbus_init_mmio(sbd, &ged_st->evt);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    s->memhp_state.is_enabled = true;
+    memhp_state.is_enabled = true;
     /*
      * GED handles memory hotplug event and acpi-mem-hotplug
      * memory region gets initialized here. Create an exclusive
      * container for memory hotplug IO and expose it as GED sysbus
      * MMIO so that boards can map it separately.
      */
-    memory_region_init(&s->container_memhp, OBJECT(dev), "memhp container",
+    memory_region_init(&container_memhp, OBJECT(dev), "memhp container",
                        MEMORY_HOTPLUG_IO_LEN);
-    sysbus_init_mmio(sbd, &s->container_memhp);
-    acpi_memory_hotplug_init(&s->container_memhp, OBJECT(dev),
-                             &s->memhp_state, 0);
+    sysbus_init_mmio(sbd, &container_memhp);
+    acpi_memory_hotplug_init(&container_memhp, OBJECT(dev),
+                             &memhp_state, 0);
 
     memory_region_init_io(&ged_st->regs, obj, &ged_regs_ops, ged_st,
                           TYPE_ACPI_GED "-regs", ACPI_GED_REG_COUNT);
@@ -610,23 +611,12 @@ static void acpi_ged_class_init(ObjectClass *klass, const void *data)
     adevc->send_event = acpi_ged_send_event;
 }
 
-static const TypeInfo acpi_ged_info = {
-    .name          = TYPE_ACPI_GED,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AcpiGedState),
-    .instance_init  = acpi_ged_initfn,
-    .class_size    = sizeof(AcpiGedClass),
-    .class_init    = acpi_ged_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { TYPE_ACPI_DEVICE_IF },
-        { }
-    }
+static const InterfaceInfo acpi_ged_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { TYPE_ACPI_DEVICE_IF },
+    { }
 };
 
-static void acpi_ged_register_types(void)
-{
-    type_register_static(&acpi_ged_info);
-}
-
-type_init(acpi_ged_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(AcpiGedState, AcpiGedClass,
+                                      TYPE_ACPI_GED, TYPE_SYS_BUS_DEVICE,
+                                      acpi_ged_class_init, acpi_ged_interfaces)

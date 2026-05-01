@@ -34,6 +34,7 @@
 #include "hw/arm/smmuv3.h"
 #include "smmuv3-internal.h"
 #include "smmu-internal.h"
+#include "qom/cpp/object.h"
 
 #define PTW_RECORD_FAULT(ptw_info, cfg) (((ptw_info).stage == SMMU_STAGE_1 && \
                                         (cfg)->record_faults) || \
@@ -1988,11 +1989,6 @@ static const Property smmuv3_properties[] = {
     DEFINE_PROP_STRING("stage", SMMUv3State, stage),
 };
 
-static void smmuv3_instance_init(Object *obj)
-{
-    /* Nothing much to do here as of now */
-}
-
 static void smmuv3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2050,26 +2046,17 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->notify_flag_changed = smmuv3_notify_flag_changed;
 }
 
-static const TypeInfo smmuv3_type_info = {
-    .name          = TYPE_ARM_SMMUV3,
-    .parent        = TYPE_ARM_SMMU,
-    .instance_size = sizeof(SMMUv3State),
-    .instance_init = smmuv3_instance_init,
-    .class_size    = sizeof(SMMUv3Class),
-    .class_init    = smmuv3_class_init,
-};
-
 static const TypeInfo smmuv3_iommu_memory_region_info = {
     .name = TYPE_SMMUV3_IOMMU_MEMORY_REGION,
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = smmuv3_iommu_memory_region_class_init,
 };
 
-static void smmuv3_register_types(void)
+static void __attribute__((constructor)) smmuv3_iommu_region_register(void)
 {
-    type_register_static(&smmuv3_type_info);
     type_register_static(&smmuv3_iommu_memory_region_info);
 }
 
-type_init(smmuv3_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI(SMMUv3State, SMMUv3Class, TYPE_ARM_SMMUV3,
+                               TYPE_ARM_SMMU, smmuv3_class_init)
 
