@@ -10,9 +10,9 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures)
 **As of:** 2026-05-01
 
-**Conversion progress:** 817 hw/ files converted to REGISTER_QEMU_* macros,
-66 files remain. The 66 remaining all have specific structural blockers
-that need targeted refactoring rather than new macro variants.
+**Conversion progress:** 818 hw/ files converted to REGISTER_QEMU_* macros,
+65 files remain. The remaining files all have specific structural
+blockers that need targeted refactoring rather than new macro variants.
 
 ## What is QOM?
 
@@ -37,7 +37,7 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE/INTERFACE/BUS/OBJECT/MACHINE Macro Family — 817+ files
+### REGISTER_QEMU_DEVICE/INTERFACE/BUS/OBJECT/MACHINE Macro Family — 818+ files
 
 The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
 and type registration via SFINAE detection of `init()`, `finalize()`,
