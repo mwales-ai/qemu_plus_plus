@@ -473,6 +473,34 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI: abstract device base class with
+ * a user-supplied class_init function. For abstract bases that use
+ * device_class_set_parent_realize chaining or otherwise need control over
+ * the class_init body (e.g., touch parent class struct fields directly).
+ * SFINAE-wires init()/finalize() on the state struct.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(ClassName, ClassStruct,      \
+                                                 type_name_str,              \
+                                                 parent_type_str,            \
+                                                 class_init_fn)              \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES: like REGISTER_QEMU_DEVICE_CUSTOM_CI
  * but with an InterfaceInfo array. Use for devices that need both a
  * user-supplied class_init (e.g. parent_realize chaining) and QOM interfaces.

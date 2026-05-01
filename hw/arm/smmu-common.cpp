@@ -1008,20 +1008,8 @@ static void smmu_base_class_init(ObjectClass *klass, const void *data)
     rc->phases.exit = smmu_base_reset_exit;
 }
 
-static const TypeInfo smmu_base_info = {
-    .name          = TYPE_ARM_SMMU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SMMUState),
-    .is_abstract   = true,
-    .class_size    = sizeof(SMMUBaseClass),
-    .class_init    = smmu_base_class_init,
-    .class_data    = NULL,
-};
-
-static void smmu_base_register_types(void)
-{
-    type_register_static(&smmu_base_info);
-}
-
-type_init(smmu_base_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(SMMUState, SMMUBaseClass,
+                                         TYPE_ARM_SMMU, TYPE_SYS_BUS_DEVICE,
+                                         smmu_base_class_init)
 
