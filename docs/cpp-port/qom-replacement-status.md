@@ -37,7 +37,7 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### REGISTER_QEMU_DEVICE/INTERFACE/BUS/OBJECT/MACHINE Macro Family — 823+ files
+### REGISTER_QEMU_DEVICE/INTERFACE/BUS/OBJECT/MACHINE Macro Family — 825+ files
 
 The `REGISTER_QEMU_DEVICE` macro family auto-generates TypeInfo, trampolines,
 and type registration via SFINAE detection of `init()`, `finalize()`,
