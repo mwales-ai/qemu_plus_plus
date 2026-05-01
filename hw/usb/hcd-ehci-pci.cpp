@@ -100,6 +100,16 @@ static void usb_ehci_pci_finalize(Object *obj)
     usb_ehci_finalize(s);
 }
 
+void EHCIPCIState::init()
+{
+    usb_ehci_pci_init(reinterpret_cast<Object *>(this));
+}
+
+void EHCIPCIState::finalize()
+{
+    usb_ehci_pci_finalize(reinterpret_cast<Object *>(this));
+}
+
 static void usb_ehci_pci_exit(PCIDevice *dev)
 {
     EHCIPCIState *i = PCI_EHCI(dev);
@@ -171,16 +181,12 @@ static const InterfaceInfo ehci_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo ehci_pci_type_info = {
-    .name = TYPE_PCI_EHCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(EHCIPCIState),
-    .instance_init = usb_ehci_pci_init,
-    .instance_finalize = usb_ehci_pci_finalize,
-    .is_abstract = true,
-    .class_init = ehci_class_init,
-    .interfaces = ehci_pci_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(EHCIPCIState,
+                                                      TYPE_PCI_EHCI,
+                                                      TYPE_PCI_DEVICE,
+                                                      ehci_class_init,
+                                                      ehci_pci_interfaces)
 
 static void ehci_data_class_init(ObjectClass *klass, const void *data)
 {
@@ -218,15 +224,13 @@ static struct EHCIPCIInfo ehci_pci_info[] = {
     }
 };
 
-static void ehci_pci_register_types(void)
+static void ehci_pci_register_concrete_types(void)
 {
     TypeInfo ehci_type_info = {
         .parent        = TYPE_PCI_EHCI,
         .class_init    = ehci_data_class_init,
     };
     int i;
-
-    type_register_static(&ehci_pci_type_info);
 
     for (i = 0; i < ARRAY_SIZE(ehci_pci_info); i++) {
         ehci_type_info.name = ehci_pci_info[i].name;
@@ -235,4 +239,4 @@ static void ehci_pci_register_types(void)
     }
 }
 
-type_init(ehci_pci_register_types)
+type_init(ehci_pci_register_concrete_types)

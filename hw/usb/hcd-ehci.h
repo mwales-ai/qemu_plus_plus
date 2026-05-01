@@ -340,6 +340,11 @@ struct EHCIPCIState {
     /*< public >*/
 
     EHCIState ehci;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 
