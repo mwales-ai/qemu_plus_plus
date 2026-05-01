@@ -1284,15 +1284,11 @@ static const InterfaceInfo uhci_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo uhci_pci_type_info = {
-    .name = TYPE_UHCI,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .is_abstract = true,
-    .class_size    = sizeof(UHCIPCIDeviceClass),
-    .class_init = uhci_class_init,
-    .interfaces = uhci_pci_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_IFACES(UHCIState, UHCIPCIDeviceClass,
+                                                TYPE_UHCI, TYPE_PCI_DEVICE,
+                                                uhci_class_init,
+                                                uhci_pci_interfaces)
 
 void uhci_data_class_init(ObjectClass *klass, const void *data)
 {
@@ -1379,15 +1375,13 @@ static UHCIInfo uhci_info[] = {
     }
 };
 
-static void uhci_register_types(void)
+static void uhci_register_concrete_types(void)
 {
     TypeInfo uhci_type_info = {
         .parent        = TYPE_UHCI,
         .class_init    = uhci_data_class_init,
     };
     int i;
-
-    type_register_static(&uhci_pci_type_info);
 
     for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
         uhci_type_info.name = uhci_info[i].name;
@@ -1396,4 +1390,4 @@ static void uhci_register_types(void)
     }
 }
 
-type_init(uhci_register_types)
+type_init(uhci_register_concrete_types)
