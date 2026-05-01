@@ -1144,23 +1144,13 @@ void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
-static void fw_cfg_class_init(ObjectClass *klass, const void *data)
+void FWCfgState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, fw_cfg_reset);
     dc->vmsd = &vmstate_fw_cfg;
 
     device_class_set_props(dc, fw_cfg_properties);
 }
-
-static const TypeInfo fw_cfg_info = {
-    .name          = TYPE_FW_CFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(FWCfgState),
-    .is_abstract   = true,
-    .class_init    = fw_cfg_class_init,
-};
 
 static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
 {
@@ -1295,11 +1285,11 @@ static const TypeInfo fw_cfg_mem_info = {
     .class_init    = fw_cfg_mem_class_init,
 };
 
-static void fw_cfg_register_types(void)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(FWCfgState, TYPE_FW_CFG, TYPE_SYS_BUS_DEVICE)
+
+static void __attribute__((constructor)) register_fw_cfg_concretes(void)
 {
-    type_register_static(&fw_cfg_info);
     type_register_static(&fw_cfg_io_info);
     type_register_static(&fw_cfg_mem_info);
 }
-
-type_init(fw_cfg_register_types)
