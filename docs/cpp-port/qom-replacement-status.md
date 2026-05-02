@@ -7,12 +7,29 @@ virtual methods, and compile-time type checking. This document tracks progress.
 
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
-**Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures)
-**As of:** 2026-05-01
+**Tests:** 12/15 smoke tests passing (3 pre-existing failures)
+**As of:** 2026-05-02
 
-**Conversion progress:** 823 hw/ files converted to REGISTER_QEMU_* macros,
-60 files remain. The remaining files all have specific structural
-blockers that need targeted refactoring rather than new macro variants.
+**Conversion progress:** 854 hw/ files converted to REGISTER_QEMU_* macros
+out of 1416 total .cpp files in hw/. Recent additions in this session:
+TYPE_CPU base, TYPE_VIRTIO_DEVICE base, BCM2838 SoC + peripherals,
+nubus-device abstract base, pcie_port + pcie_host abstract types,
+vfio-pci-igd-lpc-bridge.
+
+A latent class_size bug was uncovered and fixed in this session:
+several `REGISTER_QEMU_DEVICE_CUSTOM_CI(..., DeviceClass, ..., TYPE_SYS_BUS_DEVICE, ...)`
+calls used DeviceClass as ClassStruct under a SysBusDevice parent, making
+the child class smaller than its parent and triggering QOM's runtime
+`parent->class_size <= ti->class_size` assertion. Fixed by switching
+those callers to `_CUSTOM_CI_NO_CS` and by guarding `trampoline_class_init`
+against `DEVICE_CLASS(oc)` failures for non-device types (e.g. machines).
+Smoke tests had silently regressed from 12/15 to 5/15 in earlier commits;
+this session restored them to 12/15.
+
+The remaining files have specific structural blockers
+(VirtioPCIDeviceTypeInfo helper, multi-machine generators, class_data
+variants, multi-type-per-file with shared structs, runtime type loops,
+bus/interface registrations).
 
 ## What is QOM?
 
