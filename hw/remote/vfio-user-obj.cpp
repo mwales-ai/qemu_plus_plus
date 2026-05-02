@@ -116,6 +116,9 @@ struct VfuObject {
     MSITriggerFunc *default_msi_trigger;
     MSIPrepareMessageFunc *default_msi_prepare_message;
     MSIxPrepareMessageFunc *default_msix_prepare_message;
+
+    void init();
+    void finalize();
 };
 
 static void vfu_object_init_ctx(VfuObject *o, Error **errp);
@@ -922,6 +925,16 @@ static void vfu_object_finalize(Object *obj)
     }
 }
 
+void VfuObject::init()
+{
+    vfu_object_init(reinterpret_cast<Object *>(this));
+}
+
+void VfuObject::finalize()
+{
+    vfu_object_finalize(reinterpret_cast<Object *>(this));
+}
+
 static void vfu_object_class_init(ObjectClass *klass, const void *data)
 {
     VfuObjectClass *k = VFU_OBJECT_CLASS(klass);
@@ -941,23 +954,12 @@ static void vfu_object_class_init(ObjectClass *klass, const void *data)
                                           "are presently supported");
 }
 
-static const TypeInfo vfu_object_info = {
-    .name = TYPE_VFU_OBJECT,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(VfuObject),
-    .instance_init = vfu_object_init,
-    .instance_finalize = vfu_object_finalize,
-    .class_size = sizeof(VfuObjectClass),
-    .class_init = vfu_object_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+static const InterfaceInfo vfu_object_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
 };
 
-static void vfu_register_types(void)
-{
-    type_register_static(&vfu_object_info);
-}
-
-type_init(vfu_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(VfuObject, VfuObjectClass, TYPE_VFU_OBJECT,
+                                    TYPE_OBJECT, vfu_object_class_init,
+                                    vfu_object_interfaces)
