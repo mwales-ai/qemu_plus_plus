@@ -72,10 +72,6 @@ struct BCM2838PeripheralState {
 
     UnimplementedDeviceState asb;
     UnimplementedDeviceState clkisp;
-
-#ifdef __cplusplus
-    void init();
-#endif
 };
 
 struct BCM2838PeripheralClass {

@@ -21,41 +21,41 @@
 /* Capabilities for SD controller: no DMA, high-speed, default clocks etc. */
 #define BCM2835_SDHC_CAPAREG 0x52134b4
 
-void BCM2838PeripheralState::init()
+static void bcm2838_peripherals_init(Object *obj)
 {
-    Object *obj = OBJECT(this);
+    BCM2838PeripheralState *s = BCM2838_PERIPHERALS(obj);
     BCM2838PeripheralClass *bc = BCM2838_PERIPHERALS_GET_CLASS(obj);
     BCMSocPeripheralBaseState *s_base = BCM_SOC_PERIPHERALS_BASE(obj);
 
     /* Lower memory region for peripheral devices (exported to the Soc) */
-    memory_region_init(&peri_low_mr, obj, "bcm2838-peripherals",
+    memory_region_init(&s->peri_low_mr, obj, "bcm2838-peripherals",
                        bc->peri_low_size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &peri_low_mr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->peri_low_mr);
 
     /* Extended Mass Media Controller 2 */
-    object_initialize_child(obj, "emmc2", &emmc2, TYPE_SYSBUS_SDHCI);
+    object_initialize_child(obj, "emmc2", &s->emmc2, TYPE_SYSBUS_SDHCI);
 
     /* GPIO */
-    object_initialize_child(obj, "gpio", &gpio, TYPE_BCM2838_GPIO);
+    object_initialize_child(obj, "gpio", &s->gpio, TYPE_BCM2838_GPIO);
 
-    object_property_add_const_link(OBJECT(&gpio), "sdbus-sdhci",
+    object_property_add_const_link(OBJECT(&s->gpio), "sdbus-sdhci",
                                    OBJECT(&s_base->sdhci.sdbus));
-    object_property_add_const_link(OBJECT(&gpio), "sdbus-sdhost",
+    object_property_add_const_link(OBJECT(&s->gpio), "sdbus-sdhost",
                                    OBJECT(&s_base->sdhost.sdbus));
 
-    object_initialize_child(obj, "mmc_irq_orgate", &mmc_irq_orgate,
+    object_initialize_child(obj, "mmc_irq_orgate", &s->mmc_irq_orgate,
                             TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(&mmc_irq_orgate), "num-lines", 2,
+    object_property_set_int(OBJECT(&s->mmc_irq_orgate), "num-lines", 2,
                             &error_abort);
 
-    object_initialize_child(obj, "dma_7_8_irq_orgate", &dma_7_8_irq_orgate,
+    object_initialize_child(obj, "dma_7_8_irq_orgate", &s->dma_7_8_irq_orgate,
                             TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(&dma_7_8_irq_orgate), "num-lines", 2,
+    object_property_set_int(OBJECT(&s->dma_7_8_irq_orgate), "num-lines", 2,
                             &error_abort);
 
-    object_initialize_child(obj, "dma_9_10_irq_orgate", &dma_9_10_irq_orgate,
+    object_initialize_child(obj, "dma_9_10_irq_orgate", &s->dma_9_10_irq_orgate,
                             TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(&dma_9_10_irq_orgate), "num-lines", 2,
+    object_property_set_int(OBJECT(&s->dma_9_10_irq_orgate), "num-lines", 2,
                             &error_abort);
 }
 
@@ -207,9 +207,18 @@ static void bcm2838_peripherals_class_init(ObjectClass *oc, const void *data)
     dc->realize = bcm2838_peripherals_realize;
 }
 
-#include "qom/cpp/object.h"
+static const TypeInfo bcm2838_peripherals_type_info = {
+    .name = TYPE_BCM2838_PERIPHERALS,
+    .parent = TYPE_BCM_SOC_PERIPHERALS_BASE,
+    .instance_size = sizeof(BCM2838PeripheralState),
+    .instance_init = bcm2838_peripherals_init,
+    .class_size = sizeof(BCM2838PeripheralClass),
+    .class_init = bcm2838_peripherals_class_init,
+};
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(BCM2838PeripheralState, BCM2838PeripheralClass,
-                                TYPE_BCM2838_PERIPHERALS,
-                                TYPE_BCM_SOC_PERIPHERALS_BASE,
-                                bcm2838_peripherals_class_init)
+static void bcm2838_peripherals_register_types(void)
+{
+    type_register_static(&bcm2838_peripherals_type_info);
+}
+
+type_init(bcm2838_peripherals_register_types)
