@@ -195,14 +195,6 @@ static bool pcie_slot_is_hotpluggable_bus(HotplugHandler *plug_handler,
     return s->hotplug;
 }
 
-static const TypeInfo pcie_port_type_info = {
-    .name = TYPE_PCIE_PORT,
-    .parent = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(PCIEPort),
-    .is_abstract = true,
-    .class_init = pcie_port_class_init,
-};
-
 static const Property pcie_slot_props[] = {
     DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
     DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
@@ -224,22 +216,20 @@ static void pcie_slot_class_init(ObjectClass *oc, const void *data)
     hc->is_hotpluggable_bus = pcie_slot_is_hotpluggable_bus;
 }
 
-static const TypeInfo pcie_slot_type_info = {
-    .name = TYPE_PCIE_SLOT,
-    .parent = TYPE_PCIE_PORT,
-    .instance_size = sizeof(PCIESlot),
-    .is_abstract = true,
-    .class_init = pcie_slot_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+static const InterfaceInfo pcie_slot_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-static void pcie_port_register_types(void)
-{
-    type_register_static(&pcie_port_type_info);
-    type_register_static(&pcie_slot_type_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(pcie_port_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(PCIEPort,
+                                               TYPE_PCIE_PORT,
+                                               TYPE_PCI_BRIDGE,
+                                               pcie_port_class_init)
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(PCIESlot,
+                                                      TYPE_PCIE_SLOT,
+                                                      TYPE_PCIE_PORT,
+                                                      pcie_slot_class_init,
+                                                      pcie_slot_interfaces)
