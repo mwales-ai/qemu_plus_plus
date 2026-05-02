@@ -73,11 +73,13 @@ static const MemoryRegionOps pcie_mmcfg_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void PCIExpressHost::init()
+static void pcie_host_init(Object *obj)
 {
-    base_addr = PCIE_BASE_ADDR_UNMAPPED;
-    memory_region_init_io(&mmio, OBJECT(this), &pcie_mmcfg_ops, this,
-                          "pcie-mmcfg-mmio", PCIE_MMCFG_SIZE_MAX);
+    PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
+
+    e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
+    memory_region_init_io(&e->mmio, OBJECT(e), &pcie_mmcfg_ops, e, "pcie-mmcfg-mmio",
+                          PCIE_MMCFG_SIZE_MAX);
 }
 
 void pcie_host_mmcfg_unmap(PCIExpressHost *e)
@@ -118,8 +120,17 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
     memory_region_transaction_commit();
 }
 
-#include "qom/cpp/object.h"
+static const TypeInfo pcie_host_type_info = {
+    .name = TYPE_PCIE_HOST_BRIDGE,
+    .parent = TYPE_PCI_HOST_BRIDGE,
+    .instance_size = sizeof(PCIExpressHost),
+    .instance_init = pcie_host_init,
+    .is_abstract = true,
+};
 
-REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(PCIExpressHost,
-                                     TYPE_PCIE_HOST_BRIDGE,
-                                     TYPE_PCI_HOST_BRIDGE)
+static void pcie_host_register_types(void)
+{
+    type_register_static(&pcie_host_type_info);
+}
+
+type_init(pcie_host_register_types)
