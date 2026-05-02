@@ -252,6 +252,11 @@ struct XenPCIPassthroughState {
     MemoryListener memory_listener;
     MemoryListener io_listener;
     bool listener_set;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 void xen_pt_config_init(XenPCIPassthroughState *s, Error **errp);

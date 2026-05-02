@@ -1072,24 +1072,24 @@ static void xen_pci_passthrough_finalize(Object *obj)
     xen_pt_msix_delete(s);
 }
 
-static const TypeInfo xen_pci_passthrough_info = {
-    .name = TYPE_XEN_PT_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(XenPCIPassthroughState),
-    .instance_finalize = xen_pci_passthrough_finalize,
-    .class_init = xen_pci_passthrough_class_init,
-    .class_size = sizeof(XenPTDeviceClass),
-    .instance_init = xen_pci_passthrough_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { INTERFACE_PCIE_DEVICE },
-        { },
-    },
+static const InterfaceInfo xen_pci_passthrough_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { INTERFACE_PCIE_DEVICE },
+    { },
 };
 
-static void xen_pci_passthrough_register_types(void)
+void XenPCIPassthroughState::init()
 {
-    type_register_static(&xen_pci_passthrough_info);
+    xen_pci_passthrough_instance_init(reinterpret_cast<Object *>(this));
 }
 
-type_init(xen_pci_passthrough_register_types)
+void XenPCIPassthroughState::finalize()
+{
+    xen_pci_passthrough_finalize(reinterpret_cast<Object *>(this));
+}
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(XenPCIPassthroughState, XenPTDeviceClass,
+                                       TYPE_XEN_PT_DEVICE, TYPE_PCI_DEVICE,
+                                       xen_pci_passthrough_class_init,
+                                       xen_pci_passthrough_interfaces)
