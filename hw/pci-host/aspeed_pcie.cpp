@@ -58,13 +58,6 @@ static const InterfaceInfo aspeed_pcie_root_device_interfaces[] = {
     { },
 };
 
-static const TypeInfo aspeed_pcie_root_device_info = {
-    .name = TYPE_ASPEED_PCIE_ROOT_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(AspeedPCIERootDeviceState),
-    .class_init = aspeed_pcie_root_device_class_init,
-    .interfaces = aspeed_pcie_root_device_interfaces,
-};
 
 /*
  * PCIe Root Port
@@ -123,12 +116,6 @@ static void aspeed_pcie_root_port_class_init(ObjectClass *klass,
     rpc->ssid = 0x1150;
 }
 
-static const TypeInfo aspeed_pcie_root_port_info = {
-    .name = TYPE_ASPEED_PCIE_ROOT_PORT,
-    .parent = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(AspeedPCIERootPortState),
-    .class_init = aspeed_pcie_root_port_class_init,
-};
 
 /*
  * PCIe Root Complex (RC)
@@ -325,10 +312,10 @@ static const char *aspeed_pcie_rc_root_bus_path(PCIHostState *host_bridge,
     return rc->name;
 }
 
-static void aspeed_pcie_rc_instance_init(Object *obj)
+void AspeedPCIERcState::init()
 {
-    AspeedPCIERcState *rc = ASPEED_PCIE_RC(obj);
-    AspeedPCIERootPortState *root_port = &rc->root_port;
+    Object *obj = OBJECT(this);
+    AspeedPCIERootPortState *root_port = &this->root_port;
 
     object_initialize_child(obj, "root_port", root_port,
                             TYPE_ASPEED_PCIE_ROOT_PORT);
@@ -360,13 +347,6 @@ static void aspeed_pcie_rc_class_init(ObjectClass *klass, const void *data)
     msi_nonbroken = true;
 }
 
-static const TypeInfo aspeed_pcie_rc_info = {
-    .name = TYPE_ASPEED_PCIE_RC,
-    .parent = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(AspeedPCIERcState),
-    .instance_init = aspeed_pcie_rc_instance_init,
-    .class_init = aspeed_pcie_rc_class_init,
-};
 
 /*
  * PCIe Config
@@ -668,15 +648,13 @@ static const MemoryRegionOps aspeed_pcie_cfg_ops = {
     },
 };
 
-static void aspeed_pcie_cfg_instance_init(Object *obj)
+void AspeedPCIECfgState::init()
 {
-    AspeedPCIECfgState *s = ASPEED_PCIE_CFG(obj);
+    Object *obj = OBJECT(this);
 
-    object_initialize_child(obj, "rc", &s->rc, TYPE_ASPEED_PCIE_RC);
-    object_property_add_alias(obj, "dram", OBJECT(&s->rc), "dram");
-    object_property_add_alias(obj, "dram-base", OBJECT(&s->rc), "dram-base");
-
-    return;
+    object_initialize_child(obj, "rc", &rc, TYPE_ASPEED_PCIE_RC);
+    object_property_add_alias(obj, "dram", OBJECT(&rc), "dram");
+    object_property_add_alias(obj, "dram-base", OBJECT(&rc), "dram-base");
 }
 
 static void aspeed_pcie_cfg_reset(DeviceState *dev)
@@ -752,14 +730,6 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
     apc->rc_rp_addr = PCI_DEVFN(8, 0);
 }
 
-static const TypeInfo aspeed_pcie_cfg_info = {
-    .name       = TYPE_ASPEED_PCIE_CFG,
-    .parent     = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedPCIECfgState),
-    .instance_init = aspeed_pcie_cfg_instance_init,
-    .class_size = sizeof(AspeedPCIECfgClass),
-    .class_init = aspeed_pcie_cfg_class_init,
-};
 
 static void aspeed_2700_pcie_cfg_write(void *opaque, hwaddr addr,
                                        uint64_t data, unsigned int size)
@@ -872,12 +842,6 @@ static void aspeed_2700_pcie_cfg_class_init(ObjectClass *klass,
     apc->rc_has_rd = false;
     apc->rc_rp_addr = PCI_DEVFN(0, 0);
 }
-
-static const TypeInfo aspeed_2700_pcie_cfg_info = {
-    .name = TYPE_ASPEED_2700_PCIE_CFG,
-    .parent = TYPE_ASPEED_PCIE_CFG,
-    .class_init = aspeed_2700_pcie_cfg_class_init,
-};
 
 /*
  * PCIe PHY
@@ -1000,14 +964,6 @@ static void aspeed_pcie_phy_class_init(ObjectClass *klass, const void *data)
     apc->nr_regs = 0x100 >> 2;
 }
 
-static const TypeInfo aspeed_pcie_phy_info = {
-    .name       = TYPE_ASPEED_PCIE_PHY,
-    .parent     = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedPCIEPhyState),
-    .class_size = sizeof(AspeedPCIEPhyClass),
-    .class_init = aspeed_pcie_phy_class_init,
-};
-
 static void aspeed_2700_pcie_phy_reset(DeviceState *dev)
 {
     AspeedPCIEPhyState *s = ASPEED_PCIE_PHY(dev);
@@ -1034,22 +990,53 @@ static void aspeed_2700_pcie_phy_class_init(ObjectClass *klass,
     apc->nr_regs = 0x800 >> 2;
 }
 
-static const TypeInfo aspeed_2700_pcie_phy_info = {
-    .name       = TYPE_ASPEED_2700_PCIE_PHY,
-    .parent     = TYPE_ASPEED_PCIE_PHY,
-    .class_init = aspeed_2700_pcie_phy_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void aspeed_pcie_register_types(void)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS_IFACES(AspeedPCIERootDeviceState,
+                                             TYPE_ASPEED_PCIE_ROOT_DEVICE,
+                                             TYPE_PCI_DEVICE,
+                                             aspeed_pcie_root_device_class_init,
+                                             aspeed_pcie_root_device_interfaces)
+
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(AspeedPCIERootPortState,
+                                      TYPE_ASPEED_PCIE_ROOT_PORT,
+                                      TYPE_PCIE_ROOT_PORT,
+                                      aspeed_pcie_root_port_class_init)
+
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(AspeedPCIERcState,
+                                      TYPE_ASPEED_PCIE_RC,
+                                      TYPE_PCIE_HOST_BRIDGE,
+                                      aspeed_pcie_rc_class_init)
+
+REGISTER_QEMU_DEVICE_CUSTOM_CI(AspeedPCIECfgState, AspeedPCIECfgClass,
+                                TYPE_ASPEED_PCIE_CFG,
+                                TYPE_SYS_BUS_DEVICE,
+                                aspeed_pcie_cfg_class_init)
+
+REGISTER_QEMU_DEVICE_CUSTOM_CI(AspeedPCIEPhyState, AspeedPCIEPhyClass,
+                                TYPE_ASPEED_PCIE_PHY,
+                                TYPE_SYS_BUS_DEVICE,
+                                aspeed_pcie_phy_class_init)
+
+static void aspeed_2700_pcie_cfg_register(void) __attribute__((constructor));
+static void aspeed_2700_pcie_cfg_register(void)
 {
-    type_register_static(&aspeed_pcie_rc_info);
-    type_register_static(&aspeed_pcie_root_device_info);
-    type_register_static(&aspeed_pcie_root_port_info);
-    type_register_static(&aspeed_pcie_cfg_info);
+    static const TypeInfo aspeed_2700_pcie_cfg_info = {
+        .name = TYPE_ASPEED_2700_PCIE_CFG,
+        .parent = TYPE_ASPEED_PCIE_CFG,
+        .class_init = aspeed_2700_pcie_cfg_class_init,
+    };
     type_register_static(&aspeed_2700_pcie_cfg_info);
-    type_register_static(&aspeed_pcie_phy_info);
-    type_register_static(&aspeed_2700_pcie_phy_info);
 }
 
-type_init(aspeed_pcie_register_types);
+static void aspeed_2700_pcie_phy_register(void) __attribute__((constructor));
+static void aspeed_2700_pcie_phy_register(void)
+{
+    static const TypeInfo aspeed_2700_pcie_phy_info = {
+        .name = TYPE_ASPEED_2700_PCIE_PHY,
+        .parent = TYPE_ASPEED_PCIE_PHY,
+        .class_init = aspeed_2700_pcie_phy_class_init,
+    };
+    type_register_static(&aspeed_2700_pcie_phy_info);
+}
 

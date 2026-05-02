@@ -83,6 +83,10 @@ struct AspeedPCIERcState {
 
     AspeedPCIERootDeviceState root_device;
     AspeedPCIERootPortState root_port;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 /* Bridge between AHB bus and PCIe RC. */
@@ -101,6 +105,10 @@ struct AspeedPCIECfgState {
     AspeedPCIERcState rc;
     uint32_t tlpn_fifo[3];
     uint32_t tlpn_idx;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 struct AspeedPCIECfgClass {
