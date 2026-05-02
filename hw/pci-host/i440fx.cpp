@@ -79,6 +79,7 @@ struct I440FXState {
     static void getPciHole64End(Object *obj, Visitor *v, const char *name,
                                 void *opaque, Error **errp);
     static void initfn(Object *obj);
+    void init();
     void realize(DeviceState *dev, Error **errp);
     static void pciClassInit(ObjectClass *klass, const void *data);
     static const char *rootBusPath(PCIHostState *host_bridge, PCIBus *rootbus);
@@ -246,6 +247,11 @@ void I440FXState::getPciHole64End(Object *obj, Visitor *v,
     visit_type_uint64(v, name, &value, errp);
 }
 
+void I440FXState::init()
+{
+    initfn(reinterpret_cast<Object *>(this));
+}
+
 void I440FXState::initfn(Object *obj)
 {
     I440FXState *s = reinterpret_cast<I440FXState *>(obj);
@@ -374,13 +380,12 @@ static const InterfaceInfo i440fx_interfaces[] = {
     { },
 };
 
-static const TypeInfo i440fx_info = {
-    .name          = TYPE_I440FX_PCI_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCII440FXState),
-    .class_init    = I440FXState::pciClassInit,
-    .interfaces = i440fx_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS_IFACES(PCII440FXState,
+                                             TYPE_I440FX_PCI_DEVICE,
+                                             TYPE_PCI_DEVICE,
+                                             I440FXState::pciClassInit,
+                                             i440fx_interfaces)
 
 const char *I440FXState::rootBusPath(PCIHostState *host_bridge,
                                       PCIBus *rootbus)
@@ -428,18 +433,7 @@ void I440FXState::hostClassInit(ObjectClass *klass, const void *data)
                               NULL, NULL, NULL);
 }
 
-static const TypeInfo i440fx_pcihost_info = {
-    .name          = TYPE_I440FX_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(I440FXState),
-    .instance_init = I440FXState::initfn,
-    .class_init    = I440FXState::hostClassInit,
-};
-
-static void i440fx_register_types(void)
-{
-    type_register_static(&i440fx_info);
-    type_register_static(&i440fx_pcihost_info);
-}
-
-type_init(i440fx_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(I440FXState,
+                                      TYPE_I440FX_PCI_HOST_BRIDGE,
+                                      TYPE_PCI_HOST_BRIDGE,
+                                      I440FXState::hostClassInit)
