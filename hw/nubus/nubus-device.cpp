@@ -25,83 +25,85 @@ void nubus_set_irq(NubusDevice *nd, int level)
     qemu_set_irq(nubus->irqs[nd->slot], level);
 }
 
-void NubusDevice::realize(Error **errp)
+static void nubus_device_realize(DeviceState *dev, Error **errp)
 {
-    NubusBus *nubus = NUBUS_BUS(qdev_get_parent_bus(DEVICE(this)));
+    NubusBus *nubus = NUBUS_BUS(qdev_get_parent_bus(dev));
+    NubusDevice *nd = NUBUS_DEVICE(dev);
     char *name, *path;
     hwaddr slot_offset;
     int64_t size, align_size;
     uint8_t *rom_ptr;
     int ret;
 
-    if (slot < 0 || slot >= NUBUS_SLOT_NB) {
+    if (nd->slot < 0 || nd->slot >= NUBUS_SLOT_NB) {
         error_setg(errp,
                    "'slot' value %d out of range (must be between 0 and %d)",
-                   slot, NUBUS_SLOT_NB - 1);
+                   nd->slot, NUBUS_SLOT_NB - 1);
         return;
     }
 
     /* Super */
-    slot_offset = slot * NUBUS_SUPER_SLOT_SIZE;
+    slot_offset = nd->slot * NUBUS_SUPER_SLOT_SIZE;
 
-    name = g_strdup_printf("nubus-super-slot-%x", slot);
-    memory_region_init(&super_slot_mem, OBJECT(this), name,
+    name = g_strdup_printf("nubus-super-slot-%x", nd->slot);
+    memory_region_init(&nd->super_slot_mem, OBJECT(dev), name,
                        NUBUS_SUPER_SLOT_SIZE);
     memory_region_add_subregion(&nubus->super_slot_io, slot_offset,
-                                &super_slot_mem);
+                                &nd->super_slot_mem);
     g_free(name);
 
     /* Normal */
-    slot_offset = slot * NUBUS_SLOT_SIZE;
+    slot_offset = nd->slot * NUBUS_SLOT_SIZE;
 
-    name = g_strdup_printf("nubus-slot-%x", slot);
-    memory_region_init(&slot_mem, OBJECT(this), name, NUBUS_SLOT_SIZE);
-    memory_region_add_subregion(&nubus->slot_io, slot_offset, &slot_mem);
+    name = g_strdup_printf("nubus-slot-%x", nd->slot);
+    memory_region_init(&nd->slot_mem, OBJECT(dev), name, NUBUS_SLOT_SIZE);
+    memory_region_add_subregion(&nubus->slot_io, slot_offset,
+                                &nd->slot_mem);
     g_free(name);
 
     /* Declaration ROM */
-    if (romfile != NULL) {
-        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, romfile);
+    if (nd->romfile != NULL) {
+        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, nd->romfile);
         if (path == NULL) {
-            path = g_strdup(romfile);
+            path = g_strdup(nd->romfile);
         }
 
         size = get_image_size(path, NULL);
         if (size < 0) {
-            error_setg(errp, "failed to find romfile \"%s\"", romfile);
+            error_setg(errp, "failed to find romfile \"%s\"", nd->romfile);
             g_free(path);
             return;
         } else if (size == 0) {
-            error_setg(errp, "romfile \"%s\" is empty", romfile);
+            error_setg(errp, "romfile \"%s\" is empty", nd->romfile);
             g_free(path);
             return;
         } else if (size > NUBUS_DECL_ROM_MAX_SIZE) {
             error_setg(errp, "romfile \"%s\" too large (maximum size 128K)",
-                       romfile);
+                       nd->romfile);
             g_free(path);
             return;
         }
 
-        name = g_strdup_printf("nubus-slot-%x-declaration-rom", slot);
+        name = g_strdup_printf("nubus-slot-%x-declaration-rom", nd->slot);
 
         /*
          * Ensure ROM memory region is aligned to target page size regardless
          * of the size of the Declaration ROM image
          */
         align_size = ROUND_UP(size, qemu_target_page_size());
-        memory_region_init_rom(&decl_rom, OBJECT(this), name, align_size,
+        memory_region_init_rom(&nd->decl_rom, OBJECT(dev), name, align_size,
                                &error_abort);
-        rom_ptr = memory_region_get_ram_ptr(&decl_rom);
+        rom_ptr = memory_region_get_ram_ptr(&nd->decl_rom);
         ret = load_image_size(path, rom_ptr + (uintptr_t)(align_size - size),
                               size);
         g_free(path);
         g_free(name);
         if (ret < 0) {
-            error_setg(errp, "could not load romfile \"%s\"", romfile);
+            error_setg(errp, "could not load romfile \"%s\"", nd->romfile);
             return;
         }
-        memory_region_add_subregion(&slot_mem, NUBUS_SLOT_SIZE - align_size,
-                                    &decl_rom);
+        memory_region_add_subregion(&nd->slot_mem, NUBUS_SLOT_SIZE - align_size,
+                                    &nd->decl_rom);
     }
 }
 
@@ -110,14 +112,26 @@ static const Property nubus_device_properties[] = {
     DEFINE_PROP_STRING("romfile", NubusDevice, romfile),
 };
 
-void NubusDevice::classInit(DeviceClass *dc)
+static void nubus_device_class_init(ObjectClass *oc, const void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = nubus_device_realize;
     dc->bus_type = TYPE_NUBUS_BUS;
     device_class_set_props(dc, nubus_device_properties);
 }
 
-#include "qom/cpp/object.h"
+static const TypeInfo nubus_device_type_info = {
+    .name = TYPE_NUBUS_DEVICE,
+    .parent = TYPE_DEVICE,
+    .is_abstract = true,
+    .instance_size = sizeof(NubusDevice),
+    .class_init = nubus_device_class_init,
+};
 
-REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(NubusDevice,
-                                     TYPE_NUBUS_DEVICE,
-                                     TYPE_DEVICE)
+static void nubus_register_types(void)
+{
+    type_register_static(&nubus_device_type_info);
+}
+
+type_init(nubus_register_types)
