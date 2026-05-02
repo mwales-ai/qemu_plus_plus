@@ -92,13 +92,10 @@ static void vmapple_virtio_blk_class_init(ObjectClass *klass, const void *data)
     vdc->get_config = vmapple_virtio_blk_get_config;
 }
 
-static const TypeInfo vmapple_virtio_blk_info = {
-    .name          = TYPE_VMAPPLE_VIRTIO_BLK,
-    .parent        = TYPE_VIRTIO_BLK,
-    .instance_size = sizeof(VMAppleVirtIOBlk),
-    .class_size    = sizeof(VMAppleVirtIOBlkClass),
-    .class_init    = vmapple_virtio_blk_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI(VMAppleVirtIOBlk, VMAppleVirtIOBlkClass,
+                                TYPE_VMAPPLE_VIRTIO_BLK, TYPE_VIRTIO_BLK,
+                                vmapple_virtio_blk_class_init)
 
 /* PCI Devices */
 
@@ -195,10 +192,9 @@ static const VirtioPCIDeviceTypeInfo vmapple_virtio_blk_pci_info = {
     .class_init    = vmapple_virtio_blk_pci_class_init,
 };
 
-static void vmapple_virtio_blk_register_types(void)
+static void vmapple_virtio_blk_register_pci_types(void)
 {
-    type_register_static(&vmapple_virtio_blk_info);
     virtio_pci_types_register(&vmapple_virtio_blk_pci_info);
 }
 
-type_init(vmapple_virtio_blk_register_types)
+type_init(vmapple_virtio_blk_register_pci_types)
