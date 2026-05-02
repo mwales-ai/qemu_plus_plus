@@ -26,10 +26,6 @@ struct BCM2838State {
     /*< public >*/
     BCM2838PeripheralState peripherals;
     GICState gic;
-
-#ifdef __cplusplus
-    void init();
-#endif
 };
 
 #endif /* BCM2838_H */
