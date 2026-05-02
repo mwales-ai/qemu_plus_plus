@@ -204,16 +204,16 @@ static const VMStateDescription vmstate_xhci_pci = {
     }
 };
 
-static void xhci_instance_init(Object *obj)
+void XHCIPciState::init()
 {
-    XHCIPciState *s = XHCI_PCI(obj);
     /*
      * QEMU_PCI_CAP_EXPRESS initialization does not depend on QEMU command
      * line, therefore, no need to wait to realize like other devices
      */
-    PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
-    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
-    qdev_alias_all_properties(DEVICE(&s->xhci), obj);
+    PCI_DEVICE(this)->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    object_initialize_child(reinterpret_cast<Object *>(this), "xhci-core",
+                             &xhci, TYPE_XHCI);
+    qdev_alias_all_properties(DEVICE(&xhci), reinterpret_cast<Object *>(this));
 }
 
 static const Property xhci_pci_properties[] = {
@@ -247,15 +247,12 @@ static const InterfaceInfo xhci_pci_interfaces[] = {
     { }
 };
 
-static const TypeInfo xhci_pci_info = {
-    .name          = TYPE_XHCI_PCI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(XHCIPciState),
-    .instance_init = xhci_instance_init,
-    .is_abstract      = true,
-    .class_init    = xhci_class_init,
-    .interfaces = xhci_pci_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(XHCIPciState,
+                                                      TYPE_XHCI_PCI,
+                                                      TYPE_PCI_DEVICE,
+                                                      xhci_class_init,
+                                                      xhci_pci_interfaces)
 
 static void qemu_xhci_class_init(ObjectClass *klass, const void *data)
 {
@@ -284,10 +281,9 @@ static const TypeInfo qemu_xhci_info = {
     .class_init    = qemu_xhci_class_init,
 };
 
-static void xhci_register_types(void)
+static void xhci_register_concrete_types(void)
 {
-    type_register_static(&xhci_pci_info);
     type_register_static(&qemu_xhci_info);
 }
 
-type_init(xhci_register_types)
+type_init(xhci_register_concrete_types)
