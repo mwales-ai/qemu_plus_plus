@@ -1081,14 +1081,12 @@ static const InterfaceInfo ivshmem_common_interfaces[] = {
     { },
 };
 
-static const TypeInfo ivshmem_common_info = {
-    .name          = TYPE_IVSHMEM_COMMON,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IVShmemState),
-    .is_abstract      = true,
-    .class_init    = IVShmemState::commonClassInit,
-    .interfaces = ivshmem_common_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(IVShmemState,
+                                                      TYPE_IVSHMEM_COMMON,
+                                                      TYPE_PCI_DEVICE,
+                                                      IVShmemState::commonClassInit,
+                                                      ivshmem_common_interfaces)
 
 static const VMStateField ivshmem_plain_vmsd_fields[] = {
     VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
@@ -1225,7 +1223,6 @@ static const TypeInfo ivshmem_doorbell_info = {
 
 static void __attribute__((constructor)) ivshmem_register_types(void)
 {
-    type_register_static(&ivshmem_common_info);
     type_register_static(&ivshmem_plain_info);
     type_register_static(&ivshmem_doorbell_info);
 }
