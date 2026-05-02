@@ -48,15 +48,8 @@ static void usb_msd_class_bot_initfn(ObjectClass *klass, const void *data)
     uc->attached_settable = true;
 }
 
-static const TypeInfo bot_info = {
-    .name          = "usb-bot",
-    .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_bot_initfn,
-};
 
-static void register_types(void)
-{
-    type_register_static(&bot_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(MSDState, "usb-bot", TYPE_USB_STORAGE,
+                                     usb_msd_class_bot_initfn)
