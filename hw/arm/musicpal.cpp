@@ -302,7 +302,7 @@ void musicpal_lcd_state::classInit(ObjectClass *klass, const void *data)
     dc->realize = musicpal_lcd_realize;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(musicpal_lcd_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(musicpal_lcd_state,
                                TYPE_MUSICPAL_LCD, TYPE_SYS_BUS_DEVICE,
                                musicpal_lcd_state::classInit)
 
@@ -424,7 +424,7 @@ void mv88w8618_pic_state::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &mv88w8618_pic_vmsd;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(mv88w8618_pic_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(mv88w8618_pic_state,
                                TYPE_MV88W8618_PIC, TYPE_SYS_BUS_DEVICE,
                                mv88w8618_pic_state::classInit)
 
@@ -620,7 +620,7 @@ void mv88w8618_pit_state::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &mv88w8618_pit_vmsd;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(mv88w8618_pit_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(mv88w8618_pit_state,
                                TYPE_MV88W8618_PIT, TYPE_SYS_BUS_DEVICE,
                                mv88w8618_pit_state::classInit)
 
@@ -705,7 +705,7 @@ void mv88w8618_flashcfg_state::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &mv88w8618_flashcfg_vmsd;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(mv88w8618_flashcfg_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(mv88w8618_flashcfg_state,
                                TYPE_MV88W8618_FLASHCFG, TYPE_SYS_BUS_DEVICE,
                                mv88w8618_flashcfg_state::classInit)
 
@@ -1042,7 +1042,7 @@ void musicpal_gpio_state::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &musicpal_gpio_vmsd;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(musicpal_gpio_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(musicpal_gpio_state,
                                TYPE_MUSICPAL_GPIO, TYPE_SYS_BUS_DEVICE,
                                musicpal_gpio_state::classInit)
 
@@ -1187,7 +1187,7 @@ void musicpal_key_state::classInit(ObjectClass *klass, const void *data)
     dc->realize = musicpal_key_realize;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(musicpal_key_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(musicpal_key_state,
                                TYPE_MUSICPAL_KEY, TYPE_SYS_BUS_DEVICE,
                                musicpal_key_state::classInit)
 
@@ -1365,7 +1365,7 @@ void mv88w8618_wlan_state::classInit(ObjectClass *klass, const void *data)
     dc->realize = mv88w8618_wlan_realize;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(mv88w8618_wlan_state, DeviceClass,
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(mv88w8618_wlan_state,
                                "mv88w8618_wlan", TYPE_SYS_BUS_DEVICE,
                                mv88w8618_wlan_state::classInit)
 

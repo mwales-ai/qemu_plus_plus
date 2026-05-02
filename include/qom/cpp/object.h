@@ -224,15 +224,24 @@ void trampoline_reset(DeviceState *dev)
 template<typename T>
 void trampoline_class_init(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    if constexpr (has_realize<T>::value) {
-        dc->realize = trampoline_realize<T>;
-    }
-    if constexpr (has_reset<T>::value) {
-        device_class_set_legacy_reset(dc, trampoline_reset<T>);
+    /*
+     * Only call DEVICE_CLASS(oc) when the type has realize/reset that
+     * actually need a DeviceClass*. Machine types (TYPE_MACHINE -> TYPE_OBJECT)
+     * are not devices and would fail the DEVICE_CLASS runtime check.
+     * For classInit, pass oc reinterpret_cast'd to DeviceClass* — the user's
+     * classInit body casts it back to whatever class struct it actually needs.
+     */
+    if constexpr (has_realize<T>::value || has_reset<T>::value) {
+        DeviceClass *dc = DEVICE_CLASS(oc);
+        if constexpr (has_realize<T>::value) {
+            dc->realize = trampoline_realize<T>;
+        }
+        if constexpr (has_reset<T>::value) {
+            device_class_set_legacy_reset(dc, trampoline_reset<T>);
+        }
     }
     if constexpr (has_class_init<T>::value) {
-        T::classInit(dc);
+        T::classInit(reinterpret_cast<DeviceClass *>(oc));
     }
 }
 

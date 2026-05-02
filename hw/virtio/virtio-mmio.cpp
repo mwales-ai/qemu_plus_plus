@@ -815,9 +815,9 @@ static void virtio_mmio_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_mmio_properties);
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(VirtIOMMIOProxy, DeviceClass,
-                               TYPE_VIRTIO_MMIO, TYPE_SYS_BUS_DEVICE,
-                               virtio_mmio_class_init)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(VirtIOMMIOProxy,
+                                     TYPE_VIRTIO_MMIO, TYPE_SYS_BUS_DEVICE,
+                                     virtio_mmio_class_init)
 
 /* virtio-mmio-bus. */
 
