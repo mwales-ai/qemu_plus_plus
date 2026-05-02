@@ -302,33 +302,35 @@ void cpu_exec_unrealizefn(CPUState *cpu)
     cpu_destroy_address_spaces(cpu);
 }
 
-void CPUState::init()
+static void cpu_common_initfn(Object *obj)
 {
-    cpu_exec_class_post_init(CPU_GET_CLASS(OBJECT(this)));
+    CPUState *cpu = CPU(obj);
+
+    cpu_exec_class_post_init(CPU_GET_CLASS(obj));
 
     /* cache the cpu class for the hotpath */
-    cc = CPU_GET_CLASS(this);
+    cpu->cc = CPU_GET_CLASS(cpu);
 
-    cpu_index = UNASSIGNED_CPU_INDEX;
-    cluster_index = UNASSIGNED_CLUSTER_INDEX;
-    as = NULL;
-    num_ases = 0;
+    cpu->cpu_index = UNASSIGNED_CPU_INDEX;
+    cpu->cluster_index = UNASSIGNED_CLUSTER_INDEX;
+    cpu->as = NULL;
+    cpu->num_ases = 0;
     /* user-mode doesn't have configurable SMP topology */
     /* the default value is changed by qemu_init_vcpu() for system-mode */
-    nr_threads = 1;
+    cpu->nr_threads = 1;
 
     /* allocate storage for thread info, initialise condition variables */
-    thread = g_new0(QemuThread, 1);
-    halt_cond = g_new0(QemuCond, 1);
-    qemu_cond_init(halt_cond);
+    cpu->thread = g_new0(QemuThread, 1);
+    cpu->halt_cond = g_new0(QemuCond, 1);
+    qemu_cond_init(cpu->halt_cond);
 
-    qemu_mutex_init(&work_mutex);
-    qemu_lockcnt_init(&in_ioctl_lock);
-    QSIMPLEQ_INIT(&work_list);
-    QTAILQ_INIT(&breakpoints);
-    QTAILQ_INIT(&watchpoints);
+    qemu_mutex_init(&cpu->work_mutex);
+    qemu_lockcnt_init(&cpu->in_ioctl_lock);
+    QSIMPLEQ_INIT(&cpu->work_list);
+    QTAILQ_INIT(&cpu->breakpoints);
+    QTAILQ_INIT(&cpu->watchpoints);
 
-    cpu_exec_initfn(this);
+    cpu_exec_initfn(cpu);
 
     /*
      * Plugin initialization must wait until the cpu start executing
@@ -337,29 +339,31 @@ void CPUState::init()
      */
 #ifdef CONFIG_PLUGIN
     if (tcg_enabled()) {
-        plugin_state = qemu_plugin_create_vcpu_state();
-        qemu_plugin_vcpu_init_hook(this);
+        cpu->plugin_state = qemu_plugin_create_vcpu_state();
+        qemu_plugin_vcpu_init_hook(cpu);
     }
 #endif
 }
 
-void CPUState::finalize()
+static void cpu_common_finalize(Object *obj)
 {
+    CPUState *cpu = CPU(obj);
+
 #ifdef CONFIG_PLUGIN
     if (tcg_enabled()) {
-        g_free(plugin_state);
+        g_free(cpu->plugin_state);
     }
 #endif
-    free_queued_cpu_work(this);
+    free_queued_cpu_work(cpu);
     /* If cleanup didn't happen in context to gdb_unregister_coprocessor_all */
-    if (gdb_regs) {
-        g_array_free(gdb_regs, TRUE);
+    if (cpu->gdb_regs) {
+        g_array_free(cpu->gdb_regs, TRUE);
     }
-    qemu_lockcnt_destroy(&in_ioctl_lock);
-    qemu_mutex_destroy(&work_mutex);
-    qemu_cond_destroy(halt_cond);
-    g_free(halt_cond);
-    g_free(thread);
+    qemu_lockcnt_destroy(&cpu->in_ioctl_lock);
+    qemu_mutex_destroy(&cpu->work_mutex);
+    qemu_cond_destroy(cpu->halt_cond);
+    g_free(cpu->halt_cond);
+    g_free(cpu->thread);
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
@@ -389,6 +393,24 @@ static void cpu_common_class_init(ObjectClass *klass, const void *data)
      */
     dc->user_creatable = false;
 }
+
+static const TypeInfo cpu_type_info = {
+    .name = TYPE_CPU,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CPUState),
+    .instance_init = cpu_common_initfn,
+    .instance_finalize = cpu_common_finalize,
+    .is_abstract = true,
+    .class_size = sizeof(CPUClass),
+    .class_init = cpu_common_class_init,
+};
+
+static void cpu_register_types(void)
+{
+    type_register_static(&cpu_type_info);
+}
+
+type_init(cpu_register_types)
 
 static void cpu_list_entry(gpointer data, gpointer user_data)
 {
@@ -420,9 +442,3 @@ void list_cpus(void)
 }
 
 } /* extern "C" */
-
-#include "qom/cpp/object.h"
-
-REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(CPUState, CPUClass,
-                                         TYPE_CPU, TYPE_DEVICE,
-                                         cpu_common_class_init)
