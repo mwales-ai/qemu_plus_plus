@@ -33,7 +33,7 @@
     OBJECT_CHECK(XHCIPciState, (obj), TYPE_XHCI_PCI)
 
 
-typedef struct XHCIPciState {
+struct XHCIPciState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -41,6 +41,11 @@ typedef struct XHCIPciState {
     OnOffAuto msi;
     OnOffAuto msix;
     bool conditional_intr_mapping;
-} XHCIPciState;
+
+#ifdef __cplusplus
+    void init();
+#endif
+};
+typedef struct XHCIPciState XHCIPciState;
 
 #endif
