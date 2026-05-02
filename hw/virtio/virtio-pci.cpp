@@ -2513,14 +2513,7 @@ static void virtio_pci_class_init(ObjectClass *klass, const void *data)
     dc->sync_config = virtio_pci_sync_config;
 }
 
-static const TypeInfo virtio_pci_info = {
-    .name          = TYPE_VIRTIO_PCI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VirtIOPCIProxy),
-    .is_abstract   = true,
-    .class_size    = sizeof(VirtioPCIClass),
-    .class_init    = virtio_pci_class_init,
-};
+/* TYPE_VIRTIO_PCI registered via macro at bottom of file */
 
 static const Property virtio_pci_generic_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("disable-legacy", VirtIOPCIProxy, disable_legacy,
@@ -2712,20 +2705,15 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, const void *data)
     k->queue_enabled = virtio_pci_queue_enabled;
 }
 
-static const TypeInfo virtio_pci_bus_info = {
-    .name          = TYPE_VIRTIO_PCI_BUS,
-    .parent        = TYPE_VIRTIO_BUS,
-    .instance_size = sizeof(VirtioPCIBusState),
-    .class_size    = sizeof(VirtioPCIBusClass),
-    .class_init    = virtio_pci_bus_class_init,
-};
+/* TYPE_VIRTIO_PCI_BUS registered via macro at bottom of file */
 
-static void virtio_pci_register_types(void)
-{
-    /* Base types: */
-    type_register_static(&virtio_pci_bus_info);
-    type_register_static(&virtio_pci_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(virtio_pci_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtIOPCIProxy, VirtioPCIClass,
+                                        TYPE_VIRTIO_PCI, TYPE_PCI_DEVICE,
+                                        virtio_pci_class_init)
+
+REGISTER_QEMU_BUS_FULL(VirtioPCIBusState, VirtioPCIBusClass,
+                       TYPE_VIRTIO_PCI_BUS, TYPE_VIRTIO_BUS,
+                       nullptr, virtio_pci_bus_class_init)
 
