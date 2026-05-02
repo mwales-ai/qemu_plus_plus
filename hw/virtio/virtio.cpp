@@ -4095,12 +4095,14 @@ static void virtio_device_free_virtqueues(VirtIODevice *vdev)
     g_free(vdev->vq);
 }
 
-void VirtIODevice::finalize()
+static void virtio_device_instance_finalize(Object *obj)
 {
-    virtio_device_free_virtqueues(this);
+    VirtIODevice *vdev = VIRTIO_DEVICE(obj);
 
-    g_free(config);
-    g_free(vector_queues);
+    virtio_device_free_virtqueues(vdev);
+
+    g_free(vdev->config);
+    g_free(vdev->vector_queues);
 }
 
 static const Property virtio_properties[] = {
@@ -4456,11 +4458,22 @@ done:
     return element;
 }
 
-#include "qom/cpp/object.h"
+static const TypeInfo virtio_device_info = {
+    .name = TYPE_VIRTIO_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(VirtIODevice),
+    .instance_finalize = virtio_device_instance_finalize,
+    .is_abstract = true,
+    .class_size = sizeof(VirtioDeviceClass),
+    .class_init = virtio_device_class_init,
+};
 
-REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtIODevice, VirtioDeviceClass,
-                                         TYPE_VIRTIO_DEVICE, TYPE_DEVICE,
-                                         virtio_device_class_init)
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_device_info);
+}
+
+type_init(virtio_register_types)
 
 QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
                                    QEMUBHFunc *cb, void *opaque,
