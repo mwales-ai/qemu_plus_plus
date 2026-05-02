@@ -150,6 +150,7 @@ struct E1000State_st {
     static void realizeStatic(PCIDevice *pci_dev, Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
     static void instanceInit(Object *obj);
+    void init();
 };
 typedef struct E1000State_st E1000State;
 
@@ -1930,20 +1931,20 @@ typedef struct E1000Info {
                                   reinterpret_cast<DeviceState *>(n));
 }
 
+void E1000State_st::init()
+{
+    instanceInit(reinterpret_cast<Object *>(this));
+}
+
 static const InterfaceInfo e1000_interfaces[] = {
     { INTERFACE_CONVENTIONAL_PCI_DEVICE },
     { },
 };
 
-static const TypeInfo e1000_base_info = {
-    .name          = TYPE_E1000_BASE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(E1000State),
-    .instance_init = E1000State_st::instanceInit,
-    .is_abstract   = true,
-    .class_size    = sizeof(E1000BaseClass),
-    .interfaces    = e1000_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(E1000State, E1000BaseClass,
+                                      TYPE_E1000_BASE, TYPE_PCI_DEVICE,
+                                      e1000_interfaces)
 
 static const E1000Info e1000_devices[] = {
     {
@@ -1966,11 +1967,10 @@ static const E1000Info e1000_devices[] = {
     },
 };
 
-static void e1000_register_types(void)
+static void e1000_register_concrete_types(void)
 {
     int i;
 
-    type_register_static(&e1000_base_info);
     for (i = 0; i < ARRAY_SIZE(e1000_devices); i++) {
         const E1000Info *info = &e1000_devices[i];
         TypeInfo type_info = {};
@@ -1984,4 +1984,4 @@ static void e1000_register_types(void)
     }
 }
 
-type_init(e1000_register_types)
+type_init(e1000_register_concrete_types)
