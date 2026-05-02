@@ -153,16 +153,14 @@ static const InterfaceInfo m48txx_isa_interfaces[] = {
     { }
 };
 
-static const TypeInfo m48txx_isa_type_info = {
-    .name = TYPE_M48TXX_ISA,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(M48txxISAState),
-    .is_abstract = true,
-    .class_init = M48txxISAState::classInit,
-    .interfaces = m48txx_isa_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(M48txxISAState,
+                                                      TYPE_M48TXX_ISA,
+                                                      TYPE_ISA_DEVICE,
+                                                      M48txxISAState::classInit,
+                                                      m48txx_isa_interfaces)
 
-static void m48t59_isa_register_types(void)
+static void m48t59_isa_register_concrete_types(void)
 {
     TypeInfo isa_type_info = {
         .parent = TYPE_M48TXX_ISA,
@@ -171,8 +169,6 @@ static void m48t59_isa_register_types(void)
     };
     size_t i;
 
-    type_register_static(&m48txx_isa_type_info);
-
     for (i = 0; i < ARRAY_SIZE(m48txx_isa_info); i++) {
         isa_type_info.name = m48txx_isa_info[i].bus_name;
         isa_type_info.class_data = &m48txx_isa_info[i];
@@ -180,4 +176,4 @@ static void m48t59_isa_register_types(void)
     }
 }
 
-type_init(m48t59_isa_register_types)
+type_init(m48t59_isa_register_concrete_types)

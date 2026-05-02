@@ -62,7 +62,7 @@ struct M48txxSysBusState {
     MemoryRegion io;
 
     /* methods */
-    void instanceInit();
+    void init();
     void realize(Error **errp);
     void resetSysbus();
     uint32_t nvramRead(uint32_t addr);
@@ -597,13 +597,7 @@ void m48t59_realize_common(M48t59State *s, Error **errp)
     qemu_get_timedate(&s->alarm, 0);
 }
 
-static void m48t59_init1(Object *obj)
-{
-    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(obj);
-    d->instanceInit();
-}
-
-void M48txxSysBusState::instanceInit()
+void M48txxSysBusState::init()
 {
     M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(this);
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
@@ -694,26 +688,21 @@ void M48txxSysBusState::concreteClassInit(ObjectClass *klass,
     u->info = *info;
 }
 
-static const TypeInfo nvram_info = {
-    .name = TYPE_NVRAM,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(NvramClass),
+static const InterfaceInfo m48txx_sysbus_interfaces[] = {
+    { TYPE_NVRAM },
+    { }
 };
 
-static const TypeInfo m48txx_sysbus_type_info = {
-    .name = TYPE_M48TXX_SYS_BUS,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(M48txxSysBusState),
-    .instance_init = m48t59_init1,
-    .is_abstract = true,
-    .class_init = M48txxSysBusState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NVRAM },
-        { }
-    }
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_INTERFACE(NvramClass, TYPE_NVRAM)
 
-static void m48t59_register_types(void)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(M48txxSysBusState,
+                                                      TYPE_M48TXX_SYS_BUS,
+                                                      TYPE_SYS_BUS_DEVICE,
+                                                      M48txxSysBusState::classInit,
+                                                      m48txx_sysbus_interfaces)
+
+static void m48t59_register_concrete_types(void)
 {
     TypeInfo sysbus_type_info = {
         .parent = TYPE_M48TXX_SYS_BUS,
@@ -722,9 +711,6 @@ static void m48t59_register_types(void)
     };
     int i;
 
-    type_register_static(&nvram_info);
-    type_register_static(&m48txx_sysbus_type_info);
-
     for (i = 0; i < ARRAY_SIZE(m48txx_sysbus_info); i++) {
         sysbus_type_info.name = m48txx_sysbus_info[i].bus_name;
         sysbus_type_info.class_data = &m48txx_sysbus_info[i];
@@ -732,4 +718,4 @@ static void m48t59_register_types(void)
     }
 }
 
-type_init(m48t59_register_types)
+type_init(m48t59_register_concrete_types)
