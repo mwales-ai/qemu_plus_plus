@@ -66,6 +66,11 @@ struct NubusDevice {
 
     char *romfile;
     MemoryRegion decl_rom;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void nubus_set_irq(NubusDevice *nd, int level);
