@@ -2613,19 +2613,14 @@ void MegasasState::classInit(ObjectClass *oc, const void *data)
     dc->desc = info->desc;
 }
 
-static const TypeInfo megasas_info = {
-    .name  = TYPE_MEGASAS_BASE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MegasasState),
-    .is_abstract = true,
-    .class_size = sizeof(MegasasBaseClass),
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT(MegasasState, MegasasBaseClass,
+                              TYPE_MEGASAS_BASE, TYPE_PCI_DEVICE)
 
-static void megasas_register_types(void)
+static void megasas_register_concrete_types(void)
 {
     int i;
 
-    type_register_static(&megasas_info);
     for (i = 0; i < ARRAY_SIZE(megasas_devices); i++) {
         const MegasasInfo *info = &megasas_devices[i];
         TypeInfo type_info = {};
@@ -2640,4 +2635,4 @@ static void megasas_register_types(void)
     }
 }
 
-type_init(megasas_register_types)
+type_init(megasas_register_concrete_types)
