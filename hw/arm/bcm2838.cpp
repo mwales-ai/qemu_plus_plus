@@ -44,22 +44,22 @@ static void bcm2838_gic_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
-static void bcm2838_init(Object *obj)
+void BCM2838State::init()
 {
-    BCM2838State *s = BCM2838(obj);
+    Object *obj = OBJECT(this);
 
-    object_initialize_child(obj, "peripherals", &s->peripherals,
+    object_initialize_child(obj, "peripherals", &peripherals,
                             TYPE_BCM2838_PERIPHERALS);
-    object_property_add_alias(obj, "board-rev", OBJECT(&s->peripherals),
+    object_property_add_alias(obj, "board-rev", OBJECT(&peripherals),
                               "board-rev");
-    object_property_add_alias(obj, "vcram-size", OBJECT(&s->peripherals),
+    object_property_add_alias(obj, "vcram-size", OBJECT(&peripherals),
                               "vcram-size");
-    object_property_add_alias(obj, "vcram-base", OBJECT(&s->peripherals),
+    object_property_add_alias(obj, "vcram-base", OBJECT(&peripherals),
                               "vcram-base");
-    object_property_add_alias(obj, "command-line", OBJECT(&s->peripherals),
+    object_property_add_alias(obj, "command-line", OBJECT(&peripherals),
                               "command-line");
 
-    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
+    object_initialize_child(obj, "gic", &gic, TYPE_ARM_GIC);
 }
 
 static void bcm2838_realize(DeviceState *dev, Error **errp)
@@ -246,18 +246,8 @@ static void bcm2838_class_init(ObjectClass *oc, const void *data)
     dc->realize = bcm2838_realize;
 }
 
-static const TypeInfo bcm2838_type = {
-    .name           = TYPE_BCM2838,
-    .parent         = TYPE_BCM283X_BASE,
-    .instance_size  = sizeof(BCM2838State),
-    .instance_init  = bcm2838_init,
-    .class_size     = sizeof(BCM283XBaseClass),
-    .class_init     = bcm2838_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void bcm2838_register_types(void)
-{
-    type_register_static(&bcm2838_type);
-}
-
-type_init(bcm2838_register_types);
+REGISTER_QEMU_DEVICE_CUSTOM_CI(BCM2838State, BCM283XBaseClass,
+                                TYPE_BCM2838, TYPE_BCM283X_BASE,
+                                bcm2838_class_init)
