@@ -48,9 +48,6 @@ struct VersalVirt {
     struct {
         char *ospi_model;
     } cfg;
-
-    void init();
-    void finalize();
 };
 
 struct VersalVirtClass {
@@ -318,14 +315,14 @@ static void versal_virt_init(MachineState *machine)
     }
 }
 
-void VersalVirt::init()
+static void versal_virt_machine_instance_init(Object *obj)
 {
-    VersalVirtClass *vvc = XLNX_VERSAL_VIRT_BASE_MACHINE_GET_CLASS(this);
-    Object *obj = OBJECT(this);
+    VersalVirt *s = XLNX_VERSAL_VIRT_BASE_MACHINE(obj);
+    VersalVirtClass *vvc = XLNX_VERSAL_VIRT_BASE_MACHINE_GET_CLASS(s);
     size_t i, num_can;
 
     num_can = versal_get_num_can(vvc->version);
-    canbus = g_new0(CanBusState *, num_can);
+    s->canbus = g_new0(CanBusState *, num_can);
 
     /*
      * User can set canbusx properties to can-bus object and optionally connect
@@ -335,19 +332,19 @@ void VersalVirt::init()
         g_autofree char *prop_name = g_strdup_printf("canbus%zu", i);
 
         object_property_add_link(obj, prop_name, TYPE_CAN_BUS,
-                                 (Object **) &canbus[i],
+                                 (Object **) &s->canbus[i],
                                  object_property_allow_set_link,
                                  static_cast<ObjectPropertyLinkFlags>(0));
     }
 }
 
-void VersalVirt::finalize()
+static void versal_virt_machine_finalize(Object *obj)
 {
-    g_free(cfg.ospi_model);
-    g_free(canbus);
-}
+    VersalVirt *s = XLNX_VERSAL_VIRT_BASE_MACHINE(obj);
 
-#include "qom/cpp/object.h"
+    g_free(s->cfg.ospi_model);
+    g_free(s->canbus);
+}
 
 static void versal_virt_machine_class_init_common(ObjectClass *oc)
 {
@@ -392,16 +389,19 @@ static void versal2_virt_machine_class_init(ObjectClass *oc, const void *data)
     versal_virt_machine_class_init_common(oc);
 }
 
-REGISTER_QEMU_MACHINE_ABSTRACT(VersalVirt, VersalVirtClass,
-                               TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
-                               TYPE_MACHINE, nullptr)
+static const TypeInfo versal_virt_base_machine_init_typeinfo = {
+    .name       = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
+    .parent     = TYPE_MACHINE,
+    .instance_size = sizeof(VersalVirt),
+    .instance_init = versal_virt_machine_instance_init,
+    .instance_finalize = versal_virt_machine_finalize,
+    .is_abstract = true,
+    .class_size = sizeof(VersalVirtClass),
+};
 
-/* Concrete types share VersalVirt state; registered manually to avoid
- * duplicate ClassName##_cpp_register_types symbol from the macro. */
 static const TypeInfo versal_virt_machine_init_typeinfo = {
     .name       = TYPE_XLNX_VERSAL_VIRT_MACHINE,
     .parent     = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
-    .instance_size = sizeof(VersalVirt),
     .class_init = versal_virt_machine_class_init,
     .interfaces = aarch64_machine_interfaces,
 };
@@ -409,15 +409,15 @@ static const TypeInfo versal_virt_machine_init_typeinfo = {
 static const TypeInfo versal2_virt_machine_init_typeinfo = {
     .name       = TYPE_XLNX_VERSAL2_VIRT_MACHINE,
     .parent     = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
-    .instance_size = sizeof(VersalVirt),
     .class_init = versal2_virt_machine_class_init,
     .interfaces = aarch64_machine_interfaces,
 };
 
-static void versal_virt_concrete_register_types(void)
+static void versal_virt_machine_init_register_types(void)
 {
+    type_register_static(&versal_virt_base_machine_init_typeinfo);
     type_register_static(&versal_virt_machine_init_typeinfo);
     type_register_static(&versal2_virt_machine_init_typeinfo);
 }
 
-type_init(versal_virt_concrete_register_types)
+type_init(versal_virt_machine_init_register_types)
