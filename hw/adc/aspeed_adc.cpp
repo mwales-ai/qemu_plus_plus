@@ -314,23 +314,21 @@ static void aspeed_adc_engine_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_aspeed_adc_engine;
 }
 
-static const TypeInfo aspeed_adc_engine_info = {
-    .name = TYPE_ASPEED_ADC_ENGINE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedADCEngineState),
-    .class_init = aspeed_adc_engine_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS(AspeedADCEngineState,
+                                      TYPE_ASPEED_ADC_ENGINE,
+                                      TYPE_SYS_BUS_DEVICE,
+                                      aspeed_adc_engine_class_init)
 
-static void aspeed_adc_instance_init(Object *obj)
+void AspeedADCState::init()
 {
-    AspeedADCState *s = ASPEED_ADC(obj);
-    AspeedADCClass *aac = ASPEED_ADC_GET_CLASS(obj);
+    AspeedADCClass *aac = ASPEED_ADC_GET_CLASS(this);
     uint32_t nr_channels = ASPEED_ADC_NR_CHANNELS / aac->nr_engines;
 
     for (int i = 0; i < aac->nr_engines; i++) {
-        AspeedADCEngineState *engine = &s->engines[i];
-        object_initialize_child(obj, "engine[*]", engine,
-                                TYPE_ASPEED_ADC_ENGINE);
+        AspeedADCEngineState *engine = &engines[i];
+        object_initialize_child(reinterpret_cast<Object *>(this), "engine[*]",
+                                engine, TYPE_ASPEED_ADC_ENGINE);
         qdev_prop_set_uint32(DEVICE(engine), "engine-id", i);
         qdev_prop_set_uint32(DEVICE(engine), "nr-channels", nr_channels);
     }
@@ -418,15 +416,9 @@ static void aspeed_2700_adc_class_init(ObjectClass *klass, const void *data)
     aac->nr_engines = 2;
 }
 
-static const TypeInfo aspeed_adc_info = {
-    .name = TYPE_ASPEED_ADC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedADCState),
-    .instance_init = aspeed_adc_instance_init,
-    .is_abstract   = true,
-    .class_size = sizeof(AspeedADCClass),
-    .class_init = aspeed_adc_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(AspeedADCState, AspeedADCClass,
+                                         TYPE_ASPEED_ADC, TYPE_SYS_BUS_DEVICE,
+                                         aspeed_adc_class_init)
 
 static const TypeInfo aspeed_2400_adc_info = {
     .name = TYPE_ASPEED_2400_ADC,
@@ -456,10 +448,8 @@ static const TypeInfo aspeed_2700_adc_info = {
     .class_init = aspeed_2700_adc_class_init,
 };
 
-static void aspeed_adc_register_types(void)
+static void aspeed_adc_register_concrete_types(void)
 {
-    type_register_static(&aspeed_adc_engine_info);
-    type_register_static(&aspeed_adc_info);
     type_register_static(&aspeed_2400_adc_info);
     type_register_static(&aspeed_2500_adc_info);
     type_register_static(&aspeed_2600_adc_info);
@@ -467,4 +457,4 @@ static void aspeed_adc_register_types(void)
     type_register_static(&aspeed_2700_adc_info);
 }
 
-type_init(aspeed_adc_register_types);
+type_init(aspeed_adc_register_concrete_types);

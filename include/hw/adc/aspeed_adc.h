@@ -50,6 +50,10 @@ struct AspeedADCState {
     qemu_irq irq;
 
     AspeedADCEngineState engines[2];
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 struct AspeedADCClass {
