@@ -398,17 +398,14 @@ static void xen_bus_class_init(ObjectClass *klass, const void *data)
     hotplug_class->unplug_request = xen_bus_unplug_request;
 }
 
-static const TypeInfo xen_bus_type_info = {
-    .name = TYPE_XEN_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(XenBus),
-    .class_size = sizeof(XenBusClass),
-    .class_init = xen_bus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    },
+static const InterfaceInfo xen_bus_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_BUS_CI_CS_IFACES(XenBus, XenBusClass, TYPE_XEN_BUS,
+                                xen_bus_class_init, xen_bus_interfaces)
 
 void xen_device_backend_printf(XenDevice *xendev, const char *key,
                                const char *fmt, ...)
@@ -1131,35 +1128,17 @@ static void xen_device_class_init(ObjectClass *klass, const void *data)
     dev_class->bus_type = TYPE_XEN_BUS;
 }
 
-static const TypeInfo xen_device_type_info = {
-    .name = TYPE_XEN_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(XenDevice),
-    .is_abstract = true,
-    .class_size = sizeof(XenDeviceClass),
-    .class_init = xen_device_class_init,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(XenDevice, XenDeviceClass,
+                                         TYPE_XEN_DEVICE, TYPE_DEVICE,
+                                         xen_device_class_init)
 
-typedef struct XenBridge {
+struct XenBridge {
     SysBusDevice busdev;
-} XenBridge;
+};
 
 #define TYPE_XEN_BRIDGE "xen-bridge"
 
-static const TypeInfo xen_bridge_type_info = {
-    .name = TYPE_XEN_BRIDGE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenBridge),
-};
-
-static void xen_register_types(void)
-{
-    type_register_static(&xen_bridge_type_info);
-    type_register_static(&xen_bus_type_info);
-    type_register_static(&xen_device_type_info);
-}
-
-type_init(xen_register_types)
+REGISTER_QEMU_DEVICE(XenBridge, TYPE_XEN_BRIDGE, TYPE_SYS_BUS_DEVICE)
 
 void xen_bus_init(void)
 {

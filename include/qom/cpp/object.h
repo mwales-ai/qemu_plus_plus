@@ -952,6 +952,28 @@ static void StateStruct##_cpp_register_types(void)                           \
 type_init(StateStruct##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_BUS_CI_CS_IFACES: bus type with class_size + class_init +
+ * interfaces.
+ */
+#define REGISTER_QEMU_BUS_CI_CS_IFACES(StateStruct, ClassStruct,             \
+                                        type_name_str, class_init_fn,        \
+                                        ifaces_array)                        \
+static void StateStruct##_cpp_register_types(void)                           \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = TYPE_BUS,                                           \
+        .instance_size = sizeof(StateStruct),                                \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+        .interfaces    = ifaces_array,                                       \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(StateStruct##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_BUS_FULL: bus type with everything: instance_init, class_init,
  * class_size, optional parent (defaults TYPE_BUS-rooted).
  *
