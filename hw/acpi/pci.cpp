@@ -66,14 +66,18 @@ void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info,
     acpi_table_end(linker, &table);
 }
 
-typedef struct AcpiGenericInitiator {
+struct AcpiGenericInitiator {
     /* private */
     Object parent;
 
     /* public */
     char *pci_dev;
     uint32_t node;
-} AcpiGenericInitiator;
+
+    void init();
+    void finalize();
+};
+typedef struct AcpiGenericInitiator AcpiGenericInitiator;
 
 typedef struct AcpiGenericInitiatorClass {
     ObjectClass parent_class;
@@ -93,27 +97,14 @@ static const InterfaceInfo acpi_generic_initiator_interfaces[] = {
     { NULL }
 };
 
-static const TypeInfo acpi_generic_initiator_info = {
-    .name = TYPE_ACPI_GENERIC_INITIATOR,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(AcpiGenericInitiator),
-    .instance_align = __alignof__(AcpiGenericInitiator),
-    .instance_init = acpi_generic_initiator_init,
-    .instance_finalize = acpi_generic_initiator_finalize,
-    .is_abstract = false,
-    .class_size = sizeof(AcpiGenericInitiatorClass),
-    .class_init = acpi_generic_initiator_class_init,
-    .interfaces = acpi_generic_initiator_interfaces,
-};
-
-static void
-acpi_generic_initiator_register_types(void)
-{
-    type_register_static(&acpi_generic_initiator_info);
-}
-type_init(acpi_generic_initiator_register_types);
-
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericInitiator, ACPI_GENERIC_INITIATOR)
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(AcpiGenericInitiator,
+                                    AcpiGenericInitiatorClass,
+                                    TYPE_ACPI_GENERIC_INITIATOR, TYPE_OBJECT,
+                                    acpi_generic_initiator_class_init,
+                                    acpi_generic_initiator_interfaces)
 
 static void acpi_generic_initiator_init(Object *obj)
 {
@@ -128,6 +119,16 @@ static void acpi_generic_initiator_finalize(Object *obj)
     AcpiGenericInitiator *gi = ACPI_GENERIC_INITIATOR(obj);
 
     g_free(gi->pci_dev);
+}
+
+void AcpiGenericInitiator::init()
+{
+    acpi_generic_initiator_init(reinterpret_cast<Object *>(this));
+}
+
+void AcpiGenericInitiator::finalize()
+{
+    acpi_generic_initiator_finalize(reinterpret_cast<Object *>(this));
 }
 
 static void acpi_generic_initiator_set_pci_device(Object *obj, const char *val,
@@ -209,14 +210,18 @@ static int build_acpi_generic_initiator(Object *obj, void *opaque)
     return 0;
 }
 
-typedef struct AcpiGenericPort {
+struct AcpiGenericPort {
     /* private */
     Object parent;
 
     /* public */
     char *pci_bus;
     uint32_t node;
-} AcpiGenericPort;
+
+    void init();
+    void finalize();
+};
+typedef struct AcpiGenericPort AcpiGenericPort;
 
 typedef struct AcpiGenericPortClass {
     ObjectClass parent_class;
@@ -236,27 +241,12 @@ static const InterfaceInfo acpi_generic_port_interfaces[] = {
     { NULL }
 };
 
-static const TypeInfo acpi_generic_port_info = {
-    .name = TYPE_ACPI_GENERIC_PORT,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(AcpiGenericPort),
-    .instance_align = __alignof__(AcpiGenericPort),
-    .instance_init = acpi_generic_port_init,
-    .instance_finalize = acpi_generic_port_finalize,
-    .is_abstract = false,
-    .class_size = sizeof(AcpiGenericPortClass),
-    .class_init = acpi_generic_port_class_init,
-    .interfaces = acpi_generic_port_interfaces,
-};
-
-static void
-acpi_generic_port_register_types(void)
-{
-    type_register_static(&acpi_generic_port_info);
-}
-type_init(acpi_generic_port_register_types);
-
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericPort, ACPI_GENERIC_PORT)
+
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(AcpiGenericPort, AcpiGenericPortClass,
+                                    TYPE_ACPI_GENERIC_PORT, TYPE_OBJECT,
+                                    acpi_generic_port_class_init,
+                                    acpi_generic_port_interfaces)
 
 static void acpi_generic_port_init(Object *obj)
 {
@@ -266,11 +256,21 @@ static void acpi_generic_port_init(Object *obj)
     gp->pci_bus = NULL;
 }
 
+void AcpiGenericPort::init()
+{
+    acpi_generic_port_init(reinterpret_cast<Object *>(this));
+}
+
 static void acpi_generic_port_finalize(Object *obj)
 {
     AcpiGenericPort *gp = ACPI_GENERIC_PORT(obj);
 
     g_free(gp->pci_bus);
+}
+
+void AcpiGenericPort::finalize()
+{
+    acpi_generic_port_finalize(reinterpret_cast<Object *>(this));
 }
 
 static void acpi_generic_port_set_pci_bus(Object *obj, const char *val,
