@@ -313,17 +313,13 @@ static const InterfaceInfo vfio_pci_igd_lpc_bridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo vfio_pci_igd_lpc_bridge_info = {
-    .name       = "vfio-pci-igd-lpc-bridge",
-    .parent     = TYPE_PCI_DEVICE,
-    .class_init = vfio_pci_igd_lpc_bridge_class_init,
-    .interfaces = vfio_pci_igd_lpc_bridge_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void __attribute__((constructor)) vfio_pci_igd_register_types(void)
-{
-    type_register_static(&vfio_pci_igd_lpc_bridge_info);
-}
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS_IFACES(PCIDevice,
+                                             "vfio-pci-igd-lpc-bridge",
+                                             TYPE_PCI_DEVICE,
+                                             vfio_pci_igd_lpc_bridge_class_init,
+                                             vfio_pci_igd_lpc_bridge_interfaces)
 
 static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
                                  struct vfio_region_info *info)
