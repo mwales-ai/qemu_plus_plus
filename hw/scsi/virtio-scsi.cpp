@@ -1458,31 +1458,18 @@ static void virtio_scsi_class_init(ObjectClass *klass, const void *data)
     VirtIOSCSI::classInit(klass, data);
 }
 
-static const TypeInfo virtio_scsi_common_info = {
-    .name = TYPE_VIRTIO_SCSI_COMMON,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIOSCSICommon),
-    .is_abstract = true,
-    .class_init = virtio_scsi_common_class_init,
-};
-
 static const InterfaceInfo virtio_scsi_interfaces[] = {
     { TYPE_HOTPLUG_HANDLER },
     { }
 };
 
-static const TypeInfo virtio_scsi_info = {
-    .name = TYPE_VIRTIO_SCSI,
-    .parent = TYPE_VIRTIO_SCSI_COMMON,
-    .instance_size = sizeof(VirtIOSCSI),
-    .class_init = virtio_scsi_class_init,
-    .interfaces = virtio_scsi_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOSCSICommon,
+                                               TYPE_VIRTIO_SCSI_COMMON,
+                                               TYPE_VIRTIO_DEVICE,
+                                               virtio_scsi_common_class_init)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_scsi_common_info);
-    type_register_static(&virtio_scsi_info);
-}
-
-type_init(virtio_register_types)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS_IFACES(VirtIOSCSI, TYPE_VIRTIO_SCSI,
+                                             TYPE_VIRTIO_SCSI_COMMON,
+                                             virtio_scsi_class_init,
+                                             virtio_scsi_interfaces)
