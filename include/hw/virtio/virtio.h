@@ -174,6 +174,8 @@ struct VirtIODevice
     bool device_iotlb_enabled;
 
 #ifdef __cplusplus
+    void finalize();
+
     /* Virtual method dispatch wrappers — defined after VirtioDeviceClass */
     inline uint64_t getFeatures(uint64_t requested_features, Error **errp);
     inline uint64_t badFeatures();
