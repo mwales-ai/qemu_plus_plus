@@ -358,22 +358,17 @@ static void isa_bridge_class_init(ObjectClass *klass, const void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static const TypeInfo isa_bridge_info = {
-    .name          = "igd-passthrough-isa-bridge",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = isa_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo isa_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void pt_graphics_register_types(void)
-{
-    type_register_static(&isa_bridge_info);
-}
-type_init(pt_graphics_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_CS_IFACES(PCIDevice,
+                                             "igd-passthrough-isa-bridge",
+                                             TYPE_PCI_DEVICE,
+                                             isa_bridge_class_init,
+                                             isa_bridge_interfaces)
 
 void xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
                                            XenHostPCIDevice *dev)
