@@ -109,6 +109,8 @@ struct BaumChardev {
     uint8_t out_buf_used, out_buf_ptr;
 
     QEMUTimer *cellCount_timer;
+
+    void finalize();
 };
 typedef struct BaumChardev BaumChardev;
 
@@ -645,14 +647,12 @@ static void baum_chr_read(void *opaque)
     }
 }
 
-static void char_braille_finalize(Object *obj)
+void BaumChardev::finalize()
 {
-    BaumChardev *baum = BAUM_CHARDEV(obj);
-
-    timer_free(baum->cellCount_timer);
-    if (baum->brlapi) {
-        brlapi__closeConnection(baum->brlapi);
-        g_free(baum->brlapi);
+    timer_free(cellCount_timer);
+    if (brlapi) {
+        brlapi__closeConnection(brlapi);
+        g_free(brlapi);
     }
 }
 
@@ -695,20 +695,11 @@ static void char_braille_class_init(ObjectClass *oc, const void *data)
     cc->chr_accept_input = baum_chr_accept_input;
 }
 
-static const TypeInfo char_braille_type_info = {
-    .name = TYPE_CHARDEV_BRAILLE,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(BaumChardev),
-    .instance_finalize = char_braille_finalize,
-    .class_init = char_braille_class_init,
-};
 module_obj(TYPE_CHARDEV_BRAILLE);
 
-static void register_types(void)
-{
-    type_register_static(&char_braille_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(BaumChardev, TYPE_CHARDEV_BRAILLE, TYPE_CHARDEV,
+                         char_braille_class_init)
