@@ -115,19 +115,8 @@ qcrypto_secret_keyring_class_init(ObjectClass *oc, const void *data)
 }
 
 
-static const TypeInfo qcrypto_secret_info = {
-    .name = TYPE_QCRYPTO_SECRET_KEYRING,
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
-    .instance_size = sizeof(QCryptoSecretKeyring),
-    .class_init = qcrypto_secret_keyring_class_init,
-};
+#include "qom/cpp/object.h"
 
-
-static void
-qcrypto_secret_register_types(void)
-{
-    type_register_static(&qcrypto_secret_info);
-}
-
-
-type_init(qcrypto_secret_register_types);
+REGISTER_QEMU_OBJECT_CI(QCryptoSecretKeyring, TYPE_QCRYPTO_SECRET_KEYRING,
+                         TYPE_QCRYPTO_SECRET_COMMON,
+                         qcrypto_secret_keyring_class_init)
