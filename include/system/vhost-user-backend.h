@@ -38,6 +38,10 @@ struct VhostUserBackend {
     VirtIODevice *vdev;
     bool started;
     bool completed;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 #ifdef __cplusplus

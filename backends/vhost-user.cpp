@@ -171,30 +171,18 @@ static void vhost_user_backend_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "chardev", get_chardev, set_chardev);
 }
 
-static void __attribute__((used)) vhost_user_backend_finalize(Object *obj)
+void VhostUserBackend::finalize()
 {
-    VhostUserBackend *b = VHOST_USER_BACKEND(obj);
+    g_free(dev.vqs);
+    g_free(chr_name);
 
-    g_free(b->dev.vqs);
-    g_free(b->chr_name);
-
-    vhost_user_cleanup(&b->vhost_user);
-    qemu_chr_fe_deinit(&b->chr, true);
+    vhost_user_cleanup(&vhost_user);
+    qemu_chr_fe_deinit(&chr, true);
 }
-
-static const TypeInfo vhost_user_backend_info = {
-    .name = TYPE_VHOST_USER_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(VhostUserBackend),
-    .instance_finalize = vhost_user_backend_finalize,
-    .class_init = vhost_user_backend_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&vhost_user_backend_info);
-}
-
-type_init(register_types);
 
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(VhostUserBackend, TYPE_VHOST_USER_BACKEND,
+                         TYPE_OBJECT, vhost_user_backend_class_init)
