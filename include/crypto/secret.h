@@ -123,6 +123,10 @@ struct QCryptoSecret {
     QCryptoSecretCommon parent_obj;
     char *data;
     char *file;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 

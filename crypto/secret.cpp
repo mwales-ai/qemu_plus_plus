@@ -107,13 +107,10 @@ qcrypto_secret_prop_get_file(Object *obj,
 }
 
 
-static void
-qcrypto_secret_finalize(Object *obj)
+void QCryptoSecret::finalize()
 {
-    QCryptoSecret *secret = QCRYPTO_SECRET(obj);
-
-    g_free(secret->file);
-    g_free(secret->data);
+    g_free(file);
+    g_free(data);
 }
 
 static void
@@ -131,21 +128,8 @@ qcrypto_secret_class_init(ObjectClass *oc, const void *data)
 }
 
 
-static const TypeInfo qcrypto_secret_info = {
-    .name = TYPE_QCRYPTO_SECRET,
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
-    .instance_size = sizeof(QCryptoSecret),
-    .instance_finalize = qcrypto_secret_finalize,
-    .class_size = sizeof(QCryptoSecretClass),
-    .class_init = qcrypto_secret_class_init,
-};
+#include "qom/cpp/object.h"
 
-
-static void
-qcrypto_secret_register_types(void)
-{
-    type_register_static(&qcrypto_secret_info);
-}
-
-
-type_init(qcrypto_secret_register_types);
+REGISTER_QEMU_OBJECT_CI_CS(QCryptoSecret, QCryptoSecretClass,
+                            TYPE_QCRYPTO_SECRET, TYPE_QCRYPTO_SECRET_COMMON,
+                            qcrypto_secret_class_init)
