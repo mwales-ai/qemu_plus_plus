@@ -123,18 +123,10 @@ static const InterfaceInfo qcrypto_tls_cipher_suites_info_interfaces[] = {
         { }
 };
 
-static const TypeInfo qcrypto_tls_cipher_suites_info = {
-    .name = TYPE_QCRYPTO_TLS_CIPHER_SUITES,
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .instance_size = sizeof(QCryptoTLSCipherSuites),
-    .class_size = sizeof(QCryptoTLSCredsClass),
-    .class_init = qcrypto_tls_cipher_suites_class_init,
-    .interfaces = qcrypto_tls_cipher_suites_info_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void qcrypto_tls_cipher_suites_register_types(void)
-{
-    type_register_static(&qcrypto_tls_cipher_suites_info);
-}
-
-type_init(qcrypto_tls_cipher_suites_register_types);
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(QCryptoTLSCipherSuites, QCryptoTLSCredsClass,
+                                   TYPE_QCRYPTO_TLS_CIPHER_SUITES,
+                                   TYPE_QCRYPTO_TLS_CREDS,
+                                   qcrypto_tls_cipher_suites_class_init,
+                                   qcrypto_tls_cipher_suites_info_interfaces)
