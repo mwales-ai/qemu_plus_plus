@@ -39,7 +39,6 @@ extern "C" {
 #include "qapi/qapi-visit-block-core.h"
 }
 
-static void throttle_group_obj_init(Object *obj);
 static void throttle_group_obj_complete(UserCreatable *obj, Error **errp);
 static void timer_cb(ThrottleGroupMember *tgm, ThrottleDirection direction);
 
@@ -83,6 +82,9 @@ struct ThrottleGroup {
 
     /* This field is protected by the global QEMU mutex */
     QTAILQ_ENTRY(ThrottleGroup) list;
+
+    void init();
+    void finalize();
 };
 
 /* This is protected by the global QEMU mutex */
@@ -757,19 +759,17 @@ static ThrottleParamInfo properties[] = {
 
 /* This function edits throttle_groups and must be called under the global
  * mutex */
-static void throttle_group_obj_init(Object *obj)
+void ThrottleGroup::init()
 {
-    ThrottleGroup *tg = THROTTLE_GROUP(obj);
-
-    tg->clock_type = QEMU_CLOCK_REALTIME;
+    clock_type = QEMU_CLOCK_REALTIME;
     if (qtest_enabled()) {
         /* For testing block IO throttling only */
-        tg->clock_type = QEMU_CLOCK_VIRTUAL;
+        clock_type = QEMU_CLOCK_VIRTUAL;
     }
-    tg->is_initialized = false;
-    qemu_mutex_init(&tg->lock);
-    throttle_init(&tg->ts);
-    QLIST_INIT(&tg->head);
+    is_initialized = false;
+    qemu_mutex_init(&lock);
+    throttle_init(&ts);
+    QLIST_INIT(&head);
 }
 
 /* This function edits throttle_groups and must be called under the global
@@ -804,14 +804,13 @@ static void throttle_group_obj_complete(UserCreatable *obj, Error **errp)
 
 /* This function edits throttle_groups and must be called under the global
  * mutex */
-static void throttle_group_obj_finalize(Object *obj)
+void ThrottleGroup::finalize()
 {
-    ThrottleGroup *tg = THROTTLE_GROUP(obj);
-    if (tg->is_initialized) {
-        QTAILQ_REMOVE(&throttle_groups, tg, list);
+    if (is_initialized) {
+        QTAILQ_REMOVE(&throttle_groups, this, list);
     }
-    qemu_mutex_destroy(&tg->lock);
-    g_free(tg->name);
+    qemu_mutex_destroy(&lock);
+    g_free(name);
 }
 
 static void throttle_group_set(Object *obj, Visitor *v, const char * name,
@@ -971,19 +970,9 @@ static const InterfaceInfo throttle_group_interfaces[] = {
     { }
 };
 
-static const TypeInfo throttle_group_info = {
-    .name = TYPE_THROTTLE_GROUP,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(ThrottleGroup),
-    .instance_init = throttle_group_obj_init,
-    .instance_finalize = throttle_group_obj_finalize,
-    .class_init = throttle_group_obj_class_init,
-    .interfaces = throttle_group_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void throttle_groups_init(void)
-{
-    type_register_static(&throttle_group_info);
-}
-
-type_init(throttle_groups_init);
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(ThrottleGroup, ObjectClass,
+                                   TYPE_THROTTLE_GROUP, TYPE_OBJECT,
+                                   throttle_group_obj_class_init,
+                                   throttle_group_interfaces)
