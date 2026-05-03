@@ -30,6 +30,8 @@
 struct QCryptoTLSCredsPSK {
     QCryptoTLSCreds parent_obj;
     char *username;
+
+    void finalize();
 };
 
 #ifdef CONFIG_GNUTLS
@@ -197,12 +199,9 @@ qcrypto_tls_creds_psk_complete(UserCreatable *uc, Error **errp)
 }
 
 
-static void
-qcrypto_tls_creds_psk_finalize(Object *obj)
+void QCryptoTLSCredsPSK::finalize()
 {
-    QCryptoTLSCredsPSK *creds = QCRYPTO_TLS_CREDS_PSK(obj);
-
-    g_free(creds->username);
+    g_free(username);
 }
 
 static void
@@ -245,22 +244,10 @@ static const InterfaceInfo qcrypto_tls_creds_psk_interfaces[] = {
     { }
 };
 
-static const TypeInfo qcrypto_tls_creds_psk_info = {
-    .name = TYPE_QCRYPTO_TLS_CREDS_PSK,
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .instance_size = sizeof(QCryptoTLSCredsPSK),
-    .instance_finalize = qcrypto_tls_creds_psk_finalize,
-    .class_size = sizeof(QCryptoTLSCredsPSKClass),
-    .class_init = qcrypto_tls_creds_psk_class_init,
-    .interfaces = qcrypto_tls_creds_psk_interfaces,
-};
+#include "qom/cpp/object.h"
 
-
-static void
-qcrypto_tls_creds_psk_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_psk_info);
-}
-
-
-type_init(qcrypto_tls_creds_psk_register_types);
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(QCryptoTLSCredsPSK, QCryptoTLSCredsPSKClass,
+                                   TYPE_QCRYPTO_TLS_CREDS_PSK,
+                                   TYPE_QCRYPTO_TLS_CREDS,
+                                   qcrypto_tls_creds_psk_class_init,
+                                   qcrypto_tls_creds_psk_interfaces)
