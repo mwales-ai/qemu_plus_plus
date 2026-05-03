@@ -16,12 +16,16 @@ extern "C" {
 #include "qemu/guest-random.h"
 #include "qom/object.h"
 #include "system/replay.h"
+}
 
 OBJECT_DECLARE_SIMPLE_TYPE(RngBuiltin, RNG_BUILTIN)
 
 struct RngBuiltin {
     RngBackend parent;
     QEMUBH *bh;
+
+    void init();
+    void finalize();
 };
 
 static void rng_builtin_receive_entropy_bh(void *opaque)
@@ -46,18 +50,14 @@ static void rng_builtin_request_entropy(RngBackend *b, RngRequest *req)
     replay_bh_schedule_event(s->bh);
 }
 
-static void rng_builtin_init(Object *obj)
+void RngBuiltin::init()
 {
-    RngBuiltin *s = RNG_BUILTIN(obj);
-
-    s->bh = qemu_bh_new(rng_builtin_receive_entropy_bh, s);
+    bh = qemu_bh_new(rng_builtin_receive_entropy_bh, this);
 }
 
-static void rng_builtin_finalize(Object *obj)
+void RngBuiltin::finalize()
 {
-    RngBuiltin *s = RNG_BUILTIN(obj);
-
-    qemu_bh_delete(s->bh);
+    qemu_bh_delete(bh);
 }
 
 static void rng_builtin_class_init(ObjectClass *klass, const void *data)
@@ -67,20 +67,7 @@ static void rng_builtin_class_init(ObjectClass *klass, const void *data)
     rbc->request_entropy = rng_builtin_request_entropy;
 }
 
-static const TypeInfo rng_builtin_info = {
-    .name = TYPE_RNG_BUILTIN,
-    .parent = TYPE_RNG_BACKEND,
-    .instance_size = sizeof(RngBuiltin),
-    .instance_init = rng_builtin_init,
-    .instance_finalize = rng_builtin_finalize,
-    .class_init = rng_builtin_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&rng_builtin_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(RngBuiltin, TYPE_RNG_BUILTIN, TYPE_RNG_BACKEND,
+                         rng_builtin_class_init)
