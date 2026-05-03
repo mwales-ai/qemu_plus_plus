@@ -32,6 +32,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(NetFilterReplayState, FILTER_REPLAY)
 struct NetFilterReplayState {
     NetFilterState nfs;
     ReplayNetState *rns;
+
+    void init();
+    void finalize();
 };
 
 static ssize_t filter_replay_receive_iov(NetFilterState *nf,
@@ -58,16 +61,14 @@ static ssize_t filter_replay_receive_iov(NetFilterState *nf,
     }
 }
 
-static void filter_replay_instance_init(Object *obj)
+void NetFilterReplayState::init()
 {
-    NetFilterReplayState *nfrs = FILTER_REPLAY(obj);
-    nfrs->rns = replay_register_net(&nfrs->nfs);
+    rns = replay_register_net(&nfs);
 }
 
-static void filter_replay_instance_finalize(Object *obj)
+void NetFilterReplayState::finalize()
 {
-    NetFilterReplayState *nfrs = FILTER_REPLAY(obj);
-    replay_unregister_net(nfrs->rns);
+    replay_unregister_net(rns);
 }
 
 static void filter_replay_class_init(ObjectClass *oc, const void *data)
@@ -77,20 +78,9 @@ static void filter_replay_class_init(ObjectClass *oc, const void *data)
     nfc->receive_iov = filter_replay_receive_iov;
 }
 
-static const TypeInfo filter_replay_info = {
-    .name = TYPE_FILTER_REPLAY,
-    .parent = TYPE_NETFILTER,
-    .instance_size = sizeof(NetFilterReplayState),
-    .instance_init = filter_replay_instance_init,
-    .instance_finalize = filter_replay_instance_finalize,
-    .class_init = filter_replay_class_init,
-};
-
-static void filter_replay_register_types(void)
-{
-    type_register_static(&filter_replay_info);
-}
-
-type_init(filter_replay_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(NetFilterReplayState, TYPE_FILTER_REPLAY,
+                         TYPE_NETFILTER, filter_replay_class_init)
