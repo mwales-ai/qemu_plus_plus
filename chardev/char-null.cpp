@@ -46,18 +46,9 @@ static void char_null_class_init(ObjectClass *oc, const void *data)
     cc->open = null_chr_open;
 }
 
-static const TypeInfo char_null_type_info = {
-    .name = TYPE_CHARDEV_NULL,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(Chardev),
-    .class_init = char_null_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_null_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(Chardev, TYPE_CHARDEV_NULL, TYPE_CHARDEV,
+                         char_null_class_init)
