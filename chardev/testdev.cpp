@@ -122,18 +122,9 @@ static void char_testdev_class_init(ObjectClass *oc, const void *data)
     cc->chr_write = testdev_chr_write;
 }
 
-static const TypeInfo char_testdev_type_info = {
-    .name = TYPE_CHARDEV_TESTDEV,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(TestdevChardev),
-    .class_init = char_testdev_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_testdev_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(TestdevChardev, TYPE_CHARDEV_TESTDEV, TYPE_CHARDEV,
+                         char_testdev_class_init)
