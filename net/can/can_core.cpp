@@ -73,13 +73,13 @@ struct CanBusState {
     Object object;
 
     QTAILQ_HEAD(, CanBusClientState) clients;
+
+    void init();
 };
 
-static void can_bus_instance_init(Object *object)
+void CanBusState::init()
 {
-    CanBusState *bus = (CanBusState *)object;
-
-    QTAILQ_INIT(&bus->clients);
+    QTAILQ_INIT(&clients);
 }
 
 extern "C" int can_bus_insert_client(CanBusState *bus, CanBusClientState *client)
@@ -161,18 +161,8 @@ static const InterfaceInfo can_bus_interfaces[] = {
     { }
 };
 
-static const TypeInfo can_bus_info = {
-    .name = TYPE_CAN_BUS,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(CanBusState),
-    .instance_init = can_bus_instance_init,
-    .class_init = can_bus_class_init,
-    .interfaces = can_bus_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void can_bus_register_types(void)
-{
-    type_register_static(&can_bus_info);
-}
-
-type_init(can_bus_register_types);
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(CanBusState, ObjectClass,
+                                   TYPE_CAN_BUS, TYPE_OBJECT,
+                                   can_bus_class_init, can_bus_interfaces)
