@@ -622,19 +622,11 @@ cryptodev_builtin_class_init(ObjectClass *oc, const void *data)
     bc->do_op = cryptodev_builtin_operation;
 }
 
-static const TypeInfo cryptodev_builtin_info = {
-    .name = TYPE_CRYPTODEV_BACKEND_BUILTIN,
-    .parent = TYPE_CRYPTODEV_BACKEND,
-    .instance_size = sizeof(CryptoDevBackendBuiltin),
-    .class_init = cryptodev_builtin_class_init,
-};
-
-static void
-cryptodev_builtin_register_types(void)
-{
-    type_register_static(&cryptodev_builtin_info);
-}
-
-type_init(cryptodev_builtin_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(CryptoDevBackendBuiltin,
+                         TYPE_CRYPTODEV_BACKEND_BUILTIN,
+                         TYPE_CRYPTODEV_BACKEND,
+                         cryptodev_builtin_class_init)
