@@ -20,6 +20,7 @@ extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
+}
 
 static bool
 ram_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
@@ -49,17 +50,7 @@ ram_backend_class_init(ObjectClass *oc, const void *data)
     bc->alloc = ram_backend_memory_alloc;
 }
 
-static const TypeInfo ram_backend_info = {
-    .name = TYPE_MEMORY_BACKEND_RAM,
-    .parent = TYPE_MEMORY_BACKEND,
-    .class_init = ram_backend_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&ram_backend_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(HostMemoryBackend, TYPE_MEMORY_BACKEND_RAM,
+                         TYPE_MEMORY_BACKEND, ram_backend_class_init)
