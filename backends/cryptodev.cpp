@@ -464,23 +464,19 @@ cryptodev_backend_can_be_deleted(UserCreatable *uc)
     return !cryptodev_backend_is_used(CRYPTODEV_BACKEND(uc));
 }
 
-static void cryptodev_backend_instance_init(Object *obj)
+void CryptoDevBackend::init()
 {
-    CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
-
     /* Initialize devices' queues property to 1 */
-    object_property_set_int(obj, "queues", 1, NULL);
+    object_property_set_int(OBJECT(this), "queues", 1, NULL);
 
-    throttle_config_init(&backend->tc);
+    throttle_config_init(&tc);
 }
 
-static void cryptodev_backend_finalize(Object *obj)
+void CryptoDevBackend::finalize()
 {
-    CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
-
-    cryptodev_backend_cleanup(backend, NULL);
-    if (throttle_enabled(&backend->tc)) {
-        throttle_timers_destroy(&backend->tt);
+    cryptodev_backend_cleanup(this, NULL);
+    if (throttle_enabled(&tc)) {
+        throttle_timers_destroy(&tt);
     }
 }
 
@@ -638,26 +634,16 @@ cryptodev_backend_class_init(ObjectClass *oc, const void *data)
                         cryptodev_backend_schemas_cb);
 }
 
-static const TypeInfo cryptodev_backend_info = {
-    .name = TYPE_CRYPTODEV_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(CryptoDevBackend),
-    .instance_init = cryptodev_backend_instance_init,
-    .instance_finalize = cryptodev_backend_finalize,
-    .class_size = sizeof(CryptoDevBackendClass),
-    .class_init = cryptodev_backend_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+static const InterfaceInfo cryptodev_backend_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
 };
 
-static void
-cryptodev_backend_register_types(void)
-{
-    type_register_static(&cryptodev_backend_info);
-}
-
-type_init(cryptodev_backend_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(CryptoDevBackend, CryptoDevBackendClass,
+                                   TYPE_CRYPTODEV_BACKEND, TYPE_OBJECT,
+                                   cryptodev_backend_class_init,
+                                   cryptodev_backend_interfaces)

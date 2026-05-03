@@ -284,6 +284,11 @@ struct CryptoDevBackend {
     ThrottleTimers tt;
     ThrottleConfig tc;
     QTAILQ_HEAD(, CryptoDevBackendOpInfo) opinfos;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 #define CryptodevSymStatInc(be, op, bytes) do { \
