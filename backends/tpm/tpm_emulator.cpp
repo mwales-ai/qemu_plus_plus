@@ -90,6 +90,9 @@ struct TPMEmulator {
 
     bool relock_storage;
     VMChangeStateEntry *vmstate;
+
+    void init();
+    void finalize();
 };
 
 struct tpm_error {
@@ -1014,20 +1017,17 @@ static const VMStateDescription vmstate_tpm_emulator = {
     .fields = vmstate_tpm_emulator_fields,
 };
 
-static void __attribute__((used)) tpm_emulator_inst_init(Object *obj)
+void TPMEmulator::init()
 {
-    TPMEmulator *tpm_emu = TPM_EMULATOR(obj);
-
     trace_tpm_emulator_inst_init();
 
-    tpm_emu->options = g_new0(TPMEmulatorOptions, 1);
-    tpm_emu->cur_locty_number = ~0;
-    qemu_mutex_init(&tpm_emu->mutex);
-    tpm_emu->vmstate =
-        qemu_add_vm_change_state_handler(tpm_emulator_vm_state_change,
-                                         tpm_emu);
+    options = g_new0(TPMEmulatorOptions, 1);
+    cur_locty_number = ~0;
+    qemu_mutex_init(&mutex);
+    vmstate =
+        qemu_add_vm_change_state_handler(tpm_emulator_vm_state_change, this);
 
-    vmstate_register_any(NULL, &vmstate_tpm_emulator, obj);
+    vmstate_register_any(NULL, &vmstate_tpm_emulator, OBJECT(this));
 }
 
 /*
@@ -1052,29 +1052,28 @@ static void tpm_emulator_shutdown(TPMEmulator *tpm_emu)
     }
 }
 
-static void __attribute__((used)) tpm_emulator_inst_finalize(Object *obj)
+void TPMEmulator::finalize()
 {
-    TPMEmulator *tpm_emu = TPM_EMULATOR(obj);
-    TPMBlobBuffers *state_blobs = &tpm_emu->state_blobs;
+    TPMBlobBuffers *blobs = &state_blobs;
 
-    tpm_emulator_shutdown(tpm_emu);
+    tpm_emulator_shutdown(this);
 
-    object_unref(OBJECT(tpm_emu->data_ioc));
+    object_unref(OBJECT(data_ioc));
 
-    qemu_chr_fe_deinit(&tpm_emu->ctrl_chr, false);
+    qemu_chr_fe_deinit(&ctrl_chr, false);
 
-    qapi_free_TPMEmulatorOptions(tpm_emu->options);
+    qapi_free_TPMEmulatorOptions(options);
 
-    migrate_del_blocker(&tpm_emu->migration_blocker);
+    migrate_del_blocker(&migration_blocker);
 
-    tpm_sized_buffer_reset(&state_blobs->volatil);
-    tpm_sized_buffer_reset(&state_blobs->permanent);
-    tpm_sized_buffer_reset(&state_blobs->savestate);
+    tpm_sized_buffer_reset(&blobs->volatil);
+    tpm_sized_buffer_reset(&blobs->permanent);
+    tpm_sized_buffer_reset(&blobs->savestate);
 
-    qemu_mutex_destroy(&tpm_emu->mutex);
-    qemu_del_vm_change_state_handler(tpm_emu->vmstate);
+    qemu_mutex_destroy(&mutex);
+    qemu_del_vm_change_state_handler(vmstate);
 
-    vmstate_unregister(NULL, &vmstate_tpm_emulator, obj);
+    vmstate_unregister(NULL, &vmstate_tpm_emulator, OBJECT(this));
 }
 
 static void tpm_emulator_class_init(ObjectClass *klass, const void *data)
@@ -1096,20 +1095,9 @@ static void tpm_emulator_class_init(ObjectClass *klass, const void *data)
     tbc->handle_request = tpm_emulator_handle_request;
 }
 
-static const TypeInfo tpm_emulator_info = {
-    .name = TYPE_TPM_EMULATOR,
-    .parent = TYPE_TPM_BACKEND,
-    .instance_size = sizeof(TPMEmulator),
-    .instance_init = tpm_emulator_inst_init,
-    .instance_finalize = tpm_emulator_inst_finalize,
-    .class_init = tpm_emulator_class_init,
-};
-
-static void tpm_emulator_register(void)
-{
-    type_register_static(&tpm_emulator_info);
-}
-
-type_init(tpm_emulator_register)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(TPMEmulator, TYPE_TPM_EMULATOR, TYPE_TPM_BACKEND,
+                         tpm_emulator_class_init)
