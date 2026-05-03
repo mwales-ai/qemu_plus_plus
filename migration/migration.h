@@ -518,6 +518,11 @@ struct MigrationState {
     QemuEvent postcopy_package_loaded_event;
 
     GSource *hup_source;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 void migrate_set_state(MigrationStatus *state, MigrationStatus old_state,

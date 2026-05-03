@@ -4151,43 +4151,39 @@ static void migration_class_init(ObjectClass *klass, const void *data)
                              migration_properties_count);
 }
 
-static void migration_instance_finalize(Object *obj)
+void MigrationState::finalize()
 {
-    MigrationState *ms = MIGRATION_OBJ(obj);
-
-    qemu_mutex_destroy(&ms->error_mutex);
-    qemu_mutex_destroy(&ms->qemu_file_lock);
-    qemu_sem_destroy(&ms->wait_unplug_sem);
-    qemu_sem_destroy(&ms->rate_limit_sem);
-    qemu_event_destroy(&ms->pause_event);
-    qemu_sem_destroy(&ms->postcopy_pause_sem);
-    qemu_sem_destroy(&ms->rp_state.rp_sem);
-    qemu_sem_destroy(&ms->rp_state.rp_pong_acks);
-    qemu_sem_destroy(&ms->postcopy_qemufile_src_sem);
-    error_free(ms->error);
-    qemu_event_destroy(&ms->postcopy_package_loaded_event);
+    qemu_mutex_destroy(&error_mutex);
+    qemu_mutex_destroy(&qemu_file_lock);
+    qemu_sem_destroy(&wait_unplug_sem);
+    qemu_sem_destroy(&rate_limit_sem);
+    qemu_event_destroy(&pause_event);
+    qemu_sem_destroy(&postcopy_pause_sem);
+    qemu_sem_destroy(&rp_state.rp_sem);
+    qemu_sem_destroy(&rp_state.rp_pong_acks);
+    qemu_sem_destroy(&postcopy_qemufile_src_sem);
+    error_free(error);
+    qemu_event_destroy(&postcopy_package_loaded_event);
 }
 
-static void migration_instance_init(Object *obj)
+void MigrationState::init()
 {
-    MigrationState *ms = MIGRATION_OBJ(obj);
+    state = MIGRATION_STATUS_NONE;
+    mbps = -1;
+    pages_per_second = -1;
+    qemu_event_init(&pause_event, false);
+    qemu_mutex_init(&error_mutex);
 
-    ms->state = MIGRATION_STATUS_NONE;
-    ms->mbps = -1;
-    ms->pages_per_second = -1;
-    qemu_event_init(&ms->pause_event, false);
-    qemu_mutex_init(&ms->error_mutex);
+    migrate_params_init(&parameters);
 
-    migrate_params_init(&ms->parameters);
-
-    qemu_sem_init(&ms->postcopy_pause_sem, 0);
-    qemu_sem_init(&ms->rp_state.rp_sem, 0);
-    qemu_sem_init(&ms->rp_state.rp_pong_acks, 0);
-    qemu_sem_init(&ms->rate_limit_sem, 0);
-    qemu_sem_init(&ms->wait_unplug_sem, 0);
-    qemu_sem_init(&ms->postcopy_qemufile_src_sem, 0);
-    qemu_mutex_init(&ms->qemu_file_lock);
-    qemu_event_init(&ms->postcopy_package_loaded_event, 0);
+    qemu_sem_init(&postcopy_pause_sem, 0);
+    qemu_sem_init(&rp_state.rp_sem, 0);
+    qemu_sem_init(&rp_state.rp_pong_acks, 0);
+    qemu_sem_init(&rate_limit_sem, 0);
+    qemu_sem_init(&wait_unplug_sem, 0);
+    qemu_sem_init(&postcopy_qemufile_src_sem, 0);
+    qemu_mutex_init(&qemu_file_lock);
+    qemu_event_init(&postcopy_package_loaded_event, 0);
 }
 
 /*
@@ -4206,27 +4202,16 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
     return migrate_caps_check(old_caps, ms->capabilities, errp);
 }
 
-static const TypeInfo migration_type = {
-    .name = TYPE_MIGRATION,
-    /*
-     * NOTE: TYPE_MIGRATION is not really a device, as the object is
-     * not created using qdev_new(), it is not attached to the qdev
-     * device tree, and it is never realized.
-     *
-     * TODO: Make this TYPE_OBJECT once QOM provides something like
-     * TYPE_DEVICE's "-global" properties.
-     */
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(MigrationState),
-    .instance_init = migration_instance_init,
-    .instance_finalize = migration_instance_finalize,
-    .class_size = sizeof(MigrationClass),
-    .class_init = migration_class_init,
-};
+/*
+ * NOTE: TYPE_MIGRATION is not really a device, as the object is
+ * not created using qdev_new(), it is not attached to the qdev
+ * device tree, and it is never realized.
+ *
+ * TODO: Make this TYPE_OBJECT once QOM provides something like
+ * TYPE_DEVICE's "-global" properties.
+ */
+#include "qom/cpp/object.h"
 
-static void register_migration_types(void)
-{
-    type_register_static(&migration_type);
-}
-
-type_init(register_migration_types);
+REGISTER_QEMU_OBJECT_CI_CS(MigrationState, MigrationClass,
+                            TYPE_MIGRATION, TYPE_DEVICE,
+                            migration_class_init)
