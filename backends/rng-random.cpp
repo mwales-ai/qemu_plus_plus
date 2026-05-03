@@ -22,6 +22,7 @@ extern "C" {
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+}
 
 struct RngRandom
 {
@@ -29,6 +30,9 @@ struct RngRandom
 
     int fd;
     char *filename;
+
+    void init();
+    void finalize();
 };
 
 /**
@@ -106,24 +110,20 @@ static void rng_random_set_filename(Object *obj, const char *filename,
     s->filename = g_strdup(filename);
 }
 
-static void __attribute__((used)) rng_random_init(Object *obj)
+void RngRandom::init()
 {
-    RngRandom *s = RNG_RANDOM(obj);
-
-    s->filename = g_strdup("/dev/urandom");
-    s->fd = -1;
+    filename = g_strdup("/dev/urandom");
+    fd = -1;
 }
 
-static void __attribute__((used)) rng_random_finalize(Object *obj)
+void RngRandom::finalize()
 {
-    RngRandom *s = RNG_RANDOM(obj);
-
-    if (s->fd != -1) {
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-        qemu_close(s->fd);
+    if (fd != -1) {
+        qemu_set_fd_handler(fd, NULL, NULL, NULL);
+        qemu_close(fd);
     }
 
-    g_free(s->filename);
+    g_free(filename);
 }
 
 static void rng_random_class_init(ObjectClass *klass, const void *data)
@@ -138,20 +138,7 @@ static void rng_random_class_init(ObjectClass *klass, const void *data)
 
 }
 
-static const TypeInfo rng_random_info = {
-    .name = TYPE_RNG_RANDOM,
-    .parent = TYPE_RNG_BACKEND,
-    .instance_size = sizeof(RngRandom),
-    .instance_init = rng_random_init,
-    .instance_finalize = rng_random_finalize,
-    .class_init = rng_random_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&rng_random_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(RngRandom, TYPE_RNG_RANDOM, TYPE_RNG_BACKEND,
+                         rng_random_class_init)
