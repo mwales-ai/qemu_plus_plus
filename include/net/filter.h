@@ -64,6 +64,11 @@ struct NetFilterState {
     char *position;
     bool insert_before_flag;
     QTAILQ_ENTRY(NetFilterState) next;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 ssize_t qemu_netfilter_receive(NetFilterState *nf,

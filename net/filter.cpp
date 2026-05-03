@@ -210,13 +210,11 @@ static void netfilter_set_insert(Object *obj, const char *str, Error **errp)
     nf->insert_before_flag = !strcmp(str, "before");
 }
 
-static void netfilter_init(Object *obj)
+void NetFilterState::init()
 {
-    NetFilterState *nf = NETFILTER(obj);
-
-    nf->on = true;
-    nf->insert_before_flag = false;
-    nf->position = g_strdup("tail");
+    on = true;
+    insert_before_flag = false;
+    position = g_strdup("tail");
 }
 
 static void netfilter_complete(UserCreatable *uc, Error **errp)
@@ -308,21 +306,20 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     }
 }
 
-static void netfilter_finalize(Object *obj)
+void NetFilterState::finalize()
 {
-    NetFilterState *nf = NETFILTER(obj);
-    NetFilterClass *nfc = NETFILTER_GET_CLASS(obj);
+    NetFilterClass *nfc = NETFILTER_GET_CLASS(OBJECT(this));
 
     if (nfc->cleanup) {
-        nfc->cleanup(nf);
+        nfc->cleanup(this);
     }
 
-    if (nf->netdev && !QTAILQ_EMPTY(&nf->netdev->filters) &&
-        QTAILQ_IN_USE(nf, next)) {
-        QTAILQ_REMOVE(&nf->netdev->filters, nf, next);
+    if (netdev && !QTAILQ_EMPTY(&netdev->filters) &&
+        QTAILQ_IN_USE(this, next)) {
+        QTAILQ_REMOVE(&netdev->filters, this, next);
     }
-    g_free(nf->netdev_id);
-    g_free(nf->position);
+    g_free(netdev_id);
+    g_free(position);
 }
 
 static void default_handle_event(NetFilterState *nf, int event, Error **errp)
@@ -364,23 +361,11 @@ static const InterfaceInfo netfilter_interfaces[] = {
     { }
 };
 
-static const TypeInfo netfilter_info = {
-    .name = TYPE_NETFILTER,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(NetFilterState),
-    .instance_init = netfilter_init,
-    .instance_finalize = netfilter_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(NetFilterClass),
-    .class_init = netfilter_class_init,
-    .interfaces = netfilter_interfaces,
-};
-
-static void register_types(void)
-{
-    type_register_static(&netfilter_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(NetFilterState, NetFilterClass,
+                                            TYPE_NETFILTER, TYPE_OBJECT,
+                                            netfilter_class_init,
+                                            netfilter_interfaces)
