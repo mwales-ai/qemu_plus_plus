@@ -90,19 +90,9 @@ static const InterfaceInfo can_host_interfaces[] = {
     { }
 };
 
-static const TypeInfo can_host_info = {
-    .name = TYPE_CAN_HOST,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(CanHostState),
-    .is_abstract = true,
-    .class_size = sizeof(CanHostClass),
-    .class_init = can_host_class_init,
-    .interfaces = can_host_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void can_host_register_types(void)
-{
-    type_register_static(&can_host_info);
-}
-
-type_init(can_host_register_types);
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(CanHostState, CanHostClass,
+                                            TYPE_CAN_HOST, TYPE_OBJECT,
+                                            can_host_class_init,
+                                            can_host_interfaces)
