@@ -634,18 +634,9 @@ static void cryptodev_lkcf_class_init(ObjectClass *oc, const void *data)
     bc->do_op = cryptodev_lkcf_operation;
 }
 
-static const TypeInfo cryptodev_builtin_info = {
-    .name = TYPE_CRYPTODEV_BACKEND_LKCF,
-    .parent = TYPE_CRYPTODEV_BACKEND,
-    .class_init = cryptodev_lkcf_class_init,
-    .instance_size = sizeof(CryptoDevBackendLKCF),
-};
-
-static void cryptodev_lkcf_register_types(void)
-{
-    type_register_static(&cryptodev_builtin_info);
-}
-
-type_init(cryptodev_lkcf_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(CryptoDevBackendLKCF, TYPE_CRYPTODEV_BACKEND_LKCF,
+                         TYPE_CRYPTODEV_BACKEND, cryptodev_lkcf_class_init)
