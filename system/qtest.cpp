@@ -1029,19 +1029,10 @@ static const InterfaceInfo qtest_interfaces[] = {
     { }
 };
 
-static const TypeInfo qtest_info = {
-    .name = TYPE_QTEST,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QTest),
-    .class_init = qtest_class_init,
-    .interfaces = qtest_interfaces,
-};
-
-static void register_types(void)
-{
-    type_register_static(&qtest_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(QTest, ObjectClass,
+                                   TYPE_QTEST, TYPE_OBJECT,
+                                   qtest_class_init, qtest_interfaces)
