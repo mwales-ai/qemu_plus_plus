@@ -125,21 +125,10 @@ static const InterfaceInfo qcrypto_tls_creds_anon_interfaces[] = {
     { }
 };
 
-static const TypeInfo qcrypto_tls_creds_anon_info = {
-    .name = TYPE_QCRYPTO_TLS_CREDS_ANON,
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .instance_size = sizeof(QCryptoTLSCredsAnon),
-    .class_size = sizeof(QCryptoTLSCredsAnonClass),
-    .class_init = qcrypto_tls_creds_anon_class_init,
-    .interfaces = qcrypto_tls_creds_anon_interfaces,
-};
+#include "qom/cpp/object.h"
 
-
-static void
-qcrypto_tls_creds_anon_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_anon_info);
-}
-
-
-type_init(qcrypto_tls_creds_anon_register_types);
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(QCryptoTLSCredsAnon, QCryptoTLSCredsAnonClass,
+                                   TYPE_QCRYPTO_TLS_CREDS_ANON,
+                                   TYPE_QCRYPTO_TLS_CREDS,
+                                   qcrypto_tls_creds_anon_class_init,
+                                   qcrypto_tls_creds_anon_interfaces)
