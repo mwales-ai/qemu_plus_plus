@@ -931,6 +931,33 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES: abstract QOM object base with
+ * caller-supplied class_init, custom class struct, and InterfaceInfo array.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(ClassName, ClassStruct,   \
+                                                    type_name_str,           \
+                                                    parent_type_str,         \
+                                                    class_init_fn,           \
+                                                    ifaces_array)            \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+        .interfaces        = ifaces_array,                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_BUS: register a QOM bus type (parent TYPE_BUS).
  * Buses extend BusClass, not DeviceClass. Use the _CI variant if a
  * class_init is needed.

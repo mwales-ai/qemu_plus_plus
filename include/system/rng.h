@@ -58,6 +58,11 @@ struct RngBackend
     /*< protected >*/
     bool opened;
     QSIMPLEQ_HEAD(, RngRequest) requests;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 

@@ -20,6 +20,7 @@ extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
+}
 
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
@@ -90,18 +91,14 @@ void rng_backend_finalize_request(RngBackend *s, RngRequest *req)
     rng_backend_free_request(req);
 }
 
-static void rng_backend_init(Object *obj)
+void RngBackend::init()
 {
-    RngBackend *s = RNG_BACKEND(obj);
-
-    QSIMPLEQ_INIT(&s->requests);
+    QSIMPLEQ_INIT(&requests);
 }
 
-static void rng_backend_finalize(Object *obj)
+void RngBackend::finalize()
 {
-    RngBackend *s = RNG_BACKEND(obj);
-
-    rng_backend_free_requests(s);
+    rng_backend_free_requests(this);
 }
 
 static void rng_backend_class_init(ObjectClass *oc, const void *data)
@@ -115,26 +112,14 @@ static void rng_backend_class_init(ObjectClass *oc, const void *data)
                                    NULL);
 }
 
-static const TypeInfo rng_backend_info = {
-    .name = TYPE_RNG_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(RngBackend),
-    .instance_init = rng_backend_init,
-    .instance_finalize = rng_backend_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(RngBackendClass),
-    .class_init = rng_backend_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+static const InterfaceInfo rng_backend_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
 };
 
-static void register_types(void)
-{
-    type_register_static(&rng_backend_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(RngBackend, RngBackendClass,
+                                            TYPE_RNG_BACKEND, TYPE_OBJECT,
+                                            rng_backend_class_init,
+                                            rng_backend_interfaces)
