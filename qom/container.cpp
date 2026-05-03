@@ -19,16 +19,6 @@ extern "C" {
 #include "qom/object.h"
 #include "qemu/module.h"
 
-static const TypeInfo container_info = {
-    .name          = TYPE_CONTAINER,
-    .parent        = TYPE_OBJECT,
-};
-
-static void container_register_types(void)
-{
-    type_register_static(&container_info);
-}
-
 Object *object_property_add_new_container(Object *obj, const char *name)
 {
     Object *child = object_new(TYPE_CONTAINER);
@@ -39,6 +29,8 @@ Object *object_property_add_new_container(Object *obj, const char *name)
     return child;
 }
 
-type_init(container_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT(Object, TYPE_CONTAINER, TYPE_OBJECT)
