@@ -55,6 +55,8 @@ struct CryptoDevBackendVhostUser {
     char *chr_name;
     bool opened;
     CryptoDevBackendVhost *vhost_crypto[MAX_CRYPTO_QUEUE_NUM];
+
+    void finalize();
 };
 
 static int
@@ -387,14 +389,11 @@ cryptodev_vhost_user_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void __attribute__((used)) cryptodev_vhost_user_finalize(Object *obj)
+void CryptoDevBackendVhostUser::finalize()
 {
-    CryptoDevBackendVhostUser *s =
-                      CRYPTODEV_BACKEND_VHOST_USER(obj);
+    qemu_chr_fe_deinit(&chr, false);
 
-    qemu_chr_fe_deinit(&s->chr, false);
-
-    g_free(s->chr_name);
+    g_free(chr_name);
 }
 
 static void
@@ -414,20 +413,11 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, const void *data)
 
 }
 
-static const TypeInfo cryptodev_vhost_user_info = {
-    .name = TYPE_CRYPTODEV_BACKEND_VHOST_USER,
-    .parent = TYPE_CRYPTODEV_BACKEND,
-    .instance_size = sizeof(CryptoDevBackendVhostUser),
-    .instance_finalize = cryptodev_vhost_user_finalize,
-    .class_init = cryptodev_vhost_user_class_init,
-};
-
-static void
-cryptodev_vhost_user_register_types(void)
-{
-    type_register_static(&cryptodev_vhost_user_info);
-}
-
-type_init(cryptodev_vhost_user_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(CryptoDevBackendVhostUser,
+                         TYPE_CRYPTODEV_BACKEND_VHOST_USER,
+                         TYPE_CRYPTODEV_BACKEND,
+                         cryptodev_vhost_user_class_init)
