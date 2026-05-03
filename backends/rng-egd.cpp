@@ -22,6 +22,7 @@ extern "C" {
 #include "qapi/qmp/qerror.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+}
 
 #define TYPE_RNG_EGD "rng-egd"
 OBJECT_DECLARE_SIMPLE_TYPE(RngEgd, RNG_EGD)
@@ -31,6 +32,8 @@ struct RngEgd {
 
     CharFrontend chr;
     char *chr_name;
+
+    void finalize();
 };
 
 static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
@@ -140,12 +143,10 @@ static char *rng_egd_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void __attribute__((used)) rng_egd_finalize(Object *obj)
+void RngEgd::finalize()
 {
-    RngEgd *s = RNG_EGD(obj);
-
-    qemu_chr_fe_deinit(&s->chr, false);
-    g_free(s->chr_name);
+    qemu_chr_fe_deinit(&chr, false);
+    g_free(chr_name);
 }
 
 static void rng_egd_class_init(ObjectClass *klass, const void *data)
@@ -158,19 +159,7 @@ static void rng_egd_class_init(ObjectClass *klass, const void *data)
                                   rng_egd_get_chardev, rng_egd_set_chardev);
 }
 
-static const TypeInfo rng_egd_info = {
-    .name = TYPE_RNG_EGD,
-    .parent = TYPE_RNG_BACKEND,
-    .instance_size = sizeof(RngEgd),
-    .instance_finalize = rng_egd_finalize,
-    .class_init = rng_egd_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&rng_egd_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(RngEgd, TYPE_RNG_EGD, TYPE_RNG_BACKEND,
+                         rng_egd_class_init)
