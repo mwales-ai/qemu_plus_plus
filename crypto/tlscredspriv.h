@@ -35,6 +35,11 @@ struct QCryptoTLSCreds {
     bool verifyPeer;
     char *priority;
     QCryptoTLSCredsBox *box;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 #ifdef __cplusplus

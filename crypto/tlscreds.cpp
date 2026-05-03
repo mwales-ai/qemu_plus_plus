@@ -232,25 +232,19 @@ qcrypto_tls_creds_class_init(ObjectClass *oc, const void *data)
 }
 
 
-static void
-qcrypto_tls_creds_init(Object *obj)
+void QCryptoTLSCreds::init()
 {
-    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
-
-    creds->verifyPeer = true;
+    verifyPeer = true;
 }
 
 
-static void
-qcrypto_tls_creds_finalize(Object *obj)
+void QCryptoTLSCreds::finalize()
 {
-    QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
-
 #ifdef CONFIG_GNUTLS
-    qcrypto_tls_creds_box_unref(creds->box);
+    qcrypto_tls_creds_box_unref(box);
 #endif
-    g_free(creds->dir);
-    g_free(creds->priority);
+    g_free(dir);
+    g_free(priority);
 }
 
 bool qcrypto_tls_creds_check_endpoint(QCryptoTLSCreds *creds,
@@ -295,23 +289,8 @@ bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
 }
 
 
-static const TypeInfo qcrypto_tls_creds_info = {
-    .name = TYPE_QCRYPTO_TLS_CREDS,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QCryptoTLSCreds),
-    .instance_init = qcrypto_tls_creds_init,
-    .instance_finalize = qcrypto_tls_creds_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(QCryptoTLSCredsClass),
-    .class_init = qcrypto_tls_creds_class_init,
-};
+#include "qom/cpp/object.h"
 
-
-static void
-qcrypto_tls_creds_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_info);
-}
-
-
-type_init(qcrypto_tls_creds_register_types);
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS(QCryptoTLSCreds, QCryptoTLSCredsClass,
+                                     TYPE_QCRYPTO_TLS_CREDS, TYPE_OBJECT,
+                                     qcrypto_tls_creds_class_init)
