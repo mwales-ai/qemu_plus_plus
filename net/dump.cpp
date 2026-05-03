@@ -152,6 +152,9 @@ struct NetFilterDumpState {
     DumpState ds;
     char *filename;
     uint32_t maxlen;
+
+    void init();
+    void finalize();
 };
 
 static ssize_t filter_dump_receive_iov(NetFilterState *nf, NetClientState *sndr,
@@ -225,18 +228,14 @@ static void file_dump_set_filename(Object *obj, const char *value, Error **errp)
     nfds->filename = g_strdup(value);
 }
 
-static void filter_dump_instance_init(Object *obj)
+void NetFilterDumpState::init()
 {
-    NetFilterDumpState *nfds = FILTER_DUMP(obj);
-
-    nfds->maxlen = 65536;
+    maxlen = 65536;
 }
 
-static void filter_dump_instance_finalize(Object *obj)
+void NetFilterDumpState::finalize()
 {
-    NetFilterDumpState *nfds = FILTER_DUMP(obj);
-
-    g_free(nfds->filename);
+    g_free(filename);
 }
 
 static void filter_dump_class_init(ObjectClass *oc, const void *data)
@@ -253,20 +252,9 @@ static void filter_dump_class_init(ObjectClass *oc, const void *data)
     nfc->receive_iov = filter_dump_receive_iov;
 }
 
-static const TypeInfo filter_dump_info = {
-    .name = TYPE_FILTER_DUMP,
-    .parent = TYPE_NETFILTER,
-    .instance_size = sizeof(NetFilterDumpState),
-    .instance_init = filter_dump_instance_init,
-    .instance_finalize = filter_dump_instance_finalize,
-    .class_init = filter_dump_class_init,
-};
-
-static void filter_dump_register_types(void)
-{
-    type_register_static(&filter_dump_info);
-}
-
-type_init(filter_dump_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(NetFilterDumpState, TYPE_FILTER_DUMP, TYPE_NETFILTER,
+                         filter_dump_class_init)
