@@ -19,6 +19,7 @@ extern "C" {
 #include "system/hostmem.h"
 #include "qapi/error.h"
 #include "migration/cpr.h"
+}
 
 #define TYPE_MEMORY_BACKEND_SHM "memory-backend-shm"
 
@@ -26,6 +27,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendShm, MEMORY_BACKEND_SHM)
 
 struct HostMemoryBackendShm {
     HostMemoryBackend parent_obj;
+
+    void init();
 };
 
 static bool
@@ -66,12 +69,9 @@ have_fd:
                                               ram_flags, fd, 0, errp);
 }
 
-static void
-shm_backend_instance_init(Object *obj)
+void HostMemoryBackendShm::init()
 {
-    HostMemoryBackendShm *m = MEMORY_BACKEND_SHM(obj);
-
-    MEMORY_BACKEND(m)->share = true;
+    MEMORY_BACKEND(this)->share = true;
 }
 
 static void
@@ -82,19 +82,7 @@ shm_backend_class_init(ObjectClass *oc, const void *data)
     bc->alloc = shm_backend_memory_alloc;
 }
 
-static const TypeInfo shm_backend_info = {
-    .name = TYPE_MEMORY_BACKEND_SHM,
-    .parent = TYPE_MEMORY_BACKEND,
-    .instance_size = sizeof(HostMemoryBackendShm),
-    .instance_init = shm_backend_instance_init,
-    .class_init = shm_backend_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&shm_backend_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(HostMemoryBackendShm, TYPE_MEMORY_BACKEND_SHM,
+                         TYPE_MEMORY_BACKEND, shm_backend_class_init)
