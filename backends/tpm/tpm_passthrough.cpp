@@ -55,6 +55,9 @@ struct TPMPassthruState {
 
     TPMVersion tpm_version;
     size_t tpm_buffersize;
+
+    void init();
+    void finalize();
 };
 
 
@@ -345,28 +348,24 @@ static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
     { /* end of list */ },
 };
 
-static void __attribute__((used)) tpm_passthrough_inst_init(Object *obj)
+void TPMPassthruState::init()
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
-
-    tpm_pt->options = g_new0(TPMPassthroughOptions, 1);
-    tpm_pt->tpm_fd = -1;
-    tpm_pt->cancel_fd = -1;
+    options = g_new0(TPMPassthroughOptions, 1);
+    tpm_fd = -1;
+    cancel_fd = -1;
 }
 
-static void __attribute__((used)) tpm_passthrough_inst_finalize(Object *obj)
+void TPMPassthruState::finalize()
 {
-    TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
+    tpm_passthrough_cancel_cmd(TPM_BACKEND(OBJECT(this)));
 
-    tpm_passthrough_cancel_cmd(TPM_BACKEND(obj));
-
-    if (tpm_pt->tpm_fd >= 0) {
-        qemu_close(tpm_pt->tpm_fd);
+    if (tpm_fd >= 0) {
+        qemu_close(tpm_fd);
     }
-    if (tpm_pt->cancel_fd >= 0) {
-        qemu_close(tpm_pt->cancel_fd);
+    if (cancel_fd >= 0) {
+        qemu_close(cancel_fd);
     }
-    qapi_free_TPMPassthroughOptions(tpm_pt->options);
+    qapi_free_TPMPassthroughOptions(options);
 }
 
 static void tpm_passthrough_class_init(ObjectClass *klass, const void *data)
@@ -389,20 +388,9 @@ static void tpm_passthrough_class_init(ObjectClass *klass, const void *data)
     tbc->handle_request = tpm_passthrough_handle_request;
 }
 
-static const TypeInfo tpm_passthrough_info = {
-    .name = TYPE_TPM_PASSTHROUGH,
-    .parent = TYPE_TPM_BACKEND,
-    .instance_size = sizeof(TPMPassthruState),
-    .instance_init = tpm_passthrough_inst_init,
-    .instance_finalize = tpm_passthrough_inst_finalize,
-    .class_init = tpm_passthrough_class_init,
-};
-
-static void tpm_passthrough_register(void)
-{
-    type_register_static(&tpm_passthrough_info);
-}
-
-type_init(tpm_passthrough_register)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(TPMPassthruState, TYPE_TPM_PASSTHROUGH,
+                         TYPE_TPM_BACKEND, tpm_passthrough_class_init)
