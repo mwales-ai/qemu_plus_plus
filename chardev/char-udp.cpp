@@ -47,6 +47,8 @@ struct UdpChardev {
     int bufcnt;
     int bufptr;
     int max_size;
+
+    void finalize();
 };
 typedef struct UdpChardev UdpChardev;
 
@@ -124,14 +126,13 @@ static void udp_chr_update_read_handler(Chardev *chr)
     }
 }
 
-static void char_udp_finalize(Object *obj)
+void UdpChardev::finalize()
 {
-    Chardev *chr = CHARDEV(obj);
-    UdpChardev *s = UDP_CHARDEV(obj);
+    Chardev *chr = CHARDEV(this);
 
     remove_fd_in_watch(chr);
-    if (s->ioc) {
-        object_unref(OBJECT(s->ioc));
+    if (ioc) {
+        object_unref(OBJECT(ioc));
     }
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
@@ -234,19 +235,9 @@ static void char_udp_class_init(ObjectClass *oc, const void *data)
     cc->chr_update_read_handler = udp_chr_update_read_handler;
 }
 
-static const TypeInfo char_udp_type_info = {
-    .name = TYPE_CHARDEV_UDP,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(UdpChardev),
-    .instance_finalize = char_udp_finalize,
-    .class_init = char_udp_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_udp_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(UdpChardev, TYPE_CHARDEV_UDP, TYPE_CHARDEV,
+                         char_udp_class_init)
