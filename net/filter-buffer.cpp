@@ -191,18 +191,9 @@ static void filter_buffer_class_init(ObjectClass *oc, const void *data)
     nfc->status_changed = filter_buffer_status_changed;
 }
 
-static const TypeInfo filter_buffer_info = {
-    .name = TYPE_FILTER_BUFFER,
-    .parent = TYPE_NETFILTER,
-    .instance_size = sizeof(FilterBufferState),
-    .class_init = filter_buffer_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&filter_buffer_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(FilterBufferState, TYPE_FILTER_BUFFER, TYPE_NETFILTER,
+                         filter_buffer_class_init)
