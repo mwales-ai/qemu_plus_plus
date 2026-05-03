@@ -39,12 +39,9 @@ qio_channel_block_new(BlockDriverState *bs)
 }
 
 
-static void
-qio_channel_block_finalize(Object *obj)
+void QIOChannelBlock::finalize()
 {
-    QIOChannelBlock *ioc = QIO_CHANNEL_BLOCK(obj);
-
-    g_clear_pointer(&ioc->bs, bdrv_unref);
+    g_clear_pointer(&bs, bdrv_unref);
 }
 
 
@@ -226,18 +223,7 @@ qio_channel_block_class_init(ObjectClass *klass,
     ioc_klass->io_set_aio_fd_handler = qio_channel_block_set_aio_fd_handler;
 }
 
-static const TypeInfo qio_channel_block_info = {
-    .name = TYPE_QIO_CHANNEL_BLOCK,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelBlock),
-    .instance_finalize = qio_channel_block_finalize,
-    .class_init = qio_channel_block_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void
-qio_channel_block_register_types(void)
-{
-    type_register_static(&qio_channel_block_info);
-}
-
-type_init(qio_channel_block_register_types);
+REGISTER_QEMU_OBJECT_CI(QIOChannelBlock, TYPE_QIO_CHANNEL_BLOCK,
+                         TYPE_QIO_CHANNEL, qio_channel_block_class_init)

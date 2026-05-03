@@ -44,6 +44,10 @@ struct QIOChannelBlock {
     QIOChannel parent;
     BlockDriverState *bs;
     off_t offset;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 
