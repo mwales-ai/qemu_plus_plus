@@ -25,6 +25,7 @@ extern "C" {
 #include "qom/object.h"
 #include "qapi/visitor.h"
 #include "qapi/qapi-visit-common.h"
+}
 
 OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendFile, MEMORY_BACKEND_FILE)
 
@@ -39,6 +40,8 @@ struct HostMemoryBackendFile {
     bool is_pmem;
     bool readonly;
     OnOffAuto rom;
+
+    void finalize();
 };
 
 static bool
@@ -309,26 +312,12 @@ file_backend_class_init(ObjectClass *oc, const void *data)
         "Whether to create Read Only Memory (ROM)");
 }
 
-static void __attribute__((used)) file_backend_instance_finalize(Object *o)
+void HostMemoryBackendFile::finalize()
 {
-    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
-
-    g_free(fb->mem_path);
+    g_free(mem_path);
 }
 
-static const TypeInfo file_backend_info = {
-    .name = TYPE_MEMORY_BACKEND_FILE,
-    .parent = TYPE_MEMORY_BACKEND,
-    .instance_size = sizeof(HostMemoryBackendFile),
-    .instance_finalize = file_backend_instance_finalize,
-    .class_init = file_backend_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&file_backend_info);
-}
-
-type_init(register_types);
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CI(HostMemoryBackendFile, TYPE_MEMORY_BACKEND_FILE,
+                         TYPE_MEMORY_BACKEND, file_backend_class_init)
