@@ -68,6 +68,8 @@ struct MouseChardev {
     bool btns[INPUT_BUTTON__MAX];
     bool btnc[INPUT_BUTTON__MAX];
     Fifo8 outbuf;
+
+    void finalize();
 };
 typedef struct MouseChardev MouseChardev;
 
@@ -248,14 +250,12 @@ static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void char_msmouse_finalize(Object *obj)
+void MouseChardev::finalize()
 {
-    MouseChardev *mouse = MOUSE_CHARDEV(obj);
-
-    if (mouse->hs) {
-        qemu_input_handler_unregister(mouse->hs);
+    if (hs) {
+        qemu_input_handler_unregister(hs);
     }
-    fifo8_destroy(&mouse->outbuf);
+    fifo8_destroy(&outbuf);
 }
 
 static void msmouse_chr_open(Chardev *chr,
@@ -282,19 +282,9 @@ static void char_msmouse_class_init(ObjectClass *oc, const void *data)
     cc->chr_ioctl = msmouse_ioctl;
 }
 
-static const TypeInfo char_msmouse_type_info = {
-    .name = TYPE_CHARDEV_MSMOUSE,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(MouseChardev),
-    .instance_finalize = char_msmouse_finalize,
-    .class_init = char_msmouse_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_msmouse_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(MouseChardev, TYPE_CHARDEV_MSMOUSE, TYPE_CHARDEV,
+                         char_msmouse_class_init)
