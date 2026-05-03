@@ -87,6 +87,7 @@ struct TabletChardev {
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
 
+    void finalize();
 };
 typedef struct TabletChardev TabletChardev;
 
@@ -320,12 +321,10 @@ static int wctablet_chr_ioctl(Chardev *chr, int cmd, void *arg)
     return 0;
 }
 
-static void wctablet_chr_finalize(Object *obj)
+void TabletChardev::finalize()
 {
-    TabletChardev *tablet = WCTABLET_CHARDEV(obj);
-
-    if (tablet->hs) {
-        qemu_input_handler_unregister(tablet->hs);
+    if (hs) {
+        qemu_input_handler_unregister(hs);
     }
 }
 
@@ -357,19 +356,9 @@ static void wctablet_chr_class_init(ObjectClass *oc, const void *data)
     cc->chr_accept_input = wctablet_chr_accept_input;
 }
 
-static const TypeInfo wctablet_type_info = {
-    .name = TYPE_CHARDEV_WCTABLET,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(TabletChardev),
-    .instance_finalize = wctablet_chr_finalize,
-    .class_init = wctablet_chr_class_init,
-};
-
-static void register_types(void)
-{
-     type_register_static(&wctablet_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(TabletChardev, TYPE_CHARDEV_WCTABLET, TYPE_CHARDEV,
+                         wctablet_chr_class_init)
