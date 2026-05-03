@@ -185,17 +185,16 @@ static void fd_chr_update_read_handler(Chardev *chr)
     }
 }
 
-static void char_fd_finalize(Object *obj)
+void FDChardev::finalize()
 {
-    Chardev *chr = CHARDEV(obj);
-    FDChardev *s = FD_CHARDEV(obj);
+    Chardev *chr = CHARDEV(this);
 
     remove_fd_in_watch(chr);
-    if (s->ioc_in) {
-        object_unref(OBJECT(s->ioc_in));
+    if (ioc_in) {
+        object_unref(OBJECT(ioc_in));
     }
-    if (s->ioc_out) {
-        object_unref(OBJECT(s->ioc_out));
+    if (ioc_out) {
+        object_unref(OBJECT(ioc_out));
     }
 
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
@@ -258,20 +257,9 @@ static void char_fd_class_init(ObjectClass *oc, const void *data)
     cc->chr_update_read_handler = fd_chr_update_read_handler;
 }
 
-static const TypeInfo char_fd_type_info = {
-    .name = TYPE_CHARDEV_FD,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(FDChardev),
-    .instance_finalize = char_fd_finalize,
-    .is_abstract = true,
-    .class_init = char_fd_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_fd_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI(FDChardev, TYPE_CHARDEV_FD, TYPE_CHARDEV,
+                                  char_fd_class_init)

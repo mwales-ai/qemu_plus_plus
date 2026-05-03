@@ -33,6 +33,10 @@ struct FDChardev {
 
     QIOChannel *ioc_in, *ioc_out;
     int max_size;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 typedef struct FDChardev FDChardev;
 
