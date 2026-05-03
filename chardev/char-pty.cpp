@@ -48,6 +48,8 @@ struct PtyChardev {
     int connected;
     GSource *timer_src;
     char *path;
+
+    void finalize();
 };
 typedef struct PtyChardev PtyChardev;
 
@@ -209,20 +211,19 @@ static void pty_chr_state(Chardev *chr, int connected)
     }
 }
 
-static void char_pty_finalize(Object *obj)
+void PtyChardev::finalize()
 {
-    Chardev *chr = CHARDEV(obj);
-    PtyChardev *s = PTY_CHARDEV(obj);
+    Chardev *chr = CHARDEV(this);
 
     /* unlink symlink */
-    if (s->path) {
-        unlink(s->path);
-        g_free(s->path);
+    if (path) {
+        unlink(path);
+        g_free(path);
     }
 
     pty_chr_state(chr, 0);
-    object_unref(OBJECT(s->ioc));
-    pty_chr_timer_cancel(s);
+    object_unref(OBJECT(ioc));
+    pty_chr_timer_cancel(this);
 }
 
 #if defined HAVE_PTY_H
@@ -406,19 +407,9 @@ static void char_pty_class_init(ObjectClass *oc, const void *data)
     cc->chr_add_watch = pty_chr_add_watch;
 }
 
-static const TypeInfo char_pty_type_info = {
-    .name = TYPE_CHARDEV_PTY,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(PtyChardev),
-    .instance_finalize = char_pty_finalize,
-    .class_init = char_pty_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_pty_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(PtyChardev, TYPE_CHARDEV_PTY, TYPE_CHARDEV,
+                         char_pty_class_init)
