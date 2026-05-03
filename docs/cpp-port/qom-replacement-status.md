@@ -8,28 +8,34 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-02
+**As of:** 2026-05-03
 
-**Conversion progress:** 854 hw/ files converted to REGISTER_QEMU_* macros
-out of 1416 total .cpp files in hw/. Recent additions in this session:
-TYPE_CPU base, TYPE_VIRTIO_DEVICE base, BCM2838 SoC + peripherals,
-nubus-device abstract base, pcie_port + pcie_host abstract types,
-vfio-pci-igd-lpc-bridge.
+**Conversion progress:** 896 .cpp files converted to REGISTER_QEMU_* macros
+across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/, block/.
+Notable conversions this session beyond hw/:
+TYPE_CPU + TYPE_VIRTIO_DEVICE (abstract bases), TYPE_RNG_BACKEND family
+(builtin/random/egd), TYPE_MEMORY_BACKEND_RAM/FILE/SHM, TYPE_CHARDEV_FD/MUX/HUB
+/MSMOUSE/WCTABLET/PTY/UDP/NULL/TESTDEV/BRAILLE, TYPE_QCRYPTO_TLS_CREDS family
+(anon/psk/cipher-suites/keyring/secret), TYPE_TPM_EMULATOR/PASSTHROUGH,
+TYPE_CRYPTODEV_BACKEND family (builtin/lkcf/vhost-user), TYPE_CONTAINER,
+TYPE_FILTER_DUMP/REPLAY/BUFFER + TYPE_NETFILTER, TYPE_CAN_HOST/BUS,
+TYPE_VHOST_USER_BACKEND, TYPE_QIO_CHANNEL_BLOCK, TYPE_QTEST,
+TYPE_MIGRATION, TYPE_THROTTLE_GROUP.
 
-A latent class_size bug was uncovered and fixed in this session:
-several `REGISTER_QEMU_DEVICE_CUSTOM_CI(..., DeviceClass, ..., TYPE_SYS_BUS_DEVICE, ...)`
-calls used DeviceClass as ClassStruct under a SysBusDevice parent, making
-the child class smaller than its parent and triggering QOM's runtime
-`parent->class_size <= ti->class_size` assertion. Fixed by switching
-those callers to `_CUSTOM_CI_NO_CS` and by guarding `trampoline_class_init`
-against `DEVICE_CLASS(oc)` failures for non-device types (e.g. machines).
-Smoke tests had silently regressed from 12/15 to 5/15 in earlier commits;
-this session restored them to 12/15.
+Plus a latent class_size bug that had silently regressed smoke tests
+from 12/15 to 5/15: several `REGISTER_QEMU_DEVICE_CUSTOM_CI(..., DeviceClass,
+..., TYPE_SYS_BUS_DEVICE, ...)` calls used DeviceClass as ClassStruct
+under a SysBusDevice parent, making the child class smaller than its
+parent and triggering QOM's runtime `parent->class_size <= ti->class_size`
+assertion. Fixed by switching those callers to `_CUSTOM_CI_NO_CS` and by
+guarding `trampoline_class_init` against `DEVICE_CLASS(oc)` failures for
+non-device types (e.g. machines). Smoke tests restored to 12/15.
 
-The remaining files have specific structural blockers
-(VirtioPCIDeviceTypeInfo helper, multi-machine generators, class_data
-variants, multi-type-per-file with shared structs, runtime type loops,
-bus/interface registrations).
+About 66 hw/ + 39 non-hw files remain unconverted; the remainder have
+structural blockers (VirtioPCIDeviceTypeInfo helper, multi-machine
+generators, class_data variants, multi-type-per-file with shared structs,
+runtime type loops, bus/interface registrations, conditional registration
+based on host capabilities, instance_post_init / class_base_init).
 
 ## What is QOM?
 
