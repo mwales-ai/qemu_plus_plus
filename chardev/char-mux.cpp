@@ -287,19 +287,18 @@ static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)
     return cc->chr_add_watch(chr, cond);
 }
 
-static void __attribute__((used)) char_mux_finalize(Object *obj)
+void MuxChardev::finalize()
 {
-    MuxChardev *d = MUX_CHARDEV(obj);
     int bit;
 
     bit = -1;
-    while ((bit = find_next_bit(&d->mux_bitset, MAX_MUX, bit + 1)) < MAX_MUX) {
-        CharFrontend *be = d->frontends[bit];
+    while ((bit = find_next_bit(&mux_bitset, MAX_MUX, bit + 1)) < MAX_MUX) {
+        CharFrontend *be = frontends[bit];
         be->chr = NULL;
-        d->frontends[bit] = NULL;
+        frontends[bit] = NULL;
     }
-    d->mux_bitset = 0;
-    qemu_chr_fe_deinit(&d->chr, false);
+    mux_bitset = 0;
+    qemu_chr_fe_deinit(&chr, false);
 }
 
 static void mux_chr_update_read_handlers(Chardev *chr)
@@ -465,19 +464,9 @@ static void char_mux_class_init(ObjectClass *oc, const void *data)
     cc->chr_update_read_handler = mux_chr_update_read_handlers;
 }
 
-static const TypeInfo char_mux_type_info = {
-    .name = TYPE_CHARDEV_MUX,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(MuxChardev),
-    .instance_finalize = char_mux_finalize,
-    .class_init = char_mux_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_mux_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(MuxChardev, TYPE_CHARDEV_MUX, TYPE_CHARDEV,
+                         char_mux_class_init)

@@ -54,6 +54,10 @@ struct MuxChardev {
     /* Protected by the Chardev chr_write_lock.  */
     bool linestart;
     int64_t timestamps_start;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 typedef struct MuxChardev MuxChardev;
 typedef struct HubChardev HubChardev;
