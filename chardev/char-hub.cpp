@@ -182,13 +182,12 @@ static bool hub_chr_attach_chardev(HubChardev *d, Chardev *chr,
     return ret;
 }
 
-static void __attribute__((used)) char_hub_finalize(Object *obj)
+void HubChardev::finalize()
 {
-    HubChardev *d = HUB_CHARDEV(obj);
     int i;
 
-    for (i = 0; i < (int)d->be_cnt; i++) {
-        qemu_chr_fe_deinit(&d->backends[i].fe, false);
+    for (i = 0; i < (int)be_cnt; i++) {
+        qemu_chr_fe_deinit(&backends[i].fe, false);
     }
 }
 
@@ -290,19 +289,9 @@ static void char_hub_class_init(ObjectClass *oc, const void *data)
     cc->chr_update_read_handler = hub_chr_update_read_handlers;
 }
 
-static const TypeInfo char_hub_type_info = {
-    .name = TYPE_CHARDEV_HUB,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(HubChardev),
-    .instance_finalize = char_hub_finalize,
-    .class_init = char_hub_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_hub_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(HubChardev, TYPE_CHARDEV_HUB, TYPE_CHARDEV,
+                         char_hub_class_init)

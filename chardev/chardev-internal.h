@@ -99,6 +99,10 @@ struct HubChardev {
      * -1 is invalid index.
      */
     int be_eagain_ind;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 typedef struct HubChardev HubChardev;
 
