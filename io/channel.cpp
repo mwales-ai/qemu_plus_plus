@@ -781,39 +781,24 @@ void qio_channel_wait_cond(QIOChannel *ioc,
     }
 }
 
-static void qio_channel_finalize(Object *obj)
+void QIOChannel::finalize()
 {
-    QIOChannel *ioc = QIO_CHANNEL(obj);
-
     /* Must not have coroutines in qio_channel_yield() */
-    assert(!ioc->read_coroutine);
-    assert(!ioc->write_coroutine);
+    assert(!read_coroutine);
+    assert(!write_coroutine);
 
-    g_free(ioc->name);
+    g_free(name);
 
 #ifdef _WIN32
-    if (ioc->event) {
-        CloseHandle(ioc->event);
+    if (event) {
+        CloseHandle(event);
     }
 #endif
 }
 
-static const TypeInfo qio_channel_info = {
-    .name = TYPE_QIO_CHANNEL,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QIOChannel),
-    .instance_finalize = qio_channel_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(QIOChannelClass),
-};
-
-
-static void qio_channel_register_types(void)
-{
-    type_register_static(&qio_channel_info);
-}
-
-
-type_init(qio_channel_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CS(QIOChannel, QIOChannelClass,
+                                  TYPE_QIO_CHANNEL, TYPE_OBJECT)

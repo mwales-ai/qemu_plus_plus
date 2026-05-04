@@ -931,6 +931,29 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_CS: abstract QOM object base with custom
+ * class struct but no class_init (the class struct just declares vtable
+ * entries that subclasses fill in).
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_CS(ClassName, ClassStruct,             \
+                                          type_name_str, parent_type_str)    \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_CI: abstract QOM object base with
  * caller-supplied class_init. No custom class struct (uses parent's
  * class_size).

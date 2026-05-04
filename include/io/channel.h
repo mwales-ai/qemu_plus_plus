@@ -93,6 +93,10 @@ struct QIOChannel {
 #ifdef _WIN32
     HANDLE event; /* For use with GSource on Win32 */
 #endif
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 /**
