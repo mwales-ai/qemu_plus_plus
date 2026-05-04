@@ -445,39 +445,26 @@ qio_net_listener_get_local_address(QIONetListener *listener, size_t n,
     return qio_channel_socket_get_local_address(sioc, errp);
 }
 
-static void qio_net_listener_finalize(Object *obj)
+void QIONetListener::finalize()
 {
-    QIONetListener *listener = QIO_NET_LISTENER(obj);
     size_t i;
 
-    qio_net_listener_disconnect(listener);
-    if (listener->io_notify) {
-        listener->io_notify(listener->io_data);
+    qio_net_listener_disconnect(this);
+    if (io_notify) {
+        io_notify(io_data);
     }
 
-    for (i = 0; i < listener->nsioc; i++) {
-        object_unref(OBJECT(listener->source[i]->sioc));
-        g_free(listener->source[i]);
+    for (i = 0; i < nsioc; i++) {
+        object_unref(OBJECT(source[i]->sioc));
+        g_free(source[i]);
     }
-    g_free(listener->source);
-    g_free(listener->name);
-    qemu_mutex_destroy(&listener->lock);
+    g_free(source);
+    g_free(name);
+    qemu_mutex_destroy(&lock);
 }
-
-static const TypeInfo qio_net_listener_info = {
-    .name = TYPE_QIO_NET_LISTENER,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QIONetListener),
-    .instance_finalize = qio_net_listener_finalize,
-};
-
-
-static void qio_net_listener_register_types(void)
-{
-    type_register_static(&qio_net_listener_info);
-}
-
-
-type_init(qio_net_listener_register_types);
 
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT(QIONetListener, TYPE_QIO_NET_LISTENER, TYPE_OBJECT)

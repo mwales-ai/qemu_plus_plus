@@ -64,6 +64,10 @@ struct QIONetListener {
     QIONetListenerClientFunc io_func;
     gpointer io_data;
     GDestroyNotify io_notify;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 
