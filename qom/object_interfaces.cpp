@@ -375,17 +375,8 @@ void user_creatable_cleanup(void)
     object_unparent(object_get_objects_root());
 }
 
-static void register_types(void)
-{
-    static const TypeInfo uc_interface_info = {
-        .name          = TYPE_USER_CREATABLE,
-        .parent        = TYPE_INTERFACE,
-        .class_size = sizeof(UserCreatableClass),
-    };
-
-    type_register_static(&uc_interface_info);
-}
-
-type_init(register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_INTERFACE(UserCreatableClass, TYPE_USER_CREATABLE)
