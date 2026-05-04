@@ -77,13 +77,11 @@ static const InterfaceInfo pr_manager_interfaces[] = {
     { }
 };
 
-static const TypeInfo pr_manager_info = {
-    .name = TYPE_PR_MANAGER,
-    .parent = TYPE_OBJECT,
-    .is_abstract = true,
-    .class_size = sizeof(PRManagerClass),
-    .interfaces = pr_manager_interfaces,
-};
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(PRManager, PRManagerClass,
+                                            TYPE_PR_MANAGER, TYPE_OBJECT,
+                                            nullptr, pr_manager_interfaces)
 
 PRManager *pr_manager_lookup(const char *id, Error **errp)
 {
@@ -109,11 +107,6 @@ PRManager *pr_manager_lookup(const char *id, Error **errp)
     return pr_mgr;
 }
 
-static void
-pr_manager_register_types(void)
-{
-    type_register_static(&pr_manager_info);
-}
 
 static int query_one_pr_manager(Object *object, void *opaque)
 {
@@ -143,4 +136,3 @@ PRManagerInfoList *qmp_query_pr_managers(Error **errp)
     return head;
 }
 
-type_init(pr_manager_register_types);
