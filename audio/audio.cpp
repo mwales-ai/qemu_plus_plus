@@ -1637,28 +1637,25 @@ static const VMStateDescription vmstate_audio = {
     .fields = vmstate_audio_fields,
 };
 
-static void audio_be_init(Object *obj)
+void AudioBackend::init()
 {
-    AudioBackend *s = AUDIO_BACKEND(obj);
+    QLIST_INIT(&hw_head_out);
+    QLIST_INIT(&hw_head_in);
+    QLIST_INIT(&cap_head);
+    ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, this);
 
-    QLIST_INIT(&s->hw_head_out);
-    QLIST_INIT(&s->hw_head_in);
-    QLIST_INIT(&s->cap_head);
-    s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
+    vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, this);
+    assert(vmse != NULL);
 
-    s->vmse = qemu_add_vm_change_state_handler(audio_vm_change_state_handler, s);
-    assert(s->vmse != NULL);
-
-    vmstate_register_any(NULL, &vmstate_audio, s);
+    vmstate_register_any(NULL, &vmstate_audio, this);
 }
 
-static void audio_be_finalize(Object *obj)
+void AudioBackend::finalize()
 {
-    AudioBackend *s = AUDIO_BACKEND(obj);
     HWVoiceOut *hwo, *hwon;
     HWVoiceIn *hwi, *hwin;
 
-    QLIST_FOREACH_SAFE(hwo, &s->hw_head_out, entries, hwon) {
+    QLIST_FOREACH_SAFE(hwo, &hw_head_out, entries, hwon) {
         SWVoiceCap *sc;
 
         if (hwo->enabled && hwo->pcm_ops->enable_out) {
@@ -1677,7 +1674,7 @@ static void audio_be_finalize(Object *obj)
         QLIST_REMOVE(hwo, entries);
     }
 
-    QLIST_FOREACH_SAFE(hwi, &s->hw_head_in, entries, hwin) {
+    QLIST_FOREACH_SAFE(hwi, &hw_head_in, entries, hwin) {
         if (hwi->enabled && hwi->pcm_ops->enable_in) {
             hwi->pcm_ops->enable_in(hwi, false);
         }
@@ -1685,27 +1682,27 @@ static void audio_be_finalize(Object *obj)
         QLIST_REMOVE(hwi, entries);
     }
 
-    if (s->drv) {
-        s->drv->fini (s->drv_opaque);
-        s->drv = NULL;
+    if (drv) {
+        drv->fini (drv_opaque);
+        drv = NULL;
     }
 
-    if (s->dev) {
-        qapi_free_Audiodev(s->dev);
-        s->dev = NULL;
+    if (dev) {
+        qapi_free_Audiodev(dev);
+        dev = NULL;
     }
 
-    if (s->ts) {
-        timer_free(s->ts);
-        s->ts = NULL;
+    if (ts) {
+        timer_free(ts);
+        ts = NULL;
     }
 
-    if (s->vmse) {
-        qemu_del_vm_change_state_handler(s->vmse);
-        s->vmse = NULL;
+    if (vmse) {
+        qemu_del_vm_change_state_handler(vmse);
+        vmse = NULL;
     }
 
-    vmstate_unregister(NULL, &vmstate_audio, s);
+    vmstate_unregister(NULL, &vmstate_audio, this);
 }
 
 static Object *get_audiodevs_root(void)
@@ -2322,21 +2319,9 @@ AudiodevList *qmp_query_audiodevs(Error **errp)
     return ret;
 }
 
-static const TypeInfo audio_be_info = {
-    .name = TYPE_AUDIO_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(AudioBackend),
-    .instance_init = audio_be_init,
-    .instance_finalize = audio_be_finalize,
-    .is_abstract = false, /* TODO: subclass drivers and make it abstract */
-    .class_size = sizeof(AudioBackendClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&audio_be_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CS(AudioBackend, AudioBackendClass,
+                         TYPE_AUDIO_BACKEND, TYPE_OBJECT)

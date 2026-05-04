@@ -245,7 +245,7 @@ struct SWVoiceCap {
     QLIST_ENTRY (SWVoiceCap) entries;
 };
 
-typedef struct AudioBackend {
+struct AudioBackend {
     Object parent;
 
     struct audio_driver *drv;
@@ -264,7 +264,12 @@ typedef struct AudioBackend {
     bool timer_running;
     uint64_t timer_last;
     VMChangeStateEntry *vmse;
-} AudioBackend;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
+};
 
 extern const struct mixeng_volume nominal_volume;
 
