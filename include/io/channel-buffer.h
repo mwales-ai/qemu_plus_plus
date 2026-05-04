@@ -46,6 +46,10 @@ struct QIOChannelBuffer {
     size_t usage;    /* Current size of data */
     size_t offset;   /* Offset for future I/O ops */
     uint8_t *data;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 

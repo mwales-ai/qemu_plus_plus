@@ -46,11 +46,10 @@ qio_channel_buffer_new(size_t capacity)
 }
 
 
-static void qio_channel_buffer_finalize(Object *obj)
+void QIOChannelBuffer::finalize()
 {
-    QIOChannelBuffer *ioc = QIO_CHANNEL_BUFFER(obj);
-    g_free(ioc->data);
-    ioc->capacity = ioc->usage = ioc->offset = 0;
+    g_free(data);
+    capacity = usage = offset = 0;
 }
 
 
@@ -242,19 +241,9 @@ static void qio_channel_buffer_class_init(ObjectClass *klass,
     ioc_klass->io_create_watch = qio_channel_buffer_create_watch;
 }
 
-static const TypeInfo qio_channel_buffer_info = {
-    .name = TYPE_QIO_CHANNEL_BUFFER,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelBuffer),
-    .instance_finalize = qio_channel_buffer_finalize,
-    .class_init = qio_channel_buffer_class_init,
-};
-
-static void qio_channel_buffer_register_types(void)
-{
-    type_register_static(&qio_channel_buffer_info);
-}
-
-type_init(qio_channel_buffer_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelBuffer, TYPE_QIO_CHANNEL_BUFFER,
+                         TYPE_QIO_CHANNEL, qio_channel_buffer_class_init)
