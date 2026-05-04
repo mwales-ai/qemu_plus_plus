@@ -42,6 +42,11 @@ struct IOThread {
     int64_t poll_max_ns;
     int64_t poll_grow;
     int64_t poll_shrink;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 typedef struct IOThread IOThread;
 

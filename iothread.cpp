@@ -98,22 +98,18 @@ extern "C" void iothread_stop(IOThread *iothread)
     qemu_thread_join(&iothread->thread);
 }
 
-static void iothread_instance_init(Object *obj)
+void IOThread::init()
 {
-    IOThread *iothread = IOTHREAD(obj);
-
-    iothread->poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
-    iothread->thread_id = -1;
-    qemu_sem_init(&iothread->init_done_sem, 0);
+    poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
+    thread_id = -1;
+    qemu_sem_init(&init_done_sem, 0);
     /* By default, we don't run gcontext */
-    qatomic_set(&iothread->run_gcontext, 0);
+    qatomic_set(&run_gcontext, 0);
 }
 
-static void iothread_instance_finalize(Object *obj)
+void IOThread::finalize()
 {
-    IOThread *iothread = IOTHREAD(obj);
-
-    iothread_stop(iothread);
+    iothread_stop(this);
 
     /*
      * Before glib2 2.33.10, there is a glib2 bug that GSource context
@@ -125,17 +121,17 @@ static void iothread_instance_finalize(Object *obj)
      * version boosts to 2.33.10.  Before that, let's free the
      * GSources first before destroying any GMainContext.
      */
-    if (iothread->ctx) {
-        aio_context_unref(iothread->ctx);
-        iothread->ctx = NULL;
+    if (ctx) {
+        aio_context_unref(ctx);
+        ctx = NULL;
     }
-    if (iothread->worker_context) {
-        g_main_context_unref(iothread->worker_context);
-        iothread->worker_context = NULL;
-        g_main_loop_unref(iothread->main_loop);
-        iothread->main_loop = NULL;
+    if (worker_context) {
+        g_main_context_unref(worker_context);
+        worker_context = NULL;
+        g_main_loop_unref(main_loop);
+        main_loop = NULL;
     }
-    qemu_sem_destroy(&iothread->init_done_sem);
+    qemu_sem_destroy(&init_done_sem);
 }
 
 static void iothread_init_gcontext(IOThread *iothread, const char *thread_name)
@@ -315,21 +311,10 @@ static void iothread_class_init(ObjectClass *klass, const void *class_data)
                               NULL, &poll_shrink_info);
 }
 
-static const TypeInfo iothread_info = {
-    .name = TYPE_IOTHREAD,
-    .parent = TYPE_EVENT_LOOP_BASE,
-    .instance_size = sizeof(IOThread),
-    .instance_init = iothread_instance_init,
-    .instance_finalize = iothread_instance_finalize,
-    .class_init = iothread_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void iothread_register_types(void)
-{
-    type_register_static(&iothread_info);
-}
-
-type_init(iothread_register_types)
+REGISTER_QEMU_OBJECT_CI(IOThread, TYPE_IOTHREAD, TYPE_EVENT_LOOP_BASE,
+                         iothread_class_init)
 
 extern "C" char *iothread_get_id(IOThread *iothread)
 {
