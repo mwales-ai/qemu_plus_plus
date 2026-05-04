@@ -63,6 +63,8 @@ struct InputLinux {
     enum GrabToggleKeys grab_toggle;
 
     QTAILQ_ENTRY(InputLinux) next;
+
+    void finalize();
 };
 
 
@@ -413,16 +415,14 @@ err_close:
     close(il->fd);
 }
 
-static void input_linux_instance_finalize(Object *obj)
+void InputLinux::finalize()
 {
-    InputLinux *il = INPUT_LINUX(obj);
-
-    if (il->initialized) {
-        QTAILQ_REMOVE(&inputs, il, next);
-        qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
-        close(il->fd);
+    if (initialized) {
+        QTAILQ_REMOVE(&inputs, this, next);
+        qemu_set_fd_handler(fd, NULL, NULL, NULL);
+        close(fd);
     }
-    g_free(il->evdev);
+    g_free(evdev);
 }
 
 static char *input_linux_get_evdev(Object *obj, Error **errp)
@@ -489,10 +489,6 @@ static void input_linux_set_grab_toggle(Object *obj, int value,
     il->grab_toggle = static_cast<GrabToggleKeys>(value);
 }
 
-static void input_linux_instance_init(Object *obj)
-{
-}
-
 static void input_linux_class_init(ObjectClass *oc, const void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
@@ -519,19 +515,7 @@ static const InterfaceInfo input_linux_interfaces[] = {
     { }
 };
 
-static const TypeInfo input_linux_info = {
-    .name = TYPE_INPUT_LINUX,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(InputLinux),
-    .instance_init = input_linux_instance_init,
-    .instance_finalize = input_linux_instance_finalize,
-    .class_init = input_linux_class_init,
-    .interfaces = input_linux_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&input_linux_info);
-}
-
-type_init(register_types);
+REGISTER_QEMU_OBJECT_CI_IFACES(InputLinux, TYPE_INPUT_LINUX, TYPE_OBJECT,
+                                input_linux_class_init, input_linux_interfaces)
