@@ -162,28 +162,25 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
 #endif /* ! WIN32 */
 
 
-static void qio_channel_command_init(Object *obj)
+void QIOChannelCommand::init()
 {
-    QIOChannelCommand *ioc = QIO_CHANNEL_COMMAND(obj);
-    ioc->readfd = -1;
-    ioc->writefd = -1;
-    ioc->pid = 0;
+    readfd = -1;
+    writefd = -1;
+    pid = 0;
 }
 
-static void qio_channel_command_finalize(Object *obj)
+void QIOChannelCommand::finalize()
 {
-    QIOChannelCommand *ioc = QIO_CHANNEL_COMMAND(obj);
-    if (ioc->readfd != -1) {
-        close(ioc->readfd);
+    if (readfd != -1) {
+        close(readfd);
     }
-    if (ioc->writefd != -1 &&
-        ioc->writefd != ioc->readfd) {
-        close(ioc->writefd);
+    if (writefd != -1 && writefd != readfd) {
+        close(writefd);
     }
-    ioc->writefd = ioc->readfd = -1;
-    if (ioc->pid > 0) {
-        qio_channel_command_abort(ioc, NULL);
-        g_spawn_close_pid(ioc->pid);
+    writefd = readfd = -1;
+    if (pid > 0) {
+        qio_channel_command_abort(this, NULL);
+        g_spawn_close_pid(pid);
     }
 }
 
@@ -378,20 +375,9 @@ static void qio_channel_command_class_init(ObjectClass *klass,
     ioc_klass->io_set_aio_fd_handler = qio_channel_command_set_aio_fd_handler;
 }
 
-static const TypeInfo qio_channel_command_info = {
-    .name = TYPE_QIO_CHANNEL_COMMAND,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelCommand),
-    .instance_init = qio_channel_command_init,
-    .instance_finalize = qio_channel_command_finalize,
-    .class_init = qio_channel_command_class_init,
-};
-
-static void qio_channel_command_register_types(void)
-{
-    type_register_static(&qio_channel_command_info);
-}
-
-type_init(qio_channel_command_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelCommand, TYPE_QIO_CHANNEL_COMMAND,
+                         TYPE_QIO_CHANNEL, qio_channel_command_class_init)

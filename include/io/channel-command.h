@@ -45,6 +45,11 @@ struct QIOChannelCommand {
 #ifdef WIN32
     bool blocking;
 #endif
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 
