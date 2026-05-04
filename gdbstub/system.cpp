@@ -250,11 +250,10 @@ static void char_gdb_class_init(ObjectClass *oc, const void *data)
 
 #define TYPE_CHARDEV_GDB "chardev-gdb"
 
-static const TypeInfo char_gdb_type_info = {
-    .name = TYPE_CHARDEV_GDB,
-    .parent = TYPE_CHARDEV,
-    .class_init = char_gdb_class_init,
-};
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(Chardev, TYPE_CHARDEV_GDB, TYPE_CHARDEV,
+                         char_gdb_class_init)
 
 static int gdb_chr_can_receive(void *opaque)
 {
@@ -411,12 +410,6 @@ bool gdbserver_start(const char *device, Error **errp)
     return true;
 }
 
-static void register_types(void)
-{
-    type_register_static(&char_gdb_type_info);
-}
-
-type_init(register_types);
 
 /* Tell the remote gdb that the process has exited.  */
 void gdb_exit(int code)
