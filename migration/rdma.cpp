@@ -386,6 +386,8 @@ struct QIOChannelRDMA {
     RDMAContext *rdmaout;
     QEMUFile *file;
     bool blocking; /* XXX we don't actually honour this yet */
+
+    void finalize();
 };
 
 /*
@@ -3795,18 +3797,17 @@ err:
     return -1;
 }
 
-static void qio_channel_rdma_finalize(Object *obj)
+void QIOChannelRDMA::finalize()
 {
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(obj);
-    if (rioc->rdmain) {
-        qemu_rdma_cleanup(rioc->rdmain);
-        g_free(rioc->rdmain);
-        rioc->rdmain = NULL;
+    if (rdmain) {
+        qemu_rdma_cleanup(rdmain);
+        g_free(rdmain);
+        rdmain = NULL;
     }
-    if (rioc->rdmaout) {
-        qemu_rdma_cleanup(rioc->rdmaout);
-        g_free(rioc->rdmaout);
-        rioc->rdmaout = NULL;
+    if (rdmaout) {
+        qemu_rdma_cleanup(rdmaout);
+        g_free(rdmaout);
+        rdmaout = NULL;
     }
 }
 
@@ -3824,20 +3825,10 @@ static void qio_channel_rdma_class_init(ObjectClass *klass,
     ioc_klass->io_shutdown = qio_channel_rdma_shutdown;
 }
 
-static const TypeInfo qio_channel_rdma_info = {
-    .name = TYPE_QIO_CHANNEL_RDMA,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelRDMA),
-    .instance_finalize = qio_channel_rdma_finalize,
-    .class_init = qio_channel_rdma_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void qio_channel_rdma_register_types(void)
-{
-    type_register_static(&qio_channel_rdma_info);
-}
-
-type_init(qio_channel_rdma_register_types);
+REGISTER_QEMU_OBJECT_CI(QIOChannelRDMA, TYPE_QIO_CHANNEL_RDMA,
+                         TYPE_QIO_CHANNEL, qio_channel_rdma_class_init)
 
 static QEMUFile *rdma_new_input(RDMAContext *rdma)
 {
