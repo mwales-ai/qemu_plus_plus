@@ -51,11 +51,9 @@ qio_channel_null_new(void)
 }
 
 
-static void
-qio_channel_null_init(Object *obj)
+void QIOChannelNull::init()
 {
-    QIOChannelNull *ioc = QIO_CHANNEL_NULL(obj);
-    ioc->closed = false;
+    closed = false;
 }
 
 
@@ -226,21 +224,9 @@ qio_channel_null_class_init(ObjectClass *klass,
 }
 
 
-static const TypeInfo qio_channel_null_info = {
-    .name = TYPE_QIO_CHANNEL_NULL,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelNull),
-    .instance_init = qio_channel_null_init,
-    .class_init = qio_channel_null_class_init,
-};
-
-
-static void
-qio_channel_null_register_types(void)
-{
-    type_register_static(&qio_channel_null_info);
-}
-
-type_init(qio_channel_null_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelNull, TYPE_QIO_CHANNEL_NULL,
+                         TYPE_QIO_CHANNEL, qio_channel_null_class_init)

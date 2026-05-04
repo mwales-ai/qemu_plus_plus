@@ -38,6 +38,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelNull, QIO_CHANNEL_NULL)
 struct QIOChannelNull {
     QIOChannel parent;
     bool closed;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 
