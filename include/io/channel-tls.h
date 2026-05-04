@@ -54,6 +54,10 @@ struct QIOChannelTLS {
     QIOChannelShutdown shutdown;
     guint hs_ioc_tag;
     guint bye_ioc_tag;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 /**

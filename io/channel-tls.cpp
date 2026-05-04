@@ -338,27 +338,20 @@ void qio_channel_tls_bye(QIOChannelTLS *ioc, Error **errp)
     qio_channel_tls_bye_task(ioc, task, NULL);
 }
 
-static void qio_channel_tls_init(Object *obj G_GNUC_UNUSED)
+void QIOChannelTLS::finalize()
 {
-}
-
-
-static void qio_channel_tls_finalize(Object *obj)
-{
-    QIOChannelTLS *ioc = QIO_CHANNEL_TLS(obj);
-
-    if (ioc->hs_ioc_tag) {
-        trace_qio_channel_tls_handshake_cancel(ioc);
-        g_clear_handle_id(&ioc->hs_ioc_tag, g_source_remove);
+    if (hs_ioc_tag) {
+        trace_qio_channel_tls_handshake_cancel(this);
+        g_clear_handle_id(&hs_ioc_tag, g_source_remove);
     }
 
-    if (ioc->bye_ioc_tag) {
-        trace_qio_channel_tls_bye_cancel(ioc);
-        g_clear_handle_id(&ioc->bye_ioc_tag, g_source_remove);
+    if (bye_ioc_tag) {
+        trace_qio_channel_tls_bye_cancel(this);
+        g_clear_handle_id(&bye_ioc_tag, g_source_remove);
     }
 
-    object_unref(OBJECT(ioc->master));
-    qcrypto_tls_session_free(ioc->session);
+    object_unref(OBJECT(master));
+    qcrypto_tls_session_free(session);
 }
 
 static bool
@@ -614,20 +607,9 @@ static void qio_channel_tls_class_init(ObjectClass *klass,
     ioc_klass->io_set_aio_fd_handler = qio_channel_tls_set_aio_fd_handler;
 }
 
-static const TypeInfo qio_channel_tls_info = {
-    .name = TYPE_QIO_CHANNEL_TLS,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelTLS),
-    .instance_init = qio_channel_tls_init,
-    .instance_finalize = qio_channel_tls_finalize,
-    .class_init = qio_channel_tls_class_init,
-};
-
-static void qio_channel_tls_register_types(void)
-{
-    type_register_static(&qio_channel_tls_info);
-}
-
-type_init(qio_channel_tls_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelTLS, TYPE_QIO_CHANNEL_TLS, TYPE_QIO_CHANNEL,
+                         qio_channel_tls_class_init)
