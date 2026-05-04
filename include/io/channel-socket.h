@@ -59,6 +59,11 @@ struct QIOChannelSocket {
      * zerocopy since the last qio_channel_socket_flush() call.
      */
     bool new_zero_copy_sent_success;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 

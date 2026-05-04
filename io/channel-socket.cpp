@@ -445,32 +445,29 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
     return NULL;
 }
 
-static void qio_channel_socket_init(Object *obj)
+void QIOChannelSocket::init()
 {
-    QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
-    ioc->fd = -1;
+    fd = -1;
 }
 
-static void qio_channel_socket_finalize(Object *obj)
+void QIOChannelSocket::finalize()
 {
-    QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
-
-    if (ioc->fd != -1) {
-        QIOChannel *ioc_local = QIO_CHANNEL(ioc);
+    if (fd != -1) {
+        QIOChannel *ioc_local = QIO_CHANNEL(this);
         if (qio_channel_has_feature(ioc_local, QIO_CHANNEL_FEATURE_LISTEN)) {
             Error *err = NULL;
 
-            socket_listen_cleanup(ioc->fd, &err);
+            socket_listen_cleanup(fd, &err);
             if (err) {
                 error_report_err(err);
                 err = NULL;
             }
         }
 #ifdef WIN32
-        qemu_socket_unselect_nofail(ioc->fd);
+        qemu_socket_unselect_nofail(fd);
 #endif
-        close(ioc->fd);
-        ioc->fd = -1;
+        close(fd);
+        fd = -1;
     }
 }
 
@@ -1081,20 +1078,9 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
     ioc_klass->io_peerpid = qio_channel_socket_get_peerpid;
 }
 
-static const TypeInfo qio_channel_socket_info = {
-    .name = TYPE_QIO_CHANNEL_SOCKET,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelSocket),
-    .instance_init = qio_channel_socket_init,
-    .instance_finalize = qio_channel_socket_finalize,
-    .class_init = qio_channel_socket_class_init,
-};
-
-static void qio_channel_socket_register_types(void)
-{
-    type_register_static(&qio_channel_socket_info);
-}
-
-type_init(qio_channel_socket_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelSocket, TYPE_QIO_CHANNEL_SOCKET,
+                         TYPE_QIO_CHANNEL, qio_channel_socket_class_init)
