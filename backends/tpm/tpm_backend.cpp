@@ -179,35 +179,17 @@ TPMInfo *tpm_backend_query_tpm(TPMBackend *s)
     return info;
 }
 
-static void tpm_backend_instance_finalize(Object *obj)
+void TPMBackend::finalize()
 {
-    TPMBackend *s = TPM_BACKEND(obj);
-
-    object_unref(OBJECT(s->tpmif));
-    g_free(s->id);
+    object_unref(OBJECT(tpmif));
+    g_free(id);
 }
-
-static const TypeInfo tpm_backend_info = {
-    .name = TYPE_TPM_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(TPMBackend),
-    .instance_finalize = tpm_backend_instance_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(TPMBackendClass),
-};
-
-static const TypeInfo tpm_if_info = {
-    .name = TYPE_TPM_IF,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(TPMIfClass),
-};
-
-static void register_types(void)
-{
-    type_register_static(&tpm_backend_info);
-    type_register_static(&tpm_if_info);
-}
-
-type_init(register_types);
 
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CS(TPMBackend, TPMBackendClass,
+                                  TYPE_TPM_BACKEND, TYPE_OBJECT)
+
+REGISTER_QEMU_INTERFACE(TPMIfClass, TYPE_TPM_IF)

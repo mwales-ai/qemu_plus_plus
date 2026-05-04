@@ -51,6 +51,10 @@ struct TPMBackend {
     char *id;
 
     QLIST_ENTRY(TPMBackend) list;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 struct TPMBackendClass {
