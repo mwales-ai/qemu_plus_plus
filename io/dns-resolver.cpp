@@ -261,19 +261,8 @@ void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
 }
 
 
-static const TypeInfo qio_dns_resolver_info = {
-    .name = TYPE_QIO_DNS_RESOLVER,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QIODNSResolver),
-};
-
-
-static void qio_dns_resolver_register_types(void)
-{
-    type_register_static(&qio_dns_resolver_info);
-}
-
-
-type_init(qio_dns_resolver_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT(QIODNSResolver, TYPE_QIO_DNS_RESOLVER, TYPE_OBJECT)
