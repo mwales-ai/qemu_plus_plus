@@ -48,6 +48,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelFile, QIO_CHANNEL_FILE)
 struct QIOChannelFile {
     QIOChannel parent;
     int fd;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 

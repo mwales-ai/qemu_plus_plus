@@ -93,18 +93,16 @@ qio_channel_file_new_path(const char *path,
 }
 
 
-static void qio_channel_file_init(Object *obj)
+void QIOChannelFile::init()
 {
-    QIOChannelFile *ioc = QIO_CHANNEL_FILE(obj);
-    ioc->fd = -1;
+    fd = -1;
 }
 
-static void qio_channel_file_finalize(Object *obj)
+void QIOChannelFile::finalize()
 {
-    QIOChannelFile *ioc = QIO_CHANNEL_FILE(obj);
-    if (ioc->fd != -1) {
-        qemu_close(ioc->fd);
-        ioc->fd = -1;
+    if (fd != -1) {
+        qemu_close(fd);
+        fd = -1;
     }
 }
 
@@ -311,20 +309,9 @@ static void qio_channel_file_class_init(ObjectClass *klass,
     ioc_klass->io_set_aio_fd_handler = qio_channel_file_set_aio_fd_handler;
 }
 
-static const TypeInfo qio_channel_file_info = {
-    .name = TYPE_QIO_CHANNEL_FILE,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelFile),
-    .instance_init = qio_channel_file_init,
-    .instance_finalize = qio_channel_file_finalize,
-    .class_init = qio_channel_file_class_init,
-};
-
-static void qio_channel_file_register_types(void)
-{
-    type_register_static(&qio_channel_file_info);
-}
-
-type_init(qio_channel_file_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelFile, TYPE_QIO_CHANNEL_FILE,
+                         TYPE_QIO_CHANNEL, qio_channel_file_class_init)
