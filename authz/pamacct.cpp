@@ -98,12 +98,9 @@ qauthz_pam_complete(UserCreatable *uc, Error **errp)
 }
 
 
-static void
-qauthz_pam_finalize(Object *obj)
+void QAuthZPAM::finalize()
 {
-    QAuthZPAM *pauthz = QAUTHZ_PAM(obj);
-
-    g_free(pauthz->service);
+    g_free(service);
 }
 
 
@@ -140,23 +137,9 @@ static const InterfaceInfo qauthz_pam_interfaces[] = {
     { }
 };
 
-static const TypeInfo qauthz_pam_info = {
-    .name = TYPE_QAUTHZ_PAM,
-    .parent = TYPE_QAUTHZ,
-    .instance_size = sizeof(QAuthZPAM),
-    .instance_finalize = qauthz_pam_finalize,
-    .class_init = qauthz_pam_class_init,
-    .interfaces = qauthz_pam_interfaces,
-};
-
-
-static void
-qauthz_pam_register_types(void)
-{
-    type_register_static(&qauthz_pam_info);
-}
-
-
-type_init(qauthz_pam_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_IFACES(QAuthZPAM, TYPE_QAUTHZ_PAM, TYPE_QAUTHZ,
+                                qauthz_pam_class_init, qauthz_pam_interfaces)

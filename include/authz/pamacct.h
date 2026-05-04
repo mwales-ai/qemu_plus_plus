@@ -76,6 +76,10 @@ struct QAuthZPAM {
     QAuthZ parent_obj;
 
     char *service;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 
