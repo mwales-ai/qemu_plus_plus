@@ -65,6 +65,10 @@ struct QAuthZList {
 
     QAuthZListPolicy policy;
     QAuthZListRuleList *rules;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 

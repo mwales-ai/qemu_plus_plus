@@ -111,12 +111,9 @@ qauthz_list_prop_set_rules(Object *obj, Visitor *v, const char *name,
 }
 
 
-static void
-qauthz_list_finalize(Object *obj)
+void QAuthZList::finalize()
 {
-    QAuthZList *lauthz = QAUTHZ_LIST(obj);
-
-    qapi_free_QAuthZListRuleList(lauthz->rules);
+    qapi_free_QAuthZListRuleList(rules);
 }
 
 
@@ -257,23 +254,9 @@ static const InterfaceInfo qauthz_list_interfaces[] = {
     { }
 };
 
-static const TypeInfo qauthz_list_info = {
-    .name = TYPE_QAUTHZ_LIST,
-    .parent = TYPE_QAUTHZ,
-    .instance_size = sizeof(QAuthZList),
-    .instance_finalize = qauthz_list_finalize,
-    .class_init = qauthz_list_class_init,
-    .interfaces = qauthz_list_interfaces,
-};
-
-
-static void
-qauthz_list_register_types(void)
-{
-    type_register_static(&qauthz_list_info);
-}
-
-
-type_init(qauthz_list_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_IFACES(QAuthZList, TYPE_QAUTHZ_LIST, TYPE_QAUTHZ,
+                                qauthz_list_class_init, qauthz_list_interfaces)
