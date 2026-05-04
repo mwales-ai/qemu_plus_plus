@@ -47,6 +47,11 @@ struct ThreadContext {
     /* CPU affinity bitmap used for initialization. */
     unsigned long *init_cpu_bitmap;
     int init_cpu_nbits;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 void thread_context_create_thread(ThreadContext *tc, QemuThread *thread,

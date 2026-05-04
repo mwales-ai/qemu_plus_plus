@@ -294,28 +294,24 @@ static void thread_context_class_init(ObjectClass *oc, const void *data)
                               thread_context_set_node_affinity, NULL, NULL);
 }
 
-static void thread_context_instance_init(Object *obj)
+void ThreadContext::init()
 {
-    ThreadContext *tc = THREAD_CONTEXT(obj);
-
-    tc->thread_id = (unsigned)-1;
-    qemu_sem_init(&tc->sem, 0);
-    qemu_sem_init(&tc->sem_thread, 0);
-    qemu_mutex_init(&tc->mutex);
+    thread_id = (unsigned)-1;
+    qemu_sem_init(&sem, 0);
+    qemu_sem_init(&sem_thread, 0);
+    qemu_mutex_init(&mutex);
 }
 
-static void thread_context_instance_finalize(Object *obj)
+void ThreadContext::finalize()
 {
-    ThreadContext *tc = THREAD_CONTEXT(obj);
-
-    if (tc->thread_id != (unsigned)-1) {
-        tc->thread_cmd = TC_CMD_STOP;
-        qemu_sem_post(&tc->sem_thread);
-        qemu_thread_join(&tc->thread);
+    if (thread_id != (unsigned)-1) {
+        thread_cmd = TC_CMD_STOP;
+        qemu_sem_post(&sem_thread);
+        qemu_thread_join(&thread);
     }
-    qemu_sem_destroy(&tc->sem);
-    qemu_sem_destroy(&tc->sem_thread);
-    qemu_mutex_destroy(&tc->mutex);
+    qemu_sem_destroy(&sem);
+    qemu_sem_destroy(&sem_thread);
+    qemu_mutex_destroy(&mutex);
 }
 
 static const InterfaceInfo thread_context_interfaces[] = {
@@ -323,27 +319,12 @@ static const InterfaceInfo thread_context_interfaces[] = {
     { }
 };
 
-static const TypeInfo thread_context_info = {
-    .name = TYPE_THREAD_CONTEXT,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(ThreadContext),
-    .instance_align = 0,
-    .instance_init = thread_context_instance_init,
-    .instance_post_init = NULL,
-    .instance_finalize = thread_context_instance_finalize,
-    .is_abstract = false,
-    .class_size = 0,
-    .class_init = thread_context_class_init,
-    .class_base_init = NULL,
-    .class_data = NULL,
-    .interfaces = thread_context_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void thread_context_register_types(void)
-{
-    type_register_static(&thread_context_info);
-}
-type_init(thread_context_register_types)
+REGISTER_QEMU_OBJECT_CI_CS_IFACES(ThreadContext, ObjectClass,
+                                   TYPE_THREAD_CONTEXT, TYPE_OBJECT,
+                                   thread_context_class_init,
+                                   thread_context_interfaces)
 
 extern "C"
 void thread_context_create_thread(ThreadContext *tc, QemuThread *thread,
