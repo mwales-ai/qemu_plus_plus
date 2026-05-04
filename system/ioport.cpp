@@ -37,6 +37,8 @@ struct MemoryRegionPortioList {
     MemoryRegion mr;
     void *portio_opaque;
     MemoryRegionPortio *ports;
+
+    void finalize();
 };
 
 #define TYPE_MEMORY_REGION_PORTIO_LIST "memory-region-portio-list"
@@ -359,27 +361,13 @@ void portio_list_set_address(PortioList *piolist, uint32_t addr)
     piolist->addr = addr;
 }
 
-static void memory_region_portio_list_finalize(Object *obj)
+void MemoryRegionPortioList::finalize()
 {
-    MemoryRegionPortioList *mrpio = MEMORY_REGION_PORTIO_LIST(obj);
-
-    object_unref(&mrpio->mr);
-    g_free(mrpio->ports);
+    object_unref(&mr);
+    g_free(ports);
 }
 
-static const TypeInfo memory_region_portio_list_info = {
-    .name               = TYPE_MEMORY_REGION_PORTIO_LIST,
-    .parent             = TYPE_OBJECT,
-    .instance_size      = sizeof(MemoryRegionPortioList),
-    .instance_align     = 0,
-    .instance_init      = nullptr,
-    .instance_post_init = nullptr,
-    .instance_finalize  = memory_region_portio_list_finalize,
-};
+#include "qom/cpp/object.h"
 
-static void ioport_register_types(void)
-{
-    type_register_static(&memory_region_portio_list_info);
-}
-
-type_init(ioport_register_types)
+REGISTER_QEMU_OBJECT(MemoryRegionPortioList, TYPE_MEMORY_REGION_PORTIO_LIST,
+                      TYPE_OBJECT)
