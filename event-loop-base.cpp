@@ -27,11 +27,9 @@ typedef struct {
     ptrdiff_t offset; /* field's byte offset in EventLoopBase struct */
 } EventLoopBaseParamInfo;
 
-static void event_loop_base_instance_init(Object *obj)
+void EventLoopBase::init()
 {
-    EventLoopBase *base = EVENT_LOOP_BASE(obj);
-
-    base->thread_pool_max = THREAD_POOL_MAX_THREADS_DEFAULT;
+    thread_pool_max = THREAD_POOL_MAX_THREADS_DEFAULT;
 }
 
 static EventLoopBaseParamInfo aio_max_batch_info = {
@@ -128,21 +126,11 @@ static const InterfaceInfo event_loop_base_interfaces[] = {
     { }
 };
 
-static const TypeInfo event_loop_base_info = {
-    .name = TYPE_EVENT_LOOP_BASE,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(EventLoopBase),
-    .instance_init = event_loop_base_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(EventLoopBaseClass),
-    .class_init = event_loop_base_class_init,
-    .interfaces = event_loop_base_interfaces
-};
-
-static void register_types(void)
-{
-    type_register_static(&event_loop_base_info);
-}
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(EventLoopBase, EventLoopBaseClass,
+                                            TYPE_EVENT_LOOP_BASE, TYPE_OBJECT,
+                                            event_loop_base_class_init,
+                                            event_loop_base_interfaces)

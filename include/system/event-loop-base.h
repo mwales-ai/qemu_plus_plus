@@ -36,5 +36,9 @@ struct EventLoopBase {
     /* AioContext thread pool parameters */
     int64_t thread_pool_min;
     int64_t thread_pool_max;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 #endif
