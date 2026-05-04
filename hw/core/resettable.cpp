@@ -269,17 +269,8 @@ void resettable_class_set_parent_phases(ResettableClass *rc,
     }
 }
 
-static const TypeInfo resettable_interface_info = {
-    .name       = TYPE_RESETTABLE_INTERFACE,
-    .parent     = TYPE_INTERFACE,
-    .class_size = sizeof(ResettableClass),
-};
-
-static void reset_register_types(void)
-{
-    type_register_static(&resettable_interface_info);
-}
-
-type_init(reset_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_INTERFACE(ResettableClass, TYPE_RESETTABLE_INTERFACE)
