@@ -37,6 +37,9 @@ struct PRManagerHelper {
 
     QemuMutex lock;
     QIOChannel *ioc;
+
+    void init();
+    void finalize();
 };
 
 static void pr_manager_send_status_changed_event(PRManagerHelper *pr_mgr)
@@ -278,19 +281,15 @@ static void set_path(Object *obj, const char *str, Error **errp)
     pr_mgr->path = g_strdup(str);
 }
 
-static void pr_manager_helper_instance_finalize(Object *obj)
+void PRManagerHelper::finalize()
 {
-    PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(obj);
-
-    object_unref(OBJECT(pr_mgr->ioc));
-    qemu_mutex_destroy(&pr_mgr->lock);
+    object_unref(OBJECT(ioc));
+    qemu_mutex_destroy(&lock);
 }
 
-static void pr_manager_helper_instance_init(Object *obj)
+void PRManagerHelper::init()
 {
-    PRManagerHelper *pr_mgr = PR_MANAGER_HELPER(obj);
-
-    qemu_mutex_init(&pr_mgr->lock);
+    qemu_mutex_init(&lock);
 }
 
 static void pr_manager_helper_class_init(ObjectClass *klass,
@@ -305,18 +304,7 @@ static void pr_manager_helper_class_init(ObjectClass *klass,
     prmgr_klass->is_connected = pr_manager_helper_is_connected;
 }
 
-static const TypeInfo pr_manager_helper_info = {
-    .name = TYPE_PR_MANAGER_HELPER,
-    .parent = TYPE_PR_MANAGER,
-    .instance_size = sizeof(PRManagerHelper),
-    .instance_init = pr_manager_helper_instance_init,
-    .instance_finalize = pr_manager_helper_instance_finalize,
-    .class_init = pr_manager_helper_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void pr_manager_helper_register_types(void)
-{
-    type_register_static(&pr_manager_helper_info);
-}
-
-type_init(pr_manager_helper_register_types);
+REGISTER_QEMU_OBJECT_CI(PRManagerHelper, TYPE_PR_MANAGER_HELPER,
+                         TYPE_PR_MANAGER, pr_manager_helper_class_init)
