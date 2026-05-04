@@ -61,12 +61,9 @@ qauthz_simple_prop_get_identity(Object *obj,
 }
 
 
-static void
-qauthz_simple_finalize(Object *obj)
+void QAuthZSimple::finalize()
 {
-    QAuthZSimple *sauthz = QAUTHZ_SIMPLE(obj);
-
-    g_free(sauthz->identity);
+    g_free(identity);
 }
 
 
@@ -115,23 +112,9 @@ static const InterfaceInfo qauthz_simple_interfaces[] = {
     { }
 };
 
-static const TypeInfo qauthz_simple_info = {
-    .name = TYPE_QAUTHZ_SIMPLE,
-    .parent = TYPE_QAUTHZ,
-    .instance_size = sizeof(QAuthZSimple),
-    .instance_finalize = qauthz_simple_finalize,
-    .class_init = qauthz_simple_class_init,
-    .interfaces = qauthz_simple_interfaces,
-};
-
-
-static void
-qauthz_simple_register_types(void)
-{
-    type_register_static(&qauthz_simple_info);
-}
-
-
-type_init(qauthz_simple_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_IFACES(QAuthZSimple, TYPE_QAUTHZ_SIMPLE, TYPE_QAUTHZ,
+                                qauthz_simple_class_init, qauthz_simple_interfaces)

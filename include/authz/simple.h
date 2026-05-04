@@ -59,6 +59,10 @@ struct QAuthZSimple {
     QAuthZ parent_obj;
 
     char *identity;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 
