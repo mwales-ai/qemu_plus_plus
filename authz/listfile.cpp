@@ -213,14 +213,11 @@ qauthz_list_file_prop_get_refresh(Object *obj,
 }
 
 
-static void
-qauthz_list_file_finalize(Object *obj)
+void QAuthZListFile::finalize()
 {
-    QAuthZListFile *fauthz = QAUTHZ_LIST_FILE(obj);
-
-    object_unref(OBJECT(fauthz->list));
-    g_free(fauthz->filename);
-    qemu_file_monitor_free(fauthz->file_monitor);
+    object_unref(OBJECT(list));
+    g_free(filename);
+    qemu_file_monitor_free(file_monitor);
 }
 
 
@@ -243,14 +240,11 @@ qauthz_list_file_class_init(ObjectClass *oc, const void *data)
 }
 
 
-static void
-qauthz_list_file_init(Object *obj)
+void QAuthZListFile::init()
 {
-    QAuthZListFile *authz = QAUTHZ_LIST_FILE(obj);
-
-    authz->file_watch = -1;
+    file_watch = -1;
 #ifdef CONFIG_INOTIFY1
-    authz->refresh = true;
+    refresh = true;
 #endif
 }
 
@@ -275,24 +269,10 @@ static const InterfaceInfo qauthz_list_file_interfaces[] = {
     { }
 };
 
-static const TypeInfo qauthz_list_file_info = {
-    .name = TYPE_QAUTHZ_LIST_FILE,
-    .parent = TYPE_QAUTHZ,
-    .instance_size = sizeof(QAuthZListFile),
-    .instance_init = qauthz_list_file_init,
-    .instance_finalize = qauthz_list_file_finalize,
-    .class_init = qauthz_list_file_class_init,
-    .interfaces = qauthz_list_file_interfaces,
-};
-
-
-static void
-qauthz_list_file_register_types(void)
-{
-    type_register_static(&qauthz_list_file_info);
-}
-
-
-type_init(qauthz_list_file_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI_IFACES(QAuthZListFile, TYPE_QAUTHZ_LIST_FILE,
+                                TYPE_QAUTHZ, qauthz_list_file_class_init,
+                                qauthz_list_file_interfaces)

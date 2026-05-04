@@ -84,6 +84,11 @@ struct QAuthZListFile {
     bool refresh;
     QFileMonitor *file_monitor;
     int64_t file_watch;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 
