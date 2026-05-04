@@ -219,18 +219,17 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
     bus->realized = value;
 }
 
-__attribute__((used))
-static void qbus_initfn(Object *obj)
+void BusState::init()
 {
-    BusState *bus = BUS(obj);
+    Object *thisObj = OBJECT(this);
 
-    QTAILQ_INIT(&bus->children);
-    object_property_add_link(obj, QDEV_HOTPLUG_HANDLER_PROPERTY,
+    QTAILQ_INIT(&children);
+    object_property_add_link(thisObj, QDEV_HOTPLUG_HANDLER_PROPERTY,
                              TYPE_HOTPLUG_HANDLER,
-                             (Object **)&bus->hotplug_handler,
+                             (Object **)&hotplug_handler,
                              object_property_allow_set_link,
                              static_cast<ObjectPropertyLinkFlags>(0));
-    object_property_add_bool(obj, "realized",
+    object_property_add_bool(thisObj, "realized",
                              bus_get_realized, bus_set_realized);
 }
 
@@ -252,12 +251,9 @@ static void bus_class_init(ObjectClass *klass, const void *data)
     rc->child_foreach = bus_reset_child_foreach;
 }
 
-__attribute__((used))
-static void qbus_finalize(Object *obj)
+void BusState::finalize()
 {
-    BusState *bus = BUS(obj);
-
-    g_free(bus->name);
+    g_free(name);
 }
 
 static const InterfaceInfo bus_interfaces[] = {
@@ -265,23 +261,10 @@ static const InterfaceInfo bus_interfaces[] = {
     { }
 };
 
-static const TypeInfo bus_info = {
-    .name = TYPE_BUS,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(BusState),
-    .instance_init = qbus_initfn,
-    .instance_finalize = qbus_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(BusClass),
-    .class_init = bus_class_init,
-    .interfaces = bus_interfaces,
-};
-
-static void bus_register_types(void)
-{
-    type_register_static(&bus_info);
-}
-
-type_init(bus_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS_IFACES(BusState, BusClass,
+                                            TYPE_BUS, TYPE_OBJECT,
+                                            bus_class_init, bus_interfaces)

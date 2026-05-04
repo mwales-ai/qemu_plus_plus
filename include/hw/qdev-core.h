@@ -410,6 +410,12 @@ struct BusState {
      * @reset: ResettableState for the bus; handled by Resettable interface.
      */
     ResettableState reset;
+
+    /* private: */
+#ifdef __cplusplus
+    void init();
+    void finalize();
+#endif
 };
 
 /**
