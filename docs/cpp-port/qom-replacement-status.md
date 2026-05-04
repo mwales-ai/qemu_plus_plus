@@ -8,10 +8,16 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-03
+**As of:** 2026-05-04
 
-**Conversion progress:** 896 .cpp files converted to REGISTER_QEMU_* macros
-across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/, block/.
+**Conversion progress:** 913 .cpp files converted to REGISTER_QEMU_* macros
+across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
+block/, audio/, accel/, io/. Today's additions extend coverage into io/
+(TYPE_QIO_CHANNEL_NULL/BUFFER/FILE/COMMAND/SOCKET/TLS/WEBSOCK +
+TYPE_QIO_CHANNEL abstract base + TYPE_QIO_NET_LISTENER + TYPE_QIO_DNS_RESOLVER),
+audio (TYPE_AUDIO_BACKEND), system/ioport (TYPE_MEMORY_REGION_PORTIO_LIST),
+accel (TYPE_ACCEL_OPS), migration (TYPE_QIO_CHANNEL_RDMA), and core QOM
+interfaces (TYPE_USER_CREATABLE, TYPE_RESETTABLE_INTERFACE, TYPE_BUS).
 Notable conversions this session beyond hw/:
 TYPE_CPU + TYPE_VIRTIO_DEVICE (abstract bases), TYPE_RNG_BACKEND family
 (builtin/random/egd), TYPE_MEMORY_BACKEND_RAM/FILE/SHM, TYPE_CHARDEV_FD/MUX/HUB
