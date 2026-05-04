@@ -71,19 +71,9 @@ bool qauthz_is_allowed_by_id(const char *authzid,
 }
 
 
-static const TypeInfo authz_info = {
-    .name = TYPE_QAUTHZ,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(QAuthZ),
-    .is_abstract = true,
-    .class_size = sizeof(QAuthZClass),
-};
-
-static void qauthz_register_types(void)
-{
-    type_register_static(&authz_info);
-}
-
-type_init(qauthz_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CS(QAuthZ, QAuthZClass,
+                                  TYPE_QAUTHZ, TYPE_OBJECT)
