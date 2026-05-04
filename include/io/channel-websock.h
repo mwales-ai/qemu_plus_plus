@@ -66,6 +66,10 @@ struct QIOChannelWebsock {
     Error *io_err;
     gboolean io_eof;
     uint8_t opcode;
+
+#ifdef __cplusplus
+    void finalize();
+#endif
 };
 
 /**

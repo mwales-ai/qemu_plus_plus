@@ -924,23 +924,21 @@ void qio_channel_websock_handshake(QIOChannelWebsock *ioc,
 }
 
 
-static void qio_channel_websock_finalize(Object *obj)
+void QIOChannelWebsock::finalize()
 {
-    QIOChannelWebsock *ioc = QIO_CHANNEL_WEBSOCK(obj);
-
-    buffer_free(&ioc->encinput);
-    buffer_free(&ioc->encoutput);
-    buffer_free(&ioc->rawinput);
-    if (ioc->hs_io_tag) {
-        g_source_remove(ioc->hs_io_tag);
+    buffer_free(&encinput);
+    buffer_free(&encoutput);
+    buffer_free(&rawinput);
+    if (hs_io_tag) {
+        g_source_remove(hs_io_tag);
     }
-    if (ioc->io_tag) {
-        g_source_remove(ioc->io_tag);
+    if (io_tag) {
+        g_source_remove(io_tag);
     }
-    if (ioc->io_err) {
-        error_free(ioc->io_err);
+    if (io_err) {
+        error_free(io_err);
     }
-    object_unref(OBJECT(ioc->master));
+    object_unref(OBJECT(master));
 }
 
 
@@ -1345,19 +1343,9 @@ static void qio_channel_websock_class_init(ObjectClass *klass,
     ioc_klass->io_create_watch = qio_channel_websock_create_watch;
 }
 
-static const TypeInfo qio_channel_websock_info = {
-    .name = TYPE_QIO_CHANNEL_WEBSOCK,
-    .parent = TYPE_QIO_CHANNEL,
-    .instance_size = sizeof(QIOChannelWebsock),
-    .instance_finalize = qio_channel_websock_finalize,
-    .class_init = qio_channel_websock_class_init,
-};
-
-static void qio_channel_websock_register_types(void)
-{
-    type_register_static(&qio_channel_websock_info);
-}
-
-type_init(qio_channel_websock_register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CI(QIOChannelWebsock, TYPE_QIO_CHANNEL_WEBSOCK,
+                         TYPE_QIO_CHANNEL, qio_channel_websock_class_init)
