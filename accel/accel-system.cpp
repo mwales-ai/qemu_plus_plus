@@ -110,16 +110,8 @@ static void accel_ops_class_init(ObjectClass *oc, const void *data)
     monitor_register_hmp_info_hrt("accel", qmp_x_accel_stats);
 }
 
-static const TypeInfo accel_ops_type_info = {
-    .name = TYPE_ACCEL_OPS,
-    .parent = TYPE_OBJECT,
-    .is_abstract = true,
-    .class_size = sizeof(AccelOpsClass),
-    .class_init = accel_ops_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void accel_system_register_types(void)
-{
-    type_register_static(&accel_ops_type_info);
-}
-type_init(accel_system_register_types);
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_CS(Object, AccelOpsClass,
+                                     TYPE_ACCEL_OPS, TYPE_OBJECT,
+                                     accel_ops_class_init)
