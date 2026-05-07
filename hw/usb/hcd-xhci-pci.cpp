@@ -274,16 +274,6 @@ static void qemu_xhci_instance_init(Object *obj)
     xhci->numslots = XHCI_MAXSLOTS;
 }
 
-static const TypeInfo qemu_xhci_info = {
-    .name          = TYPE_QEMU_XHCI,
-    .parent        = TYPE_XHCI_PCI,
-    .instance_init = qemu_xhci_instance_init,
-    .class_init    = qemu_xhci_class_init,
-};
-
-static void xhci_register_concrete_types(void)
-{
-    type_register_static(&qemu_xhci_info);
-}
-
-type_init(xhci_register_concrete_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(qemu_xhci, TYPE_QEMU_XHCI, TYPE_XHCI_PCI,
+                                 qemu_xhci_instance_init,
+                                 qemu_xhci_class_init)
