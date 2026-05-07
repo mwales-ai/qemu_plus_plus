@@ -86,13 +86,6 @@ static void ipmi_interface_class_init(ObjectClass *klass, const void *data)
     ik->do_hw_op = ipmi_do_hw_op;
 }
 
-static const TypeInfo ipmi_interface_type_info = {
-    .name = TYPE_IPMI_INTERFACE,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(IPMIInterfaceClass),
-    .class_init = ipmi_interface_class_init,
-};
-
 static void isa_ipmi_bmc_check(const Object *obj, const char *name,
                                Object *val, Error **errp)
 {
@@ -119,14 +112,10 @@ void IPMIBmc::classInit(DeviceClass *dc)
     device_class_set_props(dc, ipmi_bmc_properties);
 }
 
-static void ipmi_register_types(void)
-{
-    type_register_static(&ipmi_interface_type_info);
-}
-
-type_init(ipmi_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_INTERFACE_CI(IPMIInterfaceClass, TYPE_IPMI_INTERFACE,
+                            ipmi_interface_class_init)
 
 REGISTER_QEMU_DEVICE_ABSTRACT(IPMIBmc, IPMIBmcClass,
                                TYPE_IPMI_BMC, TYPE_DEVICE)

@@ -951,12 +951,6 @@ void HDAAudioState::outputClassInit(ObjectClass *klass, const void *data)
     dc->desc = "HDA Audio Codec, output-only (line-out)";
 }
 
-static const TypeInfo hda_audio_output_info = {
-    .name          = "hda-output",
-    .parent        = TYPE_HDA_AUDIO,
-    .class_init    = HDAAudioState::outputClassInit,
-};
-
 void HDAAudioState::duplexClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -965,12 +959,6 @@ void HDAAudioState::duplexClassInit(ObjectClass *klass, const void *data)
     k->init = hda_audio_init_duplex;
     dc->desc = "HDA Audio Codec, duplex (line-out, line-in)";
 }
-
-static const TypeInfo hda_audio_duplex_info = {
-    .name          = "hda-duplex",
-    .parent        = TYPE_HDA_AUDIO,
-    .class_init    = HDAAudioState::duplexClassInit,
-};
 
 void HDAAudioState::microClassInit(ObjectClass *klass, const void *data)
 {
@@ -981,23 +969,20 @@ void HDAAudioState::microClassInit(ObjectClass *klass, const void *data)
     dc->desc = "HDA Audio Codec, duplex (speaker, microphone)";
 }
 
-static const TypeInfo hda_audio_micro_info = {
-    .name          = "hda-micro",
-    .parent        = TYPE_HDA_AUDIO,
-    .class_init    = HDAAudioState::microClassInit,
-};
-
-static void hda_audio_register_types(void)
-{
-    type_register_static(&hda_audio_output_info);
-    type_register_static(&hda_audio_duplex_info);
-    type_register_static(&hda_audio_micro_info);
-}
-
-type_init(hda_audio_register_types)
-
 #include "qom/cpp/object.h"
 
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(HDAAudioState,
                                      TYPE_HDA_AUDIO,
                                      TYPE_HDA_CODEC_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hda_audio_output, "hda-output",
+                                 TYPE_HDA_AUDIO,
+                                 HDAAudioState::outputClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hda_audio_duplex, "hda-duplex",
+                                 TYPE_HDA_AUDIO,
+                                 HDAAudioState::duplexClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hda_audio_micro, "hda-micro",
+                                 TYPE_HDA_AUDIO,
+                                 HDAAudioState::microClassInit)
