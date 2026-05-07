@@ -877,12 +877,6 @@ void USBHIDState::tabletClassInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo usb_tablet_info = {
-    .name          = "usb-tablet",
-    .parent        = TYPE_USB_HID,
-    .class_init    = USBHIDState::tabletClassInit,
-};
-
 static const Property usb_mouse_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
 };
@@ -898,12 +892,6 @@ void USBHIDState::mouseClassInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, usb_mouse_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
-
-static const TypeInfo usb_mouse_info = {
-    .name          = "usb-mouse",
-    .parent        = TYPE_USB_HID,
-    .class_init    = USBHIDState::mouseClassInit,
-};
 
 static const Property usb_keyboard_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
@@ -922,24 +910,24 @@ void USBHIDState::keyboardClassInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo usb_keyboard_info = {
-    .name          = "usb-kbd",
-    .parent        = TYPE_USB_HID,
-    .class_init    = USBHIDState::keyboardClassInit,
-};
-
-static void usb_hid_register_types(void)
+static void usb_hid_legacy_register(void)
 {
-    type_register_static(&usb_tablet_info);
     usb_legacy_register("usb-tablet", "tablet", NULL);
-    type_register_static(&usb_mouse_info);
     usb_legacy_register("usb-mouse", "mouse", NULL);
-    type_register_static(&usb_keyboard_info);
     usb_legacy_register("usb-kbd", "keyboard", NULL);
 }
 
-type_init(usb_hid_register_types)
+type_init(usb_hid_legacy_register)
 
 #include "qom/cpp/object.h"
 
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(USBHIDState, TYPE_USB_HID, TYPE_USB_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(usb_tablet, "usb-tablet", TYPE_USB_HID,
+                                 USBHIDState::tabletClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(usb_mouse, "usb-mouse", TYPE_USB_HID,
+                                 USBHIDState::mouseClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(usb_keyboard, "usb-kbd", TYPE_USB_HID,
+                                 USBHIDState::keyboardClassInit)

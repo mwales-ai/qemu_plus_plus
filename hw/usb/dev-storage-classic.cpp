@@ -128,16 +128,8 @@ static void usb_msd_instance_init(Object *obj)
     object_property_set_int(obj, "bootindex", -1, NULL);
 }
 
-static const TypeInfo msd_info = {
-    .name          = "usb-storage",
-    .parent        = TYPE_USB_STORAGE,
-    .instance_init = usb_msd_instance_init,
-    .class_init    = usb_msd_class_storage_initfn,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&msd_info);
-}
-
-type_init(register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(usb_msd, "usb-storage", TYPE_USB_STORAGE,
+                                 usb_msd_instance_init,
+                                 usb_msd_class_storage_initfn)

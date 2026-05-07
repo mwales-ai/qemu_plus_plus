@@ -284,33 +284,16 @@ static void isl69259_class_init(ObjectClass *klass, const void *data)
     isl_pmbus_vr_class_init(klass, data, 2);
 }
 
-static void isl_pmbus_vr_register_siblings(void)
-{
-    static const TypeInfo isl69259_info = {
-        .name = TYPE_ISL69259,
-        .parent = TYPE_ISL69260,
-        .class_init = isl69259_class_init,
-    };
-    static const TypeInfo raa229004_info = {
-        .name = TYPE_RAA229004,
-        .parent = TYPE_PMBUS_DEVICE,
-        .instance_size = sizeof(ISLState),
-        .instance_init = raa22xx_init,
-        .class_init = raa229004_class_init,
-    };
-    static const TypeInfo raa228000_info = {
-        .name = TYPE_RAA228000,
-        .parent = TYPE_PMBUS_DEVICE,
-        .instance_size = sizeof(ISLState),
-        .instance_init = raa228000_init,
-        .class_init = raa228000_class_init,
-    };
-    type_register_static(&isl69259_info);
-    type_register_static(&raa229004_info);
-    type_register_static(&raa228000_info);
-}
-
-type_init(isl_pmbus_vr_register_siblings)
-
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(ISLState, TYPE_ISL69260, TYPE_PMBUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(isl69259, TYPE_ISL69259, TYPE_ISL69260,
+                                 isl69259_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(raa229004, ISLState, TYPE_RAA229004,
+                                       TYPE_PMBUS_DEVICE,
+                                       raa22xx_init, raa229004_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(raa228000, ISLState, TYPE_RAA228000,
+                                       TYPE_PMBUS_DEVICE,
+                                       raa228000_init, raa228000_class_init)

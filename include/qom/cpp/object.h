@@ -1321,6 +1321,55 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_INIT_CLASS: register a derived type that has both
+ * an instance_init (free function) and a class_init (free function), but
+ * uses the parent's instance struct (instance_size = 0 → inherit from
+ * parent). Useful for sibling subtypes that share a state struct but
+ * have different class_init logic and different per-instance setup.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_CLASS(unique_tag, type_name_str,           \
+                                         parent_type_str,                    \
+                                         instance_init_fn,                   \
+                                         class_init_fn)                      \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_init     = instance_init_fn,                               \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED: like REGISTER_QEMU_OBJECT_INIT_CLASS
+ * but additionally explicitly sets instance_size = sizeof(ClassName). Used
+ * for sibling subtypes that need their own state struct (often larger than
+ * parent's) without participating in the parent's C++ trampoline machinery.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(unique_tag, ClassName,         \
+                                               type_name_str,                \
+                                               parent_type_str,              \
+                                               instance_init_fn,             \
+                                               class_init_fn)                \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ALIAS: register a type that is just an alias of
  * another type (no class_init, no instance state). Used for compatibility
  * aliases like TYPE_CHARDEV_MEMORY = TYPE_CHARDEV_RINGBUF.

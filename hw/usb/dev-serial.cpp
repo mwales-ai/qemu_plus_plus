@@ -699,12 +699,6 @@ void USBSerialState::serialClassInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, serial_properties);
 }
 
-static const TypeInfo serial_info = {
-    .name          = "usb-serial",
-    .parent        = TYPE_USB_SERIAL,
-    .class_init    = USBSerialState::serialClassInit,
-};
-
 static const Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
 };
@@ -719,22 +713,20 @@ void USBSerialState::brailleClassInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, braille_properties);
 }
 
-static const TypeInfo braille_info = {
-    .name          = "usb-braille",
-    .parent        = TYPE_USB_SERIAL,
-    .class_init    = USBSerialState::brailleClassInit,
-};
-
-static void usb_serial_register_types(void)
+static void usb_serial_legacy_register(void)
 {
-    type_register_static(&serial_info);
-    type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }
 
-type_init(usb_serial_register_types)
+type_init(usb_serial_legacy_register)
 
 #include "qom/cpp/object.h"
 
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(USBSerialState, TYPE_USB_SERIAL,
                                      TYPE_USB_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(usb_serial, "usb-serial", TYPE_USB_SERIAL,
+                                 USBSerialState::serialClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(usb_braille, "usb-braille", TYPE_USB_SERIAL,
+                                 USBSerialState::brailleClassInit)

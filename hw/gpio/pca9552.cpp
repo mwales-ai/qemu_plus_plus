@@ -457,18 +457,11 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
     pc->pin_count = 16;
 }
 
-static const TypeInfo pca9552_info = {
-    .name          = TYPE_PCA9552,
-    .parent        = TYPE_PCA955X,
-    .class_init    = pca9552_class_init,
-};
-
-static void __attribute__((constructor)) register_pca9552_concrete(void)
-{
-    type_register_static(&pca9552_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pca9552, TYPE_PCA9552, TYPE_PCA955X,
+                                 pca9552_class_init)
+
 /*
  * pca955x_info: abstract base with instance_init + class_size.
  * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
