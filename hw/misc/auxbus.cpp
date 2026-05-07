@@ -291,14 +291,6 @@ I2CBus *aux_get_i2c_bus(AUXBus *bus)
     return bus->bridge->getI2CBus();
 }
 
-static const TypeInfo aux_to_i2c_type_info = {
-    .name = TYPE_AUXTOI2C,
-    .parent = TYPE_AUX_SLAVE,
-    .instance_size = sizeof(AUXTOI2CState),
-    .instance_init = aux_bridge_init,
-    .class_init = AUXTOI2CState::classInit,
-};
-
 /* aux-slave implementation */
 static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
@@ -337,21 +329,15 @@ void AUXSlaveClass::classInit(ObjectClass *klass, const void *data)
     k->bus_type = TYPE_AUX_BUS;
 }
 
-static const TypeInfo aux_slave_type_info = {
-    .name = TYPE_AUX_SLAVE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(AUXSlave),
-    .is_abstract = true,
-    .class_init = AUXSlaveClass::classInit,
-};
-
-static void aux_register_types(void)
-{
-    type_register_static(&aux_slave_type_info);
-    type_register_static(&aux_to_i2c_type_info);
-}
-
-type_init(aux_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(AUXSlave, DeviceClass,
+                                         TYPE_AUX_SLAVE, TYPE_DEVICE,
+                                         AUXSlaveClass::classInit)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(aux_to_i2c, AUXTOI2CState,
+                                       TYPE_AUXTOI2C, TYPE_AUX_SLAVE,
+                                       aux_bridge_init,
+                                       AUXTOI2CState::classInit)
+
 REGISTER_QEMU_BUS_CI(AUXBus, TYPE_AUX_BUS, AUXBusClass::classInit)
