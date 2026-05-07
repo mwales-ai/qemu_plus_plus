@@ -619,22 +619,7 @@ void PL110State::classInit(DeviceClass *dc)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(PL110State, TYPE_PL110, TYPE_SYS_BUS_DEVICE)
 
-static void pl110_register_subtypes(void)
-{
-    static TypeInfo pl110_versatile_info = {
-        .name          = "pl110_versatile",
-        .parent        = TYPE_PL110,
-        .instance_init = pl110_versatile_init,
-    };
+REGISTER_QEMU_OBJECT_INIT_ONLY(pl110_versatile, "pl110_versatile",
+                                TYPE_PL110, pl110_versatile_init)
 
-    static TypeInfo pl111_info = {
-        .name          = "pl111",
-        .parent        = TYPE_PL110,
-        .instance_init = pl111_init,
-    };
-
-    type_register_static(&pl110_versatile_info);
-    type_register_static(&pl111_info);
-}
-
-type_init(pl110_register_subtypes)
+REGISTER_QEMU_OBJECT_INIT_ONLY(pl111, "pl111", TYPE_PL110, pl111_init)

@@ -360,11 +360,11 @@ static void lasips2_port_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo lasips2_port_info = {
     .name          = TYPE_LASIPS2_PORT,
     .parent        = TYPE_DEVICE,
-    .instance_init = lasips2_port_init,
     .instance_size = sizeof(LASIPS2Port),
-    .class_init    = lasips2_port_class_init,
+    .instance_init = lasips2_port_init,
+    .is_abstract   = true,
     .class_size    = sizeof(LASIPS2PortDeviceClass),
-    .is_abstract      = true,
+    .class_init    = lasips2_port_class_init,
 };
 
 static void lasips2_kbd_port_realize(DeviceState *dev, Error **errp)
@@ -454,22 +454,24 @@ static void lasips2_mouse_port_class_init(ObjectClass *klass, const void *data)
                                     &lpdc->parent_realize);
 }
 
-static const TypeInfo lasips2_mouse_port_info = {
-    .name          = TYPE_LASIPS2_MOUSE_PORT,
-    .parent        = TYPE_LASIPS2_PORT,
-    .instance_size = sizeof(LASIPS2MousePort),
-    .instance_init = lasips2_mouse_port_init,
-    .class_init    = lasips2_mouse_port_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void lasips2_port_types_register(void)
+static void lasips2_port_register(void)
 {
     type_register_static(&lasips2_port_info);
-    type_register_static(&lasips2_kbd_port_info);
-    type_register_static(&lasips2_mouse_port_info);
 }
+type_init(lasips2_port_register)
 
-type_init(lasips2_port_types_register)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(lasips2_kbd_port, LASIPS2KbdPort,
+                                       TYPE_LASIPS2_KBD_PORT,
+                                       TYPE_LASIPS2_PORT,
+                                       lasips2_kbd_port_init,
+                                       lasips2_kbd_port_class_init)
 
-#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(lasips2_mouse_port, LASIPS2MousePort,
+                                       TYPE_LASIPS2_MOUSE_PORT,
+                                       TYPE_LASIPS2_PORT,
+                                       lasips2_mouse_port_init,
+                                       lasips2_mouse_port_class_init)
+
 REGISTER_QEMU_DEVICE(LASIPS2State, TYPE_LASIPS2, TYPE_SYS_BUS_DEVICE)
