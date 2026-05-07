@@ -1098,15 +1098,6 @@ static void virtio_serial_port_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(k, virtser_props);
 }
 
-static const TypeInfo virtio_serial_port_type_info = {
-    .name = TYPE_VIRTIO_SERIAL_PORT,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(VirtIOSerialPort),
-    .is_abstract = true,
-    .class_size = sizeof(VirtIOSerialPortClass),
-    .class_init = virtio_serial_port_class_init,
-};
-
 static void virtio_serial_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1187,11 +1178,9 @@ static const InterfaceInfo virtio_serial_interfaces[] = {
 REGISTER_QEMU_DEVICE_IFACES(VirtIOSerial, TYPE_VIRTIO_SERIAL, TYPE_VIRTIO_DEVICE,
                             virtio_serial_interfaces)
 
-static void register_virtser_bus_and_port_types(void)
-{
-    type_register_static(&virtio_serial_port_type_info);
-}
-type_init(register_virtser_bus_and_port_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtIOSerialPort, VirtIOSerialPortClass,
+                                         TYPE_VIRTIO_SERIAL_PORT, TYPE_DEVICE,
+                                         virtio_serial_port_class_init)
 
 REGISTER_QEMU_BUS_CI(VirtIOSerialBus, TYPE_VIRTIO_SERIAL_BUS,
                      virtser_bus_class_init)
