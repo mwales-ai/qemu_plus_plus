@@ -464,17 +464,7 @@ static void vpb_sic_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_vpb_sic;
 }
 
-static const TypeInfo vpb_sic_info = {
-    .name          = TYPE_VERSATILE_PB_SIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(vpb_sic_state),
-    .instance_init = vpb_sic_init,
-    .class_init    = vpb_sic_class_init,
-};
-
-static void versatilepb_register_types(void)
-{
-    type_register_static(&vpb_sic_info);
-}
-
-type_init(versatilepb_register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(vpb_sic, vpb_sic_state,
+                                       TYPE_VERSATILE_PB_SIC,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       vpb_sic_init, vpb_sic_class_init)

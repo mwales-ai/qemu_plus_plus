@@ -353,13 +353,6 @@ void HighbankMachine::classInit(ObjectClass *oc, const void *data)
     mc->deprecation_reason = "no known users left for this machine";
 }
 
-static const TypeInfo highbank_type = {
-    .name = MACHINE_TYPE_NAME("highbank"),
-    .parent = TYPE_MACHINE,
-    .class_init = HighbankMachine::classInit,
-    .interfaces = arm_machine_interfaces,
-};
-
 struct MidwayMachine {
     static void classInit(ObjectClass *oc, const void *data);
 };
@@ -383,17 +376,10 @@ void MidwayMachine::classInit(ObjectClass *oc, const void *data)
     mc->deprecation_reason = "no known users left for this machine";
 }
 
-static const TypeInfo midway_type = {
-    .name = MACHINE_TYPE_NAME("midway"),
-    .parent = TYPE_MACHINE,
-    .class_init = MidwayMachine::classInit,
-    .interfaces = arm_machine_interfaces,
-};
+REGISTER_QEMU_MACHINE_IFACES(HighbankMachine, MACHINE_TYPE_NAME("highbank"),
+                              TYPE_MACHINE, HighbankMachine::classInit,
+                              arm_machine_interfaces)
 
-static void calxeda_machines_init(void)
-{
-    type_register_static(&highbank_type);
-    type_register_static(&midway_type);
-}
-
-type_init(calxeda_machines_init)
+REGISTER_QEMU_MACHINE_IFACES(MidwayMachine, MACHINE_TYPE_NAME("midway"),
+                              TYPE_MACHINE, MidwayMachine::classInit,
+                              arm_machine_interfaces)
