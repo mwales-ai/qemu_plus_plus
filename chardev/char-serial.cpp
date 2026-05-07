@@ -318,23 +318,18 @@ static void char_serial_class_init(ObjectClass *oc, const void *data)
 }
 
 
-static const TypeInfo char_serial_type_info = {
-    .name = TYPE_CHARDEV_SERIAL,
-#ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN,
-#else
-    .parent = TYPE_CHARDEV_FD,
-#endif
-    .class_init = char_serial_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_serial_type_info);
-}
-
-type_init(register_types);
-
-#endif
+#endif /* HAVE_CHARDEV_SERIAL */
 
 } /* extern "C" */
+
+#ifdef HAVE_CHARDEV_SERIAL
+#include "qom/cpp/object.h"
+
+#ifdef _WIN32
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_serial, TYPE_CHARDEV_SERIAL,
+                                 TYPE_CHARDEV_WIN, char_serial_class_init)
+#else
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_serial, TYPE_CHARDEV_SERIAL,
+                                 TYPE_CHARDEV_FD, char_serial_class_init)
+#endif
+#endif /* HAVE_CHARDEV_SERIAL */

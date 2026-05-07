@@ -1272,4 +1272,70 @@ static void ClassStruct##_cpp_register_types(void)                           \
                                                                              \
 type_init(ClassStruct##_cpp_register_types)
 
+/*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY: register a derived type that only adds
+ * a class_init function (no instance struct, no instance_init/finalize).
+ * The instance_size is inherited from the parent type. Useful for chardev
+ * subtypes that override class methods (parse, open, etc.) without adding
+ * any instance state. The unique_tag parameter provides a unique C symbol
+ * for the registration function (e.g., "char_serial").
+ *
+ * Usage:
+ *   REGISTER_QEMU_OBJECT_CLASS_ONLY(char_serial, TYPE_CHARDEV_SERIAL,
+ *                                    TYPE_CHARDEV_FD,
+ *                                    char_serial_class_init)
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY(unique_tag, type_name_str,           \
+                                         parent_type_str, class_init_fn)     \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name       = type_name_str,                                         \
+        .parent     = parent_type_str,                                       \
+        .class_init = class_init_fn,                                         \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_CLASS_FINI: like REGISTER_QEMU_OBJECT_CLASS_ONLY
+ * but additionally takes a free instance_finalize function (not a member).
+ * Useful for chardev subtypes with custom finalize logic but no own state.
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_FINI(unique_tag, type_name_str,           \
+                                         parent_type_str, class_init_fn,     \
+                                         instance_finalize_fn)               \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_finalize = instance_finalize_fn,                           \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ALIAS: register a type that is just an alias of
+ * another type (no class_init, no instance state). Used for compatibility
+ * aliases like TYPE_CHARDEV_MEMORY = TYPE_CHARDEV_RINGBUF.
+ */
+#define REGISTER_QEMU_OBJECT_ALIAS(unique_tag, type_name_str,                \
+                                    parent_type_str)                         \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name   = type_name_str,                                             \
+        .parent = parent_type_str,                                           \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
 #endif /* QOM_CPP_OBJECT_H */

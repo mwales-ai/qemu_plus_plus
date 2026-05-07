@@ -142,21 +142,14 @@ static void char_file_class_init(ObjectClass *oc, const void *data)
     cc->open = qmp_chardev_open_file;
 }
 
-static const TypeInfo char_file_type_info = {
-    .name = TYPE_CHARDEV_FILE,
-#ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN,
-#else
-    .parent = TYPE_CHARDEV_FD,
-#endif
-    .class_init = char_file_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_file_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+#ifdef _WIN32
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_file, TYPE_CHARDEV_FILE,
+                                 TYPE_CHARDEV_WIN, char_file_class_init)
+#else
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_file, TYPE_CHARDEV_FILE,
+                                 TYPE_CHARDEV_FD, char_file_class_init)
+#endif
