@@ -654,25 +654,19 @@ static const InterfaceInfo xensysbus_interfaces[] = {
     { }
 };
 
-static const TypeInfo xensysbus_info = {
-    .name       = TYPE_XENSYSBUS,
-    .parent     = TYPE_BUS,
-    .class_init = xen_sysbus_class_init,
-    .interfaces = xensysbus_interfaces,
-};
-
-static const TypeInfo xensysdev_info = {
-    .name          = TYPE_XENSYSDEV,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-};
-
-static void xenbe_misc_register_types(void)
+static void xensysbus_cpp_register_types(void)
 {
-    type_register_static(&xensysbus_info);
-    type_register_static(&xensysdev_info);
+    static const TypeInfo info = {
+        .name       = TYPE_XENSYSBUS,
+        .parent     = TYPE_BUS,
+        .class_init = xen_sysbus_class_init,
+        .interfaces = xensysbus_interfaces,
+    };
+    type_register_static(&info);
 }
+type_init(xensysbus_cpp_register_types)
 
-type_init(xenbe_misc_register_types)
+REGISTER_QEMU_OBJECT_ALIAS(xensysdev, TYPE_XENSYSDEV, TYPE_SYS_BUS_DEVICE)
 
 REGISTER_QEMU_DEVICE(XenLegacyDevice, TYPE_XENBACKEND,
                      TYPE_DYNAMIC_SYS_BUS_DEVICE)
