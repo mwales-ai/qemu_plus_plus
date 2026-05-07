@@ -3957,13 +3957,6 @@ static void vfio_pci_nohotplug_class_init(ObjectClass *klass,
                                           "Controls loading of a legacy VGA BIOS ROM");
 }
 
-static const TypeInfo vfio_pci_nohotplug_info = {
-    .name = TYPE_VFIO_PCI_NOHOTPLUG,
-    .parent = TYPE_VFIO_PCI,
-    .instance_size = sizeof(VFIOPCIDevice),
-    .class_init = vfio_pci_nohotplug_class_init,
-};
-
 static void register_vfio_pci_dev_type(void)
 {
     /*
@@ -3979,7 +3972,12 @@ static void register_vfio_pci_dev_type(void)
 
     type_register_static(&vfio_pci_device_info);
     type_register_static(&vfio_pci_info);
-    type_register_static(&vfio_pci_nohotplug_info);
 }
 
 type_init(register_vfio_pci_dev_type)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vfio_pci_nohotplug, VFIOPCIDevice,
+                                       TYPE_VFIO_PCI_NOHOTPLUG, TYPE_VFIO_PCI,
+                                       vfio_pci_nohotplug_class_init)
