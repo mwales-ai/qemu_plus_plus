@@ -455,16 +455,6 @@ static const InterfaceInfo piix_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo piix_pci_type_info = {
-    .name = TYPE_PIIX_PCI_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PIIXState),
-    .instance_init = pci_piix_init,
-    .is_abstract = true,
-    .class_init = pci_piix_class_init,
-    .interfaces = piix_pci_interfaces,
-};
-
 static void piix3_realize(PCIDevice *dev, Error **errp)
 {
     pci_piix_realize(dev, TYPE_PIIX3_USB_UHCI, errp);
@@ -488,13 +478,6 @@ static void piix3_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_piix3;
 }
 
-static const TypeInfo piix3_info = {
-    .name          = TYPE_PIIX3_DEVICE,
-    .parent        = TYPE_PIIX_PCI_DEVICE,
-    .instance_init = piix3_init,
-    .class_init    = piix3_class_init,
-};
-
 static void piix4_realize(PCIDevice *dev, Error **errp)
 {
     pci_piix_realize(dev, TYPE_PIIX4_USB_UHCI, errp);
@@ -517,18 +500,27 @@ static void piix4_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_piix4;
 }
 
-static const TypeInfo piix4_info = {
-    .name          = TYPE_PIIX4_PCI_DEVICE,
-    .parent        = TYPE_PIIX_PCI_DEVICE,
-    .instance_init = piix4_init,
-    .class_init    = piix4_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void piix3_register_types(void)
+static void PIIXState_cpp_register_types(void)
 {
-    type_register_static(&piix_pci_type_info);
-    type_register_static(&piix3_info);
-    type_register_static(&piix4_info);
+    static const TypeInfo info = {
+        .name          = TYPE_PIIX_PCI_DEVICE,
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PIIXState),
+        .instance_init = pci_piix_init,
+        .is_abstract   = true,
+        .class_init    = pci_piix_class_init,
+        .interfaces    = piix_pci_interfaces,
+    };
+    type_register_static(&info);
 }
+type_init(PIIXState_cpp_register_types)
 
-type_init(piix3_register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(piix3, TYPE_PIIX3_DEVICE,
+                                 TYPE_PIIX_PCI_DEVICE,
+                                 piix3_init, piix3_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(piix4, TYPE_PIIX4_PCI_DEVICE,
+                                 TYPE_PIIX_PCI_DEVICE,
+                                 piix4_init, piix4_class_init)
