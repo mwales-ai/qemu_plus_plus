@@ -420,41 +420,17 @@ REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(AspeedADCState, AspeedADCClass,
                                          TYPE_ASPEED_ADC, TYPE_SYS_BUS_DEVICE,
                                          aspeed_adc_class_init)
 
-static const TypeInfo aspeed_2400_adc_info = {
-    .name = TYPE_ASPEED_2400_ADC,
-    .parent = TYPE_ASPEED_ADC,
-};
+REGISTER_QEMU_OBJECT_ALIAS(aspeed_2400_adc, TYPE_ASPEED_2400_ADC,
+                            TYPE_ASPEED_ADC)
 
-static const TypeInfo aspeed_2500_adc_info = {
-    .name = TYPE_ASPEED_2500_ADC,
-    .parent = TYPE_ASPEED_ADC,
-};
+REGISTER_QEMU_OBJECT_ALIAS(aspeed_2500_adc, TYPE_ASPEED_2500_ADC,
+                            TYPE_ASPEED_ADC)
 
-static const TypeInfo aspeed_2600_adc_info = {
-    .name = TYPE_ASPEED_2600_ADC,
-    .parent = TYPE_ASPEED_ADC,
-    .class_init = aspeed_2600_adc_class_init,
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_adc, TYPE_ASPEED_2600_ADC,
+                                 TYPE_ASPEED_ADC, aspeed_2600_adc_class_init)
 
-static const TypeInfo aspeed_1030_adc_info = {
-    .name = TYPE_ASPEED_1030_ADC,
-    .parent = TYPE_ASPEED_ADC,
-    .class_init = aspeed_1030_adc_class_init, /* No change since AST2600 */
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_1030_adc, TYPE_ASPEED_1030_ADC,
+                                 TYPE_ASPEED_ADC, aspeed_1030_adc_class_init)
 
-static const TypeInfo aspeed_2700_adc_info = {
-    .name = TYPE_ASPEED_2700_ADC,
-    .parent = TYPE_ASPEED_ADC,
-    .class_init = aspeed_2700_adc_class_init,
-};
-
-static void aspeed_adc_register_concrete_types(void)
-{
-    type_register_static(&aspeed_2400_adc_info);
-    type_register_static(&aspeed_2500_adc_info);
-    type_register_static(&aspeed_2600_adc_info);
-    type_register_static(&aspeed_1030_adc_info);
-    type_register_static(&aspeed_2700_adc_info);
-}
-
-type_init(aspeed_adc_register_concrete_types);
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_adc, TYPE_ASPEED_2700_ADC,
+                                 TYPE_ASPEED_ADC, aspeed_2700_adc_class_init)

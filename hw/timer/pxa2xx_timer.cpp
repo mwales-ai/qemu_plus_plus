@@ -582,15 +582,6 @@ static void pxa25x_timer_dev_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pxa25x_timer_dev_properties);
 }
 
-static void pxa2xx_timer_register_concrete_types(void)
-{
-    static const TypeInfo pxa25x_timer_dev_info = {
-        .name          = "pxa25x-timer",
-        .parent        = TYPE_PXA2XX_TIMER,
-        .instance_size = sizeof(PXA2xxTimerInfo),
-        .class_init    = pxa25x_timer_dev_class_init,
-    };
-    type_register_static(&pxa25x_timer_dev_info);
-}
-
-type_init(pxa2xx_timer_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pxa25x_timer_dev, "pxa25x-timer",
+                                 TYPE_PXA2XX_TIMER,
+                                 pxa25x_timer_dev_class_init)

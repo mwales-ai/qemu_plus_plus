@@ -1300,6 +1300,29 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED: like REGISTER_QEMU_OBJECT_CLASS_ONLY
+ * but additionally sets instance_size = sizeof(ClassName). Used when the
+ * derived type has its own state struct that's larger than the parent's
+ * (no init/finalize methods needed, just the larger storage).
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(unique_tag, ClassName,         \
+                                               type_name_str,                \
+                                               parent_type_str,              \
+                                               class_init_fn)                \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_FINI: like REGISTER_QEMU_OBJECT_CLASS_ONLY
  * but additionally takes a free instance_finalize function (not a member).
  * Useful for chardev subtypes with custom finalize logic but no own state.

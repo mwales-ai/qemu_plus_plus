@@ -210,13 +210,6 @@ static void ide_hd_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, ide_hd_properties);
 }
 
-static const TypeInfo ide_hd_info = {
-    .name          = "ide-hd",
-    .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
-    .class_init    = ide_hd_class_init,
-};
-
 static const Property ide_cd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
 };
@@ -232,13 +225,6 @@ static void ide_cd_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, ide_cd_properties);
 }
 
-static const TypeInfo ide_cd_info = {
-    .name          = "ide-cd",
-    .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
-    .class_init    = ide_cd_class_init,
-};
-
 void IDEDevice::classInit(DeviceClass *k)
 {
     k->realize = ide_qdev_realize;
@@ -247,15 +233,13 @@ void IDEDevice::classInit(DeviceClass *k)
     device_class_set_props(k, ide_props);
 }
 
-static void ide_register_types(void)
-{
-    type_register_static(&ide_hd_info);
-    type_register_static(&ide_cd_info);
-}
-
-type_init(ide_register_types)
-
 #include "qom/cpp/object.h"
 
 REGISTER_QEMU_DEVICE_ABSTRACT(IDEDevice, IDEDeviceClass,
                                TYPE_IDE_DEVICE, TYPE_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ide_hd, IDEDrive, "ide-hd",
+                                       TYPE_IDE_DEVICE, ide_hd_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ide_cd, IDEDrive, "ide-cd",
+                                       TYPE_IDE_DEVICE, ide_cd_class_init)
