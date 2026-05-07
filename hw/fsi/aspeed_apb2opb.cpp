@@ -351,16 +351,5 @@ static void fsi_opb_init(Object *o)
     address_space_init(&opb->as, &opb->mr, TYPE_FSI_OPB);
 }
 
-static const TypeInfo opb_info = {
-    .name = TYPE_OP_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(OPBus),
-    .instance_init = fsi_opb_init,
-};
-
-static void fsi_opb_register_types(void)
-{
-    type_register_static(&opb_info);
-}
-
-type_init(fsi_opb_register_types);
+REGISTER_QEMU_BUS_INSTANCE_CI(OPBus, TYPE_OP_BUS, TYPE_BUS,
+                               fsi_opb_init, nullptr)
