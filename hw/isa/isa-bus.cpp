@@ -238,19 +238,10 @@ static void isa_device_class_init(ObjectClass *klass, const void *data)
     k->bus_type = TYPE_ISA_BUS;
 }
 
-static const TypeInfo isa_device_type_info = {
-    .name = TYPE_ISA_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(ISADevice),
-    .is_abstract = true,
-    .class_init = isa_device_class_init,
-};
-
 static void isabus_register_types(void)
 {
     type_register_static(&isa_dma_info);
     type_register_static(&isabus_bridge_info);
-    type_register_static(&isa_device_type_info);
 }
 
 static char *isabus_get_fw_dev_path(DeviceState *dev)
@@ -291,3 +282,7 @@ type_init(isabus_register_types)
 
 #include "qom/cpp/object.h"
 REGISTER_QEMU_BUS_CI(ISABus, TYPE_ISA_BUS, isa_bus_class_init)
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(ISADevice, DeviceClass,
+                                         TYPE_ISA_DEVICE, TYPE_DEVICE,
+                                         isa_device_class_init)

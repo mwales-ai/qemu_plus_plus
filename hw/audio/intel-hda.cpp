@@ -1193,18 +1193,6 @@ static const InterfaceInfo intel_hda_interfaces[] = {
 
 /* intel_hda_info registered via REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES below */
 
-static const TypeInfo intel_hda_info_ich6 = {
-    .name          = "intel-hda",
-    .parent        = TYPE_INTEL_HDA_GENERIC,
-    .class_init    = intel_hda_class_init_ich6,
-};
-
-static const TypeInfo intel_hda_info_ich9 = {
-    .name          = "ich9-intel-hda",
-    .parent        = TYPE_INTEL_HDA_GENERIC,
-    .class_init    = intel_hda_class_init_ich9,
-};
-
 void IntelHDAState::hdaCodecDeviceClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
@@ -1241,14 +1229,13 @@ static void intel_hda_and_codec_init(const char *audiodev)
     object_unref(intel_hda);
 }
 
-static void intel_hda_register_types(void)
+static void intel_hda_audio_model_register(void)
 {
-    type_register_static(&intel_hda_info_ich6);
-    type_register_static(&intel_hda_info_ich9);
-    audio_register_model_with_cb("hda", "Intel HD Audio", intel_hda_and_codec_init);
+    audio_register_model_with_cb("hda", "Intel HD Audio",
+                                  intel_hda_and_codec_init);
 }
 
-type_init(intel_hda_register_types)
+type_init(intel_hda_audio_model_register)
 
 #include "qom/cpp/object.h"
 REGISTER_QEMU_BUS(HDACodecBus, TYPE_HDA_BUS)
@@ -1260,3 +1247,11 @@ REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(IntelHDAState,
                                             TYPE_INTEL_HDA_GENERIC,
                                             TYPE_PCI_DEVICE,
                                             intel_hda_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(intel_hda_ich6, "intel-hda",
+                                 TYPE_INTEL_HDA_GENERIC,
+                                 intel_hda_class_init_ich6)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(intel_hda_ich9, "ich9-intel-hda",
+                                 TYPE_INTEL_HDA_GENERIC,
+                                 intel_hda_class_init_ich9)
