@@ -3851,17 +3851,14 @@ static const TypeInfo iommu_memory_region_info = {
     .class_size         = sizeof(IOMMUMemoryRegionClass),
 };
 
-static const TypeInfo ram_discard_manager_info = {
-    .name               = TYPE_RAM_DISCARD_MANAGER,
-    .parent             = TYPE_INTERFACE,
-    .class_size         = sizeof(RamDiscardManagerClass),
-};
-
 static void memory_register_types(void)
 {
     type_register_static(&memory_region_info);
     type_register_static(&iommu_memory_region_info);
-    type_register_static(&ram_discard_manager_info);
 }
 
 type_init(memory_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_INTERFACE(RamDiscardManagerClass, TYPE_RAM_DISCARD_MANAGER)

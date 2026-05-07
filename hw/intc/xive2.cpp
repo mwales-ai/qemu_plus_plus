@@ -2008,16 +2008,6 @@ static const InterfaceInfo xive2_router_interfaces[] = {
     { }
 };
 
-static const TypeInfo xive2_router_info = {
-    .name          = TYPE_XIVE2_ROUTER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Xive2Router),
-    .is_abstract   = true,
-    .class_size    = sizeof(Xive2RouterClass),
-    .class_init    = xive2_router_class_init,
-    .interfaces    = xive2_router_interfaces,
-};
-
 static inline bool addr_is_even(hwaddr addr, uint32_t shift)
 {
     return !((addr >> shift) & 1);
@@ -2215,12 +2205,21 @@ void Xive2EndSource::classInit(DeviceClass *dc)
     dc->user_creatable = false;
 }
 
-static void xive2_router_register_type(void)
-{
-    type_register_static(&xive2_router_info);
-}
-
-type_init(xive2_router_register_type)
-
 #include "qom/cpp/object.h"
+
+static void Xive2Router_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name          = TYPE_XIVE2_ROUTER,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(Xive2Router),
+        .is_abstract   = true,
+        .class_size    = sizeof(Xive2RouterClass),
+        .class_init    = xive2_router_class_init,
+        .interfaces    = xive2_router_interfaces,
+    };
+    type_register_static(&info);
+}
+type_init(Xive2Router_cpp_register_types)
+
 REGISTER_QEMU_DEVICE(Xive2EndSource, TYPE_XIVE2_END_SOURCE, TYPE_DEVICE)

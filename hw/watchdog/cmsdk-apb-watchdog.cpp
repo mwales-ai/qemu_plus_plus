@@ -409,15 +409,6 @@ static void luminary_watchdog_init(Object *obj)
     s->id = luminary_watchdog_id;
 }
 
-static const TypeInfo luminary_watchdog_info = {
-    .name = TYPE_LUMINARY_WATCHDOG,
-    .parent = TYPE_CMSDK_APB_WATCHDOG,
-    .instance_init = luminary_watchdog_init
-};
-
-static void luminary_watchdog_register_types(void)
-{
-    type_register_static(&luminary_watchdog_info);
-}
-
-type_init(luminary_watchdog_register_types)
+REGISTER_QEMU_OBJECT_INIT_ONLY(luminary_watchdog, TYPE_LUMINARY_WATCHDOG,
+                                TYPE_CMSDK_APB_WATCHDOG,
+                                luminary_watchdog_init)
