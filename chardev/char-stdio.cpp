@@ -161,22 +161,16 @@ static void char_stdio_finalize(Object *obj)
 #endif
 }
 
-static const TypeInfo char_stdio_type_info = {
-    .name = TYPE_CHARDEV_STDIO,
-#ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN_STDIO,
-#else
-    .parent = TYPE_CHARDEV_FD,
-#endif
-    .instance_finalize = char_stdio_finalize,
-    .class_init = char_stdio_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_stdio_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+#ifdef _WIN32
+REGISTER_QEMU_OBJECT_CLASS_FINI(char_stdio, TYPE_CHARDEV_STDIO,
+                                 TYPE_CHARDEV_WIN_STDIO,
+                                 char_stdio_class_init, char_stdio_finalize)
+#else
+REGISTER_QEMU_OBJECT_CLASS_FINI(char_stdio, TYPE_CHARDEV_STDIO,
+                                 TYPE_CHARDEV_FD,
+                                 char_stdio_class_init, char_stdio_finalize)
+#endif
