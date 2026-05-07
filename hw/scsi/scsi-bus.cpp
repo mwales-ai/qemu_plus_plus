@@ -2042,23 +2042,6 @@ static const InterfaceInfo scsi_bus_interfaces[] = {
 
 REGISTER_QEMU_BUS_CI_IFACES(SCSIBus, TYPE_SCSI_BUS,
                              scsi_bus_class_init, scsi_bus_interfaces)
-/*
- * scsi_device_type_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
- * register manually with C++ trampolines.
- */
-static void SCSIDevice_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_SCSI_DEVICE,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(SCSIDevice),
-        .instance_init = scsi_dev_instance_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(SCSIDeviceClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<SCSIDevice>,
-    };
-    type_register_static(&info);
-}
-
-type_init(SCSIDevice_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT(SCSIDevice, SCSIDeviceClass,
+                                         TYPE_SCSI_DEVICE, TYPE_DEVICE,
+                                         scsi_dev_instance_init)

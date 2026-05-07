@@ -713,22 +713,5 @@ void USBDevice::classInit(DeviceClass *dc)
 REGISTER_QEMU_BUS_CI_IFACES(USBBus, TYPE_USB_BUS,
                              usb_bus_class_init, usb_bus_interfaces)
 
-/*
- * usb_device_type_info: abstract base with instance_init + class_init.
- * Use manual registration with trampolines to wire init().
- */
-static void usb_register_types(void)
-{
-    static TypeInfo usb_device_info = {
-        .name          = TYPE_USB_DEVICE,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(USBDevice),
-        .instance_init = qemu_device_detail::trampoline_init<USBDevice>,
-        .is_abstract   = true,
-        .class_size    = sizeof(USBDeviceClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<USBDevice>,
-    };
-    type_register_static(&usb_device_info);
-}
-
-type_init(usb_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT(USBDevice, USBDeviceClass,
+                               TYPE_USB_DEVICE, TYPE_DEVICE)

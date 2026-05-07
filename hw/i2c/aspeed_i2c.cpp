@@ -1674,21 +1674,9 @@ static void __attribute__((constructor)) register_aspeed_i2c_others(void)
  * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
  * register manually with C++ trampolines.
  */
-static void AspeedI2CState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_ASPEED_I2C,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedI2CState),
-        .instance_init = aspeed_i2c_instance_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(AspeedI2CClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<AspeedI2CState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(AspeedI2CState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT(AspeedI2CState, AspeedI2CClass,
+                                         TYPE_ASPEED_I2C, TYPE_SYS_BUS_DEVICE,
+                                         aspeed_i2c_instance_init)
 
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr)

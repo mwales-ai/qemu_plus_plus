@@ -462,23 +462,6 @@ static void pca9552_class_init(ObjectClass *oc, const void *data)
 REGISTER_QEMU_OBJECT_CLASS_ONLY(pca9552, TYPE_PCA9552, TYPE_PCA955X,
                                  pca9552_class_init)
 
-/*
- * pca955x_info: abstract base with instance_init + class_size.
- * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
- * register manually with C++ trampolines.
- */
-static void PCA955xState_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_PCA955X,
-        .parent        = TYPE_I2C_SLAVE,
-        .instance_size = sizeof(PCA955xState),
-        .instance_init = pca955x_initfn,
-        .is_abstract   = true,
-        .class_size    = sizeof(PCA955xClass),
-        .class_init    = qemu_device_detail::trampoline_class_init<PCA955xState>,
-    };
-    type_register_static(&info);
-}
-
-type_init(PCA955xState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT(PCA955xState, PCA955xClass,
+                                         TYPE_PCA955X, TYPE_I2C_SLAVE,
+                                         pca955x_initfn)
