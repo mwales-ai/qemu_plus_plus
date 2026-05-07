@@ -697,24 +697,13 @@ REGISTER_QEMU_DEVICE(PL011State, TYPE_PL011, TYPE_SYS_BUS_DEVICE)
 
 /*
  * pl011_luminary: subtype that shares PL011State but advertises a
- * different peripheral ID. Register manually because REGISTER_QEMU_DEVICE
- * is one-type-per-class; the subtype just overrides instance_init to
- * set the id field after the parent init runs.
+ * different peripheral ID. Just overrides instance_init to set the id
+ * field after the parent init runs.
  */
 static void pl011_luminary_init(Object *obj)
 {
     reinterpret_cast<PL011State *>(obj)->id = pl011_id_luminary;
 }
 
-static const TypeInfo pl011_luminary_info = {
-    .name          = TYPE_PL011_LUMINARY,
-    .parent        = TYPE_PL011,
-    .instance_init = pl011_luminary_init,
-};
-
-static void pl011_luminary_register_types(void)
-{
-    type_register_static(&pl011_luminary_info);
-}
-
-type_init(pl011_luminary_register_types)
+REGISTER_QEMU_OBJECT_INIT_ONLY(pl011_luminary, TYPE_PL011_LUMINARY,
+                                TYPE_PL011, pl011_luminary_init)
