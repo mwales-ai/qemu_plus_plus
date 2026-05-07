@@ -2254,16 +2254,6 @@ static const InterfaceInfo xive_router_interfaces[] = {
     { }
 };
 
-static const TypeInfo xive_router_info = {
-    .name          = TYPE_XIVE_ROUTER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XiveRouter),
-    .is_abstract   = true,
-    .class_size    = sizeof(XiveRouterClass),
-    .class_init    = xive_router_class_init,
-    .interfaces    = xive_router_interfaces,
-};
-
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, GString *buf)
 {
     if (!xive_eas_is_valid(eas)) {
@@ -2415,36 +2405,27 @@ void XiveENDSource::classInit(DeviceClass *dc)
     dc->user_creatable = false;
 }
 
-/*
- * XIVE Notifier / Presenter / Fabric (interface types) and XiveRouter
- * (abstract with class_size) — kept as plain TypeInfo registrations.
- */
-static void xive_base_types_register(void)
-{
-    static const TypeInfo xive_notifier_info = {
-        .name = TYPE_XIVE_NOTIFIER,
-        .parent = TYPE_INTERFACE,
-        .class_size = sizeof(XiveNotifierClass),
-    };
-    static const TypeInfo xive_presenter_info = {
-        .name = TYPE_XIVE_PRESENTER,
-        .parent = TYPE_INTERFACE,
-        .class_size = sizeof(XivePresenterClass),
-    };
-    static const TypeInfo xive_fabric_info = {
-        .name = TYPE_XIVE_FABRIC,
-        .parent = TYPE_INTERFACE,
-        .class_size = sizeof(XiveFabricClass),
-    };
-    type_register_static(&xive_fabric_info);
-    type_register_static(&xive_notifier_info);
-    type_register_static(&xive_presenter_info);
-    type_register_static(&xive_router_info);
-}
-
-type_init(xive_base_types_register)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_INTERFACE(XiveNotifierClass, TYPE_XIVE_NOTIFIER)
+REGISTER_QEMU_INTERFACE(XivePresenterClass, TYPE_XIVE_PRESENTER)
+REGISTER_QEMU_INTERFACE(XiveFabricClass, TYPE_XIVE_FABRIC)
+
+static void XiveRouter_cpp_register_types(void)
+{
+    static TypeInfo info = {
+        .name          = TYPE_XIVE_ROUTER,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(XiveRouter),
+        .is_abstract   = true,
+        .class_size    = sizeof(XiveRouterClass),
+        .class_init    = xive_router_class_init,
+        .interfaces    = xive_router_interfaces,
+    };
+    type_register_static(&info);
+}
+type_init(XiveRouter_cpp_register_types)
+
 REGISTER_QEMU_DEVICE(XiveTCTX, TYPE_XIVE_TCTX, TYPE_DEVICE)
 REGISTER_QEMU_DEVICE(XiveSource, TYPE_XIVE_SOURCE, TYPE_DEVICE)
 REGISTER_QEMU_DEVICE(XiveENDSource, TYPE_XIVE_END_SOURCE, TYPE_DEVICE)
