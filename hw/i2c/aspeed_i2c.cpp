@@ -1536,12 +1536,6 @@ static void aspeed_2400_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2400_i2c_info = {
-    .name = TYPE_ASPEED_2400_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2400_i2c_class_init,
-};
-
 static qemu_irq aspeed_2500_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
     return bus->controller->irq;
@@ -1571,12 +1565,6 @@ static void aspeed_2500_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2500_i2c_info = {
-    .name = TYPE_ASPEED_2500_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2500_i2c_class_init,
-};
-
 static qemu_irq aspeed_2600_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
     return bus->irq;
@@ -1600,12 +1588,6 @@ static void aspeed_2600_i2c_class_init(ObjectClass *klass, const void *data)
     aic->mem_size = 0x1000;
 }
 
-static const TypeInfo aspeed_2600_i2c_info = {
-    .name = TYPE_ASPEED_2600_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2600_i2c_class_init,
-};
-
 static void aspeed_1030_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1623,12 +1605,6 @@ static void aspeed_1030_i2c_class_init(ObjectClass *klass, const void *data)
     aic->has_dma = true;
     aic->mem_size = 0x10000;
 }
-
-static const TypeInfo aspeed_1030_i2c_info = {
-    .name = TYPE_ASPEED_1030_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_1030_i2c_class_init,
-};
 
 static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
 {
@@ -1651,21 +1627,10 @@ static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
     aic->has_dma64 = true;
 }
 
-static const TypeInfo aspeed_2700_i2c_info = {
-    .name = TYPE_ASPEED_2700_I2C,
-    .parent = TYPE_ASPEED_I2C,
-    .class_init = aspeed_2700_i2c_class_init,
-};
-
 static void __attribute__((constructor)) register_aspeed_i2c_others(void)
 {
     type_register_static(&aspeed_i2c_bus_info);
     type_register_static(&aspeed_i2c_bus_slave_info);
-    type_register_static(&aspeed_2400_i2c_info);
-    type_register_static(&aspeed_2500_i2c_info);
-    type_register_static(&aspeed_2600_i2c_info);
-    type_register_static(&aspeed_1030_i2c_info);
-    type_register_static(&aspeed_2700_i2c_info);
 }
 
 #include "qom/cpp/object.h"
@@ -1677,6 +1642,21 @@ static void __attribute__((constructor)) register_aspeed_i2c_others(void)
 REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT(AspeedI2CState, AspeedI2CClass,
                                          TYPE_ASPEED_I2C, TYPE_SYS_BUS_DEVICE,
                                          aspeed_i2c_instance_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2400_i2c, TYPE_ASPEED_2400_I2C,
+                                 TYPE_ASPEED_I2C, aspeed_2400_i2c_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2500_i2c, TYPE_ASPEED_2500_I2C,
+                                 TYPE_ASPEED_I2C, aspeed_2500_i2c_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_i2c, TYPE_ASPEED_2600_I2C,
+                                 TYPE_ASPEED_I2C, aspeed_2600_i2c_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_1030_i2c, TYPE_ASPEED_1030_I2C,
+                                 TYPE_ASPEED_I2C, aspeed_1030_i2c_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_i2c, TYPE_ASPEED_2700_I2C,
+                                 TYPE_ASPEED_I2C, aspeed_2700_i2c_class_init)
 
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr)
