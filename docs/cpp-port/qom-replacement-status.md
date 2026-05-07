@@ -8,29 +8,40 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-04
+**As of:** 2026-05-07
 
-**Conversion progress:** 926 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 933 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
-block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. Today's
-additions extend coverage into io/ (TYPE_QIO_CHANNEL_NULL/BUFFER/FILE/COMMAND/
-SOCKET/TLS/WEBSOCK + TYPE_QIO_CHANNEL abstract base + TYPE_QIO_NET_LISTENER +
-TYPE_QIO_DNS_RESOLVER), audio (TYPE_AUDIO_BACKEND), system/ioport
-(TYPE_MEMORY_REGION_PORTIO_LIST), accel (TYPE_ACCEL_OPS), migration
-(TYPE_QIO_CHANNEL_RDMA), util (TYPE_THREAD_CONTEXT, TYPE_MAIN_LOOP,
-TYPE_IOTHREAD, TYPE_EVENT_LOOP_BASE), gdbstub (TYPE_CHARDEV_GDB), scsi
-(TYPE_PR_MANAGER, TYPE_PR_MANAGER_HELPER), authz (TYPE_QAUTHZ family incl.
-PAM, simple, list, list-file), ui (TYPE_INPUT_LINUX), and core QOM
-interfaces (TYPE_USER_CREATABLE, TYPE_RESETTABLE_INTERFACE, TYPE_BUS).
-Notable conversions this session beyond hw/:
-TYPE_CPU + TYPE_VIRTIO_DEVICE (abstract bases), TYPE_RNG_BACKEND family
-(builtin/random/egd), TYPE_MEMORY_BACKEND_RAM/FILE/SHM, TYPE_CHARDEV_FD/MUX/HUB
-/MSMOUSE/WCTABLET/PTY/UDP/NULL/TESTDEV/BRAILLE, TYPE_QCRYPTO_TLS_CREDS family
-(anon/psk/cipher-suites/keyring/secret), TYPE_TPM_EMULATOR/PASSTHROUGH,
-TYPE_CRYPTODEV_BACKEND family (builtin/lkcf/vhost-user), TYPE_CONTAINER,
-TYPE_FILTER_DUMP/REPLAY/BUFFER + TYPE_NETFILTER, TYPE_CAN_HOST/BUS,
-TYPE_VHOST_USER_BACKEND, TYPE_QIO_CHANNEL_BLOCK, TYPE_QTEST,
-TYPE_MIGRATION, TYPE_THROTTLE_GROUP.
+block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
+
+**New macro variants added in this session:**
+- `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` — derived types
+  with only class_init (and optional finalize) but no own state struct
+- `REGISTER_QEMU_OBJECT_INIT_ONLY` — derived types with only instance_init
+- `REGISTER_QEMU_OBJECT_INIT_CLASS` / `_SIZED` — sibling subtypes with
+  free instance_init + free class_init
+- `REGISTER_QEMU_OBJECT_ALIAS` — pure alias types (no init/class)
+- `REGISTER_QEMU_DEVICE_FREE_INIT` — device with free instance_init,
+  trampolined classInit
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT` — abstract version of above
+
+Recent additions extend coverage into io/, audio, accel, migration, util,
+gdbstub, scsi, authz, ui, and core QOM interfaces. Many derived subtypes
+converted in this session: chardev (file, stdio, serial), aspeed (SLI 2700,
+ADC variants, I2C variants), IOMMU memory regions (vtd, amdvi, riscv,
+sun4m, sun4u), HDA codecs, USB devices (mouse/kbd/tablet/serial/braille/
+storage), pl110 subtypes, lasips2 ports, pca9552, spapr DRC subtypes
+(7 variants), TPM backend, xive interfaces, IPMI interface, isl_pmbus_vr
+siblings, NeXT machine, integratorcp, strongarm.
+
+**Caveat — REGISTER_QEMU_MACHINE and empty C++ structs:** `REGISTER_QEMU_*`
+macros that take a `ClassName` set `instance_size = sizeof(ClassName)`. For
+machine types whose C++ struct holds only static helper methods (no real
+parent_obj field), `sizeof(ClassName) == 1` while `sizeof(MachineState)` is
+much larger, triggering QOM's `parent->instance_size <= ti->instance_size`
+assertion at runtime. Such machines must keep manual TypeInfo registration
+(no instance_size). Bisected and fixed once during this session
+(highbank/midway machines, reverted commit ea08c4fdf9).
 
 Plus a latent class_size bug that had silently regressed smoke tests
 from 12/15 to 5/15: several `REGISTER_QEMU_DEVICE_CUSTOM_CI(..., DeviceClass,
