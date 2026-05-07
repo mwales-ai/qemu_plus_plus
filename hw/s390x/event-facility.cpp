@@ -322,11 +322,6 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 
 #define TYPE_SCLP_EVENTS_BUS "s390-sclp-events-bus"
 
-static const TypeInfo sclp_events_bus_info = {
-    .name = TYPE_SCLP_EVENTS_BUS,
-    .parent = TYPE_BUS,
-};
-
 static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
 {
     switch (code & SCLP_CMD_CODE_MASK) {
@@ -441,15 +436,6 @@ static void init_event_facility_class(ObjectClass *klass, const void *data)
     k->event_pending = event_pending;
 }
 
-static const TypeInfo sclp_event_facility_info = {
-    .name          = TYPE_SCLP_EVENT_FACILITY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = init_event_facility,
-    .instance_size = sizeof(SCLPEventFacility),
-    .class_init    = init_event_facility_class,
-    .class_size    = sizeof(SCLPEventFacilityClass),
-};
-
 static void event_realize(DeviceState *qdev, Error **errp)
 {
     SCLPEvent *event = SCLP_EVENT(qdev);
@@ -472,23 +458,27 @@ static void event_class_init(ObjectClass *klass, const void *data)
     dc->realize = event_realize;
 }
 
-static const TypeInfo sclp_event_type_info = {
-    .name = TYPE_SCLP_EVENT,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SCLPEvent),
-    .class_init = event_class_init,
-    .class_size = sizeof(SCLPEventClass),
-    .is_abstract = true,
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
+REGISTER_QEMU_OBJECT_ALIAS(sclp_events_bus, TYPE_SCLP_EVENTS_BUS, TYPE_BUS)
+
+static void SCLPEventFacility_cpp_register_types(void)
 {
-    type_register_static(&sclp_events_bus_info);
-    type_register_static(&sclp_event_facility_info);
-    type_register_static(&sclp_event_type_info);
+    static const TypeInfo info = {
+        .name          = TYPE_SCLP_EVENT_FACILITY,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(SCLPEventFacility),
+        .instance_init = init_event_facility,
+        .class_size    = sizeof(SCLPEventFacilityClass),
+        .class_init    = init_event_facility_class,
+    };
+    type_register_static(&info);
 }
+type_init(SCLPEventFacility_cpp_register_types)
 
-type_init(register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(SCLPEvent, SCLPEventClass,
+                                         TYPE_SCLP_EVENT, TYPE_DEVICE,
+                                         event_class_init)
 
 BusState *sclp_get_event_facility_bus(SCLPEventFacility *ef)
 {

@@ -493,20 +493,12 @@ static void microchip_pfsoc_soc_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo microchip_pfsoc_soc_type_info = {
-    .name = TYPE_MICROCHIP_PFSOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(MicrochipPFSoCState),
-    .instance_init = microchip_pfsoc_soc_instance_init,
-    .class_init = microchip_pfsoc_soc_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void microchip_pfsoc_soc_register_types(void)
-{
-    type_register_static(&microchip_pfsoc_soc_type_info);
-}
-
-type_init(microchip_pfsoc_soc_register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(microchip_pfsoc_soc, MicrochipPFSoCState,
+                                       TYPE_MICROCHIP_PFSOC, TYPE_DEVICE,
+                                       microchip_pfsoc_soc_instance_init,
+                                       microchip_pfsoc_soc_class_init)
 
 static void microchip_icicle_kit_machine_init(MachineState *machine)
 {
