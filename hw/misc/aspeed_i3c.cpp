@@ -369,15 +369,6 @@ void AspeedI3CState::classInit(DeviceClass *dc)
     dc->vmsd = &vmstate_aspeed_i3c;
 }
 
-static void __attribute__((constructor)) aspeed_i3c_device_register(void)
-{
-    static const TypeInfo aspeed_i3c_device_info = {
-        .name = TYPE_ASPEED_I3C_DEVICE,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedI3CDevice),
-        .class_init = qemu_device_detail::trampoline_class_init<AspeedI3CDevice>,
-    };
-    type_register_static(&aspeed_i3c_device_info);
-}
-
+REGISTER_QEMU_DEVICE(AspeedI3CDevice, TYPE_ASPEED_I3C_DEVICE,
+                     TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(AspeedI3CState, TYPE_ASPEED_I3C, TYPE_SYS_BUS_DEVICE)

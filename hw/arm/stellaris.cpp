@@ -1483,13 +1483,8 @@ void stellaris_i2c_state::classInit(DeviceClass *dc)
 
 #include "qom/cpp/object.h"
 
-static const TypeInfo stellaris_i2c_info = {
-    .name          = TYPE_STELLARIS_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(stellaris_i2c_state),
-    .instance_init = stellaris_i2c_init,
-    .class_init    = qemu_device_detail::trampoline_class_init<stellaris_i2c_state>,
-};
+REGISTER_QEMU_DEVICE_FREE_INIT(stellaris_i2c_state, TYPE_STELLARIS_I2C,
+                                TYPE_SYS_BUS_DEVICE, stellaris_i2c_init)
 
 void StellarisADCState::classInit(DeviceClass *dc)
 {
@@ -1500,13 +1495,8 @@ void StellarisADCState::classInit(DeviceClass *dc)
     dc->vmsd = &vmstate_stellaris_adc;
 }
 
-static const TypeInfo stellaris_adc_info = {
-    .name          = TYPE_STELLARIS_ADC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StellarisADCState),
-    .instance_init = stellaris_adc_init,
-    .class_init    = qemu_device_detail::trampoline_class_init<StellarisADCState>,
-};
+REGISTER_QEMU_DEVICE_FREE_INIT(StellarisADCState, TYPE_STELLARIS_ADC,
+                                TYPE_SYS_BUS_DEVICE, stellaris_adc_init)
 
 void ssys_state::classInit(DeviceClass *dc)
 {
@@ -1520,19 +1510,6 @@ void ssys_state::classInit(DeviceClass *dc)
     device_class_set_props(dc, stellaris_sys_properties);
 }
 
-static const TypeInfo stellaris_sys_info = {
-    .name = TYPE_STELLARIS_SYS,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ssys_state),
-    .instance_init = stellaris_sys_instance_init,
-    .class_init = qemu_device_detail::trampoline_class_init<ssys_state>,
-};
-
-static void stellaris_register_types(void)
-{
-    type_register_static(&stellaris_i2c_info);
-    type_register_static(&stellaris_adc_info);
-    type_register_static(&stellaris_sys_info);
-}
-
-type_init(stellaris_register_types)
+REGISTER_QEMU_DEVICE_FREE_INIT(ssys_state, TYPE_STELLARIS_SYS,
+                                TYPE_SYS_BUS_DEVICE,
+                                stellaris_sys_instance_init)

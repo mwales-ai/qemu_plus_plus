@@ -1368,6 +1368,29 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_FREE_INIT: like REGISTER_QEMU_DEVICE but uses a
+ * caller-supplied free instance_init function (no SFINAE), while keeping
+ * the C++ trampoline_class_init wired up for ClassName::classInit().
+ * Useful for devices where the per-instance setup is intricate enough
+ * that it stays as a free function but the class side is a member.
+ */
+#define REGISTER_QEMU_DEVICE_FREE_INIT(ClassName, type_name_str,             \
+                                        parent_type_str, instance_init_fn)   \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .class_init    = qemu_device_detail::trampoline_class_init<ClassName>, \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_INIT_ONLY: register a derived type that needs
  * only an instance_init (free function) hook. instance_size and class_init
  * are inherited from the parent. Useful for subtypes that just need to

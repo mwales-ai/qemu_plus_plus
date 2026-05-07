@@ -1418,17 +1418,5 @@ void AspeedMiiState::classInit(DeviceClass *dc)
 
 #include "qom/cpp/object.h"
 
-static void aspeed_mii_register(void) __attribute__((constructor));
-static void aspeed_mii_register(void)
-{
-    static TypeInfo info = {
-        .name = TYPE_ASPEED_MII,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedMiiState),
-        .class_init = qemu_device_detail::trampoline_class_init<AspeedMiiState>,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<AspeedMiiState>();
-    type_register_static(&info);
-}
-
+REGISTER_QEMU_DEVICE(AspeedMiiState, TYPE_ASPEED_MII, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(FTGMAC100State, TYPE_FTGMAC100, TYPE_SYS_BUS_DEVICE)

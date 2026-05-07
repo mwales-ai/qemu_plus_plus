@@ -614,14 +614,4 @@ void DC390State::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_IFACES(PCIESPState, TYPE_AM53C974_DEVICE,
                              TYPE_PCI_DEVICE, esp_pci_interfaces)
 
-static void __attribute__((constructor)) dc390_register_type(void)
-{
-    static TypeInfo dc390_info = {
-        .name = TYPE_DC390_DEVICE,
-        .parent = TYPE_AM53C974_DEVICE,
-        .instance_size = sizeof(DC390State),
-        .class_init = qemu_device_detail::trampoline_class_init<DC390State>,
-    };
-    dc390_info.cpp_vtable = qemu_device_detail::extract_vtable<DC390State>();
-    type_register_static(&dc390_info);
-}
+REGISTER_QEMU_DEVICE(DC390State, TYPE_DC390_DEVICE, TYPE_AM53C974_DEVICE)

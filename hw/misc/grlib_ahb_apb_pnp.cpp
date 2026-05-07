@@ -288,13 +288,4 @@ void APBPnp::classInit(DeviceClass *dc)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(AHBPnp, TYPE_GRLIB_AHB_PNP, TYPE_SYS_BUS_DEVICE)
 
-static void __attribute__((constructor)) register_grlib_apb_pnp(void)
-{
-    static const TypeInfo grlib_apb_pnp_info = {
-        .name          = TYPE_GRLIB_APB_PNP,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(APBPnp),
-        .class_init    = trampoline_class_init<APBPnp>,
-    };
-    type_register_static(&grlib_apb_pnp_info);
-}
+REGISTER_QEMU_DEVICE(APBPnp, TYPE_GRLIB_APB_PNP, TYPE_SYS_BUS_DEVICE)
