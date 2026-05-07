@@ -5494,22 +5494,10 @@ static void vtd_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->replay = vtd_iommu_replay;
 }
 
-static const TypeInfo vtd_iommu_memory_region_info = {
-    .name = TYPE_INTEL_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = vtd_iommu_memory_region_class_init,
-};
-
-extern "C" {
-
-static void vtd_iommu_register_types(void)
-{
-    type_register_static(&vtd_iommu_memory_region_info);
-}
-
-type_init(vtd_iommu_register_types)
-
-} /* extern "C" */
+REGISTER_QEMU_OBJECT_CLASS_ONLY(vtd_iommu_memory_region,
+                                 TYPE_INTEL_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 vtd_iommu_memory_region_class_init)
 
 REGISTER_QEMU_DEVICE(IntelIOMMUState, TYPE_INTEL_IOMMU_DEVICE,
                      TYPE_X86_IOMMU_DEVICE)

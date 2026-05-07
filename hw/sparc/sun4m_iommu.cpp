@@ -386,18 +386,11 @@ static void sun4m_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = sun4m_translate_iommu;
 }
 
-static const TypeInfo sun4m_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .name = TYPE_SUN4M_IOMMU_MEMORY_REGION,
-    .class_init = sun4m_iommu_memory_region_class_init,
-};
-
-static void sun4m_iommu_memory_region_register_types(void)
-{
-    type_register_static(&sun4m_iommu_memory_region_info);
-}
-
-type_init(sun4m_iommu_memory_region_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_iommu_memory_region,
+                                 TYPE_SUN4M_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 sun4m_iommu_memory_region_class_init)
+
 REGISTER_QEMU_DEVICE(IOMMUState, TYPE_SUN4M_IOMMU, TYPE_SYS_BUS_DEVICE)

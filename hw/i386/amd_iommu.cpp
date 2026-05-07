@@ -2654,18 +2654,10 @@ static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->replay = amdvi_iommu_replay;
 }
 
-static const TypeInfo amdvi_iommu_memory_region_info = {
-    .name = TYPE_AMD_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = amdvi_iommu_memory_region_class_init,
-};
-
-extern "C" void amdvi_iommu_register_types(void)
-{
-    type_register_static(&amdvi_iommu_memory_region_info);
-}
-
-type_init(amdvi_iommu_register_types);
+REGISTER_QEMU_OBJECT_CLASS_ONLY(amdvi_iommu_memory_region,
+                                 TYPE_AMD_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 amdvi_iommu_memory_region_class_init)
 
 REGISTER_QEMU_DEVICE(AMDVIState, TYPE_AMD_IOMMU_DEVICE, TYPE_X86_IOMMU_DEVICE)
 

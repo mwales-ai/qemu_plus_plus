@@ -2793,18 +2793,11 @@ static void riscv_iommu_memory_region_init(ObjectClass *klass, const void *data)
     imrc->num_indexes = riscv_iommu_memory_region_index_len;
 }
 
-static const TypeInfo riscv_iommu_memory_region_info = {
-    .name = TYPE_RISCV_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = riscv_iommu_memory_region_init,
-};
-
-static void riscv_iommu_register_mr_types(void)
-{
-    type_register_static(&riscv_iommu_memory_region_info);
-}
-
-type_init(riscv_iommu_register_mr_types);
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(riscv_iommu_memory_region,
+                                 TYPE_RISCV_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 riscv_iommu_memory_region_init)
+
 REGISTER_QEMU_DEVICE(RISCVIOMMUState, TYPE_RISCV_IOMMU, TYPE_DEVICE)
