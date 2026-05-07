@@ -745,32 +745,5 @@ void ICPCtrlRegsState::classInit(DeviceClass *dc)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(IntegratorCMState, TYPE_INTEGRATOR_CM, TYPE_SYS_BUS_DEVICE)
 
-static void icp_pic_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_INTEGRATOR_PIC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(icp_pic_state),
-        .instance_init = qemu_device_detail::trampoline_init<icp_pic_state>,
-        .class_init    = qemu_device_detail::trampoline_class_init<icp_pic_state>,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<icp_pic_state>();
-    type_register_static(&info);
-}
-
-type_init(icp_pic_register_types)
-
-static void icp_ctrl_regs_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_ICP_CONTROL_REGS,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(ICPCtrlRegsState),
-        .instance_init = qemu_device_detail::trampoline_init<ICPCtrlRegsState>,
-        .class_init    = qemu_device_detail::trampoline_class_init<ICPCtrlRegsState>,
-    };
-    info.cpp_vtable = qemu_device_detail::extract_vtable<ICPCtrlRegsState>();
-    type_register_static(&info);
-}
-
-type_init(icp_ctrl_regs_register_types)
+REGISTER_QEMU_DEVICE(icp_pic_state, TYPE_INTEGRATOR_PIC, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(ICPCtrlRegsState, TYPE_ICP_CONTROL_REGS, TYPE_SYS_BUS_DEVICE)

@@ -1349,21 +1349,11 @@ void NeXTState::classInit(ObjectClass *oc, const void *data)
     mc->no_cdrom = true;
 }
 
-static const TypeInfo next_typeinfo = {
-    .name = TYPE_NEXT_MACHINE,
-    .parent = TYPE_MACHINE,
-    .class_init = NeXTState::classInit,
-    .instance_size = sizeof(NeXTState),
-};
-
-static void next_machine_register_type(void)
-{
-    type_register_static(&next_typeinfo);
-}
-
-type_init(next_machine_register_type)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_MACHINE(NeXTState, TYPE_NEXT_MACHINE, TYPE_MACHINE,
+                      NeXTState::classInit)
+
 REGISTER_QEMU_DEVICE(NeXTSCSI, TYPE_NEXT_SCSI, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(NeXTRTC, TYPE_NEXT_RTC, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(NeXTPC, TYPE_NEXT_PC, TYPE_SYS_BUS_DEVICE)

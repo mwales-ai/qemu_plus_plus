@@ -1689,57 +1689,8 @@ StrongARMState *sa1110_init(const char *cpu_type)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(StrongARMPICState, TYPE_STRONGARM_PIC, TYPE_SYS_BUS_DEVICE)
 
-static void strongarm_register_types(void)
-{
-    static TypeInfo rtc_info = {
-        .name          = TYPE_STRONGARM_RTC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StrongARMRTCState),
-        .instance_init = qemu_device_detail::trampoline_init<StrongARMRTCState>,
-        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMRTCState>,
-    };
-    rtc_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMRTCState>();
-    type_register_static(&rtc_info);
-
-    static TypeInfo gpio_info = {
-        .name          = TYPE_STRONGARM_GPIO,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StrongARMGPIOInfo),
-        .instance_init = qemu_device_detail::trampoline_init<StrongARMGPIOInfo>,
-        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMGPIOInfo>,
-    };
-    gpio_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMGPIOInfo>();
-    type_register_static(&gpio_info);
-
-    static TypeInfo ppc_info = {
-        .name          = TYPE_STRONGARM_PPC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StrongARMPPCInfo),
-        .instance_init = qemu_device_detail::trampoline_init<StrongARMPPCInfo>,
-        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMPPCInfo>,
-    };
-    ppc_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMPPCInfo>();
-    type_register_static(&ppc_info);
-
-    static TypeInfo uart_info = {
-        .name          = TYPE_STRONGARM_UART,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StrongARMUARTState),
-        .instance_init = qemu_device_detail::trampoline_init<StrongARMUARTState>,
-        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMUARTState>,
-    };
-    uart_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMUARTState>();
-    type_register_static(&uart_info);
-
-    static TypeInfo ssp_info = {
-        .name          = TYPE_STRONGARM_SSP,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StrongARMSSPState),
-        .instance_init = qemu_device_detail::trampoline_init<StrongARMSSPState>,
-        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMSSPState>,
-    };
-    ssp_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMSSPState>();
-    type_register_static(&ssp_info);
-}
-
-type_init(strongarm_register_types)
+REGISTER_QEMU_DEVICE(StrongARMRTCState, TYPE_STRONGARM_RTC, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(StrongARMGPIOInfo, TYPE_STRONGARM_GPIO, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(StrongARMPPCInfo, TYPE_STRONGARM_PPC, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(StrongARMUARTState, TYPE_STRONGARM_UART, TYPE_SYS_BUS_DEVICE)
+REGISTER_QEMU_DEVICE(StrongARMSSPState, TYPE_STRONGARM_SSP, TYPE_SYS_BUS_DEVICE)
