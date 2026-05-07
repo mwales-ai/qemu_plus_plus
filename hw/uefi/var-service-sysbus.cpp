@@ -104,16 +104,8 @@ static void uefi_vars_x64_class_init(ObjectClass *klass, const void *data)
 }
 
 /* x64: hardware discovery via etc/hardware-info fw_cfg */
-static const TypeInfo uefi_vars_x64_info = {
-    .name          = TYPE_UEFI_VARS_X64,
-    .parent        = TYPE_UEFI_VARS_SYSBUS,
-    .class_init    = uefi_vars_x64_class_init,
-};
 module_obj(TYPE_UEFI_VARS_X64);
 
-static void uefi_vars_sysbus_register_types(void)
-{
-    type_register_static(&uefi_vars_x64_info);
-}
-
-type_init(uefi_vars_sysbus_register_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(uefi_vars_x64, TYPE_UEFI_VARS_X64,
+                                 TYPE_UEFI_VARS_SYSBUS,
+                                 uefi_vars_x64_class_init)
