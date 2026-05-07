@@ -745,61 +745,6 @@ static void spapr_drc_pmem_class_init(ObjectClass *k, const void *data)
     drck->dt_populate = spapr_pmem_dt_populate;
 }
 
-static const TypeInfo spapr_dr_connector_info = {
-    .name          = TYPE_SPAPR_DR_CONNECTOR,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprDrc),
-    .instance_init = spapr_dr_connector_instance_init,
-    .is_abstract      = true,
-    .class_size    = sizeof(SpaprDrcClass),
-    .class_init    = spapr_dr_connector_class_init,
-};
-
-static const TypeInfo spapr_drc_physical_info = {
-    .name          = TYPE_SPAPR_DRC_PHYSICAL,
-    .parent        = TYPE_SPAPR_DR_CONNECTOR,
-    .instance_size = sizeof(SpaprDrcPhysical),
-    .is_abstract      = true,
-    .class_init    = spapr_drc_physical_class_init,
-};
-
-static const TypeInfo spapr_drc_logical_info = {
-    .name          = TYPE_SPAPR_DRC_LOGICAL,
-    .parent        = TYPE_SPAPR_DR_CONNECTOR,
-    .is_abstract      = true,
-    .class_init    = spapr_drc_logical_class_init,
-};
-
-static const TypeInfo spapr_drc_cpu_info = {
-    .name          = TYPE_SPAPR_DRC_CPU,
-    .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .class_init    = spapr_drc_cpu_class_init,
-};
-
-static const TypeInfo spapr_drc_pci_info = {
-    .name          = TYPE_SPAPR_DRC_PCI,
-    .parent        = TYPE_SPAPR_DRC_PHYSICAL,
-    .class_init    = spapr_drc_pci_class_init,
-};
-
-static const TypeInfo spapr_drc_lmb_info = {
-    .name          = TYPE_SPAPR_DRC_LMB,
-    .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .class_init    = spapr_drc_lmb_class_init,
-};
-
-static const TypeInfo spapr_drc_phb_info = {
-    .name          = TYPE_SPAPR_DRC_PHB,
-    .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .instance_size = sizeof(SpaprDrc),
-    .class_init    = spapr_drc_phb_class_init,
-};
-
-static const TypeInfo spapr_drc_pmem_info = {
-    .name          = TYPE_SPAPR_DRC_PMEM,
-    .parent        = TYPE_SPAPR_DRC_LOGICAL,
-    .class_init    = spapr_drc_pmem_class_init,
-};
 
 /* helper functions for external users */
 
@@ -1297,17 +1242,8 @@ out:
     rtas_st(rets, 0, rc);
 }
 
-static void spapr_drc_register_types(void)
+static void spapr_drc_register_rtas(void)
 {
-    type_register_static(&spapr_dr_connector_info);
-    type_register_static(&spapr_drc_physical_info);
-    type_register_static(&spapr_drc_logical_info);
-    type_register_static(&spapr_drc_cpu_info);
-    type_register_static(&spapr_drc_pci_info);
-    type_register_static(&spapr_drc_lmb_info);
-    type_register_static(&spapr_drc_phb_info);
-    type_register_static(&spapr_drc_pmem_info);
-
     spapr_rtas_register(RTAS_SET_INDICATOR, "set-indicator",
                         rtas_set_indicator);
     spapr_rtas_register(RTAS_GET_SENSOR_STATE, "get-sensor-state",
@@ -1315,4 +1251,51 @@ static void spapr_drc_register_types(void)
     spapr_rtas_register(RTAS_IBM_CONFIGURE_CONNECTOR, "ibm,configure-connector",
                         rtas_ibm_configure_connector);
 }
-type_init(spapr_drc_register_types)
+type_init(spapr_drc_register_rtas)
+
+#include "qom/cpp/object.h"
+
+static void SpaprDrc_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name          = TYPE_SPAPR_DR_CONNECTOR,
+        .parent        = TYPE_DEVICE,
+        .instance_size = sizeof(SpaprDrc),
+        .instance_init = spapr_dr_connector_instance_init,
+        .is_abstract   = true,
+        .class_size    = sizeof(SpaprDrcClass),
+        .class_init    = spapr_dr_connector_class_init,
+    };
+    type_register_static(&info);
+}
+type_init(SpaprDrc_cpp_register_types)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(spapr_drc_physical, SpaprDrcPhysical,
+                                       TYPE_SPAPR_DRC_PHYSICAL,
+                                       TYPE_SPAPR_DR_CONNECTOR,
+                                       spapr_drc_physical_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_drc_logical, TYPE_SPAPR_DRC_LOGICAL,
+                                 TYPE_SPAPR_DR_CONNECTOR,
+                                 spapr_drc_logical_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_drc_cpu, TYPE_SPAPR_DRC_CPU,
+                                 TYPE_SPAPR_DRC_LOGICAL,
+                                 spapr_drc_cpu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_drc_pci, TYPE_SPAPR_DRC_PCI,
+                                 TYPE_SPAPR_DRC_PHYSICAL,
+                                 spapr_drc_pci_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_drc_lmb, TYPE_SPAPR_DRC_LMB,
+                                 TYPE_SPAPR_DRC_LOGICAL,
+                                 spapr_drc_lmb_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(spapr_drc_phb, SpaprDrc,
+                                       TYPE_SPAPR_DRC_PHB,
+                                       TYPE_SPAPR_DRC_LOGICAL,
+                                       spapr_drc_phb_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_drc_pmem, TYPE_SPAPR_DRC_PMEM,
+                                 TYPE_SPAPR_DRC_LOGICAL,
+                                 spapr_drc_pmem_class_init)
