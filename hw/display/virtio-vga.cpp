@@ -238,14 +238,6 @@ static void virtio_vga_base_class_init(ObjectClass *klass, const void *data)
                                    virtio_vga_set_big_endian_fb);
 }
 
-static const TypeInfo virtio_vga_base_info = {
-    .name          = TYPE_VIRTIO_VGA_BASE,
-    .parent        = TYPE_VIRTIO_PCI,
-    .instance_size = sizeof(VirtIOVGABase),
-    .is_abstract   = true,
-    .class_size    = sizeof(VirtIOVGABaseClass),
-    .class_init    = virtio_vga_base_class_init,
-};
 module_obj(TYPE_VIRTIO_VGA_BASE);
 module_kconfig(VIRTIO_VGA);
 
@@ -281,8 +273,13 @@ module_obj(TYPE_VIRTIO_VGA);
 
 static void virtio_vga_register_types(void)
 {
-    type_register_static(&virtio_vga_base_info);
     virtio_pci_types_register(&virtio_vga_info);
 }
 
 type_init(virtio_vga_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtIOVGABase, VirtIOVGABaseClass,
+                                         TYPE_VIRTIO_VGA_BASE, TYPE_VIRTIO_PCI,
+                                         virtio_vga_base_class_init)
