@@ -1300,6 +1300,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES: like REGISTER_QEMU_OBJECT_CLASS_ONLY
+ * but with an additional interfaces array. instance_size is inherited
+ * from parent. Useful for machine types with empty C++ structs (where
+ * sizeof(EmptyStruct) == 1 would violate the parent_size assertion).
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(unique_tag, type_name_str,    \
+                                                parent_type_str,             \
+                                                class_init_fn, ifaces_array) \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name       = type_name_str,                                         \
+        .parent     = parent_type_str,                                       \
+        .class_init = class_init_fn,                                         \
+        .interfaces = ifaces_array,                                          \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES: like
  * REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED but with an additional interfaces
  * array. Used for sibling concrete subtypes that share a state struct
