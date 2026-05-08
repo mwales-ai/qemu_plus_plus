@@ -39,12 +39,6 @@ static void isa_bus_class_init(ObjectClass *klass, const void *data)
     k->get_fw_dev_path = isabus_get_fw_dev_path;
 }
 
-static const TypeInfo isa_dma_info = {
-    .name = TYPE_ISADMA,
-    .parent = TYPE_INTERFACE,
-    .class_size = sizeof(IsaDmaClass),
-};
-
 
 extern "C"
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
@@ -225,23 +219,10 @@ static void isabus_bridge_class_init(ObjectClass *klass, const void *data)
     dc->fw_name = "isa";
 }
 
-static const TypeInfo isabus_bridge_info = {
-    .name          = "isabus-bridge",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
-    .class_init    = isabus_bridge_class_init,
-};
-
 static void isa_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_ISA_BUS;
-}
-
-static void isabus_register_types(void)
-{
-    type_register_static(&isa_dma_info);
-    type_register_static(&isabus_bridge_info);
 }
 
 static char *isabus_get_fw_dev_path(DeviceState *dev)
@@ -278,10 +259,14 @@ MemoryRegion *isa_address_space_io(ISADevice *dev)
     return isabus->address_space_io;
 }
 
-type_init(isabus_register_types)
-
 #include "qom/cpp/object.h"
+REGISTER_QEMU_INTERFACE(IsaDmaClass, TYPE_ISADMA)
+
 REGISTER_QEMU_BUS_CI(ISABus, TYPE_ISA_BUS, isa_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(isabus_bridge, "isabus-bridge",
+                                 TYPE_SYS_BUS_DEVICE,
+                                 isabus_bridge_class_init)
 
 REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(ISADevice, DeviceClass,
                                          TYPE_ISA_DEVICE, TYPE_DEVICE,
