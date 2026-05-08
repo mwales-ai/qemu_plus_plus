@@ -8,15 +8,16 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-07
+**As of:** 2026-05-08
 
-**Conversion progress:** 936 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 938 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
 
 **New macro variants added in this session:**
-- `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` — derived types
-  with only class_init (and optional finalize) but no own state struct
+- `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
+  `_SIZED_IFACES` — derived types with only class_init (and optional
+  finalize/interfaces) but no own state struct
 - `REGISTER_QEMU_OBJECT_INIT_ONLY` — derived types with only instance_init
 - `REGISTER_QEMU_OBJECT_INIT_CLASS` / `_SIZED` — sibling subtypes with
   free instance_init + free class_init
@@ -24,6 +25,10 @@ block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
 - `REGISTER_QEMU_DEVICE_FREE_INIT` — device with free instance_init,
   trampolined classInit
 - `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT` — abstract version of above
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI` — abstract with both
+  instance_init and class_init as free functions
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI` — abstract with free
+  instance_finalize
 
 Recent additions extend coverage into io/, audio, accel, migration, util,
 gdbstub, scsi, authz, ui, and core QOM interfaces. Many derived subtypes
