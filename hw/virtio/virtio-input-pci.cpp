@@ -111,21 +111,6 @@ static void virtio_multitouch_initfn(Object *obj)
                                 TYPE_VIRTIO_MULTITOUCH);
 }
 
-static const TypeInfo virtio_input_pci_info = {
-    .name          = TYPE_VIRTIO_INPUT_PCI,
-    .parent        = TYPE_VIRTIO_PCI,
-    .instance_size = sizeof(VirtIOInputPCI),
-    .is_abstract   = true,
-    .class_init    = virtio_input_pci_class_init,
-};
-
-static const TypeInfo virtio_input_hid_pci_info = {
-    .name          = TYPE_VIRTIO_INPUT_HID_PCI,
-    .parent        = TYPE_VIRTIO_INPUT_PCI,
-    .instance_size = sizeof(VirtIOInputHIDPCI),
-    .is_abstract   = true,
-};
-
 static const VirtioPCIDeviceTypeInfo virtio_keyboard_pci_info = {
     .generic_name  = TYPE_VIRTIO_KEYBOARD_PCI,
     .parent        = TYPE_VIRTIO_INPUT_HID_PCI,
@@ -158,10 +143,6 @@ static const VirtioPCIDeviceTypeInfo virtio_multitouch_pci_info = {
 
 static void virtio_pci_input_register(void)
 {
-    /* Base types: */
-    type_register_static(&virtio_input_pci_info);
-    type_register_static(&virtio_input_hid_pci_info);
-
     /* Implementations: */
     virtio_pci_types_register(&virtio_keyboard_pci_info);
     virtio_pci_types_register(&virtio_mouse_pci_info);
@@ -170,3 +151,22 @@ static void virtio_pci_input_register(void)
 }
 
 type_init(virtio_pci_input_register)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOInputPCI,
+                                               TYPE_VIRTIO_INPUT_PCI,
+                                               TYPE_VIRTIO_PCI,
+                                               virtio_input_pci_class_init)
+
+static void virtio_input_hid_pci_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name          = TYPE_VIRTIO_INPUT_HID_PCI,
+        .parent        = TYPE_VIRTIO_INPUT_PCI,
+        .instance_size = sizeof(VirtIOInputHIDPCI),
+        .is_abstract   = true,
+    };
+    type_register_static(&info);
+}
+type_init(virtio_input_hid_pci_cpp_register_types)
