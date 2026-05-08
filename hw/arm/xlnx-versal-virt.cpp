@@ -396,28 +396,14 @@ REGISTER_QEMU_MACHINE_ABSTRACT(VersalVirt, VersalVirtClass,
                                TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
                                TYPE_MACHINE, nullptr)
 
-/* Concrete types share VersalVirt state; registered manually to avoid
- * duplicate ClassName##_cpp_register_types symbol from the macro. */
-static const TypeInfo versal_virt_machine_init_typeinfo = {
-    .name       = TYPE_XLNX_VERSAL_VIRT_MACHINE,
-    .parent     = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
-    .instance_size = sizeof(VersalVirt),
-    .class_init = versal_virt_machine_class_init,
-    .interfaces = aarch64_machine_interfaces,
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(versal_virt_machine, VersalVirt,
+                                              TYPE_XLNX_VERSAL_VIRT_MACHINE,
+                                              TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
+                                              versal_virt_machine_class_init,
+                                              aarch64_machine_interfaces)
 
-static const TypeInfo versal2_virt_machine_init_typeinfo = {
-    .name       = TYPE_XLNX_VERSAL2_VIRT_MACHINE,
-    .parent     = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
-    .instance_size = sizeof(VersalVirt),
-    .class_init = versal2_virt_machine_class_init,
-    .interfaces = aarch64_machine_interfaces,
-};
-
-static void versal_virt_concrete_register_types(void)
-{
-    type_register_static(&versal_virt_machine_init_typeinfo);
-    type_register_static(&versal2_virt_machine_init_typeinfo);
-}
-
-type_init(versal_virt_concrete_register_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(versal2_virt_machine, VersalVirt,
+                                              TYPE_XLNX_VERSAL2_VIRT_MACHINE,
+                                              TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
+                                              versal2_virt_machine_class_init,
+                                              aarch64_machine_interfaces)
