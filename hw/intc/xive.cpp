@@ -2411,20 +2411,11 @@ REGISTER_QEMU_INTERFACE(XiveNotifierClass, TYPE_XIVE_NOTIFIER)
 REGISTER_QEMU_INTERFACE(XivePresenterClass, TYPE_XIVE_PRESENTER)
 REGISTER_QEMU_INTERFACE(XiveFabricClass, TYPE_XIVE_FABRIC)
 
-static void XiveRouter_cpp_register_types(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_XIVE_ROUTER,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(XiveRouter),
-        .is_abstract   = true,
-        .class_size    = sizeof(XiveRouterClass),
-        .class_init    = xive_router_class_init,
-        .interfaces    = xive_router_interfaces,
-    };
-    type_register_static(&info);
-}
-type_init(XiveRouter_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_IFACES(XiveRouter, XiveRouterClass,
+                                                TYPE_XIVE_ROUTER,
+                                                TYPE_SYS_BUS_DEVICE,
+                                                xive_router_class_init,
+                                                xive_router_interfaces)
 
 REGISTER_QEMU_DEVICE(XiveTCTX, TYPE_XIVE_TCTX, TYPE_DEVICE)
 REGISTER_QEMU_DEVICE(XiveSource, TYPE_XIVE_SOURCE, TYPE_DEVICE)

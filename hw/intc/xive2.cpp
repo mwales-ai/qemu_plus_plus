@@ -2207,19 +2207,10 @@ void Xive2EndSource::classInit(DeviceClass *dc)
 
 #include "qom/cpp/object.h"
 
-static void Xive2Router_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_XIVE2_ROUTER,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(Xive2Router),
-        .is_abstract   = true,
-        .class_size    = sizeof(Xive2RouterClass),
-        .class_init    = xive2_router_class_init,
-        .interfaces    = xive2_router_interfaces,
-    };
-    type_register_static(&info);
-}
-type_init(Xive2Router_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_IFACES(Xive2Router, Xive2RouterClass,
+                                                TYPE_XIVE2_ROUTER,
+                                                TYPE_SYS_BUS_DEVICE,
+                                                xive2_router_class_init,
+                                                xive2_router_interfaces)
 
 REGISTER_QEMU_DEVICE(Xive2EndSource, TYPE_XIVE2_END_SOURCE, TYPE_DEVICE)
