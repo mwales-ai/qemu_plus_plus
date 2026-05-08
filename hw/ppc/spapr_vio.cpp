@@ -591,12 +591,6 @@ static void spapr_vio_bridge_class_init(ObjectClass *klass, const void *data)
     dc->fw_name = "vdevice";
 }
 
-static const TypeInfo spapr_vio_bridge_info = {
-    .name          = TYPE_SPAPR_VIO_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .class_init    = spapr_vio_bridge_class_init,
-};
-
 const VMStateDescription vmstate_spapr_vio = {
     .name = "spapr_vio",
     .version_id = 1,
@@ -624,14 +618,12 @@ static void vio_spapr_device_class_init(ObjectClass *klass, const void *data)
     k->bus_type = TYPE_SPAPR_VIO_BUS;
 }
 
-static void spapr_vio_register_types(void)
-{
-    type_register_static(&spapr_vio_bridge_info);
-}
-
-type_init(spapr_vio_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_vio_bridge, TYPE_SPAPR_VIO_BRIDGE,
+                                 TYPE_SYS_BUS_DEVICE,
+                                 spapr_vio_bridge_class_init)
+
 REGISTER_QEMU_BUS_CI(SpaprVioBus, TYPE_SPAPR_VIO_BUS, spapr_vio_bus_class_init)
 
 REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(SpaprVioDevice, SpaprVioDeviceClass,
