@@ -1255,20 +1255,11 @@ type_init(spapr_drc_register_rtas)
 
 #include "qom/cpp/object.h"
 
-static void SpaprDrc_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_SPAPR_DR_CONNECTOR,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(SpaprDrc),
-        .instance_init = spapr_dr_connector_instance_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(SpaprDrcClass),
-        .class_init    = spapr_dr_connector_class_init,
-    };
-    type_register_static(&info);
-}
-type_init(SpaprDrc_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(SpaprDrc, SpaprDrcClass,
+                                            TYPE_SPAPR_DR_CONNECTOR,
+                                            TYPE_DEVICE,
+                                            spapr_dr_connector_instance_init,
+                                            spapr_dr_connector_class_init)
 
 REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(spapr_drc_physical, SpaprDrcPhysical,
                                        TYPE_SPAPR_DRC_PHYSICAL,

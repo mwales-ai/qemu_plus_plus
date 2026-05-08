@@ -1368,6 +1368,61 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI: abstract device with a
+ * caller-supplied free instance_finalize function and trampolined
+ * classInit. instance_init goes through SFINAE on ClassName::init().
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI(ClassName, ClassStruct,      \
+                                                 type_name_str,              \
+                                                 parent_type_str,            \
+                                                 instance_finalize_fn)       \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = instance_finalize_fn,                           \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI: like
+ * REGISTER_QEMU_DEVICE_ABSTRACT but uses a caller-supplied free
+ * instance_init function AND a caller-supplied free class_init function
+ * (instead of trampolining through ClassName::classInit()). Used for
+ * abstract base types where both setup paths are intricate enough to
+ * stay as free functions.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(ClassName, ClassStruct,   \
+                                                    type_name_str,           \
+                                                    parent_type_str,         \
+                                                    instance_init_fn,        \
+                                                    class_init_fn)           \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT: like REGISTER_QEMU_DEVICE_ABSTRACT
  * but uses a caller-supplied free instance_init function (instead of SFINAE
  * on ClassName::init()). The class_init still goes through the C++

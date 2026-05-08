@@ -1403,23 +1403,12 @@ struct PS2Methods {
     }
 };
 
-static const TypeInfo ps2_info = {
-    .name          = TYPE_PS2_DEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PS2State),
-    .instance_init = ps2_init,
-    .is_abstract   = true,
-    .class_size    = sizeof(PS2DeviceClass),
-    .class_init    = PS2Methods::classInit,
-};
-
-static void ps2_base_register_types(void)
-{
-    type_register_static(&ps2_info);
-}
-
-type_init(ps2_base_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(PS2State, PS2DeviceClass,
+                                            TYPE_PS2_DEVICE,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            ps2_init, PS2Methods::classInit)
+
 REGISTER_QEMU_DEVICE(PS2KbdState, TYPE_PS2_KBD_DEVICE, TYPE_PS2_DEVICE)
 REGISTER_QEMU_DEVICE(PS2MouseState, TYPE_PS2_MOUSE_DEVICE, TYPE_PS2_DEVICE)

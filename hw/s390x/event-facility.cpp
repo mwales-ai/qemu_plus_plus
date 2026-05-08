@@ -462,6 +462,7 @@ static void event_class_init(ObjectClass *klass, const void *data)
 
 REGISTER_QEMU_OBJECT_ALIAS(sclp_events_bus, TYPE_SCLP_EVENTS_BUS, TYPE_BUS)
 
+/* Concrete (not abstract) - cannot use the FREE_INIT_CI macro directly. */
 static void SCLPEventFacility_cpp_register_types(void)
 {
     static const TypeInfo info = {
