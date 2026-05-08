@@ -436,37 +436,6 @@ void MacIOState::classInit(DeviceClass *dc)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo macio_bus_info = {
-    .name = TYPE_MACIO_BUS,
-    .parent = TYPE_SYSTEM_BUS,
-    .instance_size = sizeof(MacIOBusState),
-};
-
-static const TypeInfo macio_oldworld_type_info = {
-    .name          = TYPE_OLDWORLD_MACIO,
-    .parent        = TYPE_MACIO,
-    .instance_size = sizeof(OldWorldMacIOState),
-    .instance_init = macio_oldworld_init,
-    .class_init    = macio_oldworld_class_init,
-};
-
-static const TypeInfo macio_newworld_type_info = {
-    .name          = TYPE_NEWWORLD_MACIO,
-    .parent        = TYPE_MACIO,
-    .instance_size = sizeof(NewWorldMacIOState),
-    .instance_init = macio_newworld_init,
-    .class_init    = macio_newworld_class_init,
-};
-
-static void macio_register_types(void)
-{
-    type_register_static(&macio_bus_info);
-    type_register_static(&macio_oldworld_type_info);
-    type_register_static(&macio_newworld_type_info);
-}
-
-type_init(macio_register_types)
-
 #include "qom/cpp/object.h"
 
 static const InterfaceInfo macio_interfaces[] = {
@@ -477,3 +446,16 @@ static const InterfaceInfo macio_interfaces[] = {
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS_IFACES(MacIOState, TYPE_MACIO,
                                             TYPE_PCI_DEVICE,
                                             macio_interfaces)
+
+REGISTER_QEMU_BUS_FULL(MacIOBusState, BusClass, TYPE_MACIO_BUS,
+                       TYPE_SYSTEM_BUS, nullptr, nullptr)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(macio_oldworld, OldWorldMacIOState,
+                                       TYPE_OLDWORLD_MACIO, TYPE_MACIO,
+                                       macio_oldworld_init,
+                                       macio_oldworld_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(macio_newworld, NewWorldMacIOState,
+                                       TYPE_NEWWORLD_MACIO, TYPE_MACIO,
+                                       macio_newworld_init,
+                                       macio_newworld_class_init)
