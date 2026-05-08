@@ -1436,13 +1436,6 @@ static void aspeed_i2c_bus_slave_class_init(ObjectClass *klass,
     sc->send_async = aspeed_i2c_bus_slave_send_async;
 }
 
-static const TypeInfo aspeed_i2c_bus_slave_info = {
-    .name           = TYPE_ASPEED_I2C_BUS_SLAVE,
-    .parent         = TYPE_I2C_SLAVE,
-    .instance_size  = sizeof(AspeedI2CBusSlave),
-    .class_init     = aspeed_i2c_bus_slave_class_init,
-};
-
 static void aspeed_i2c_bus_reset(DeviceState *dev)
 {
     AspeedI2CBus *s = ASPEED_I2C_BUS(dev);
@@ -1495,13 +1488,6 @@ static void aspeed_i2c_bus_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, aspeed_i2c_bus_reset);
     device_class_set_props(dc, aspeed_i2c_bus_properties);
 }
-
-static const TypeInfo aspeed_i2c_bus_info = {
-    .name           = TYPE_ASPEED_I2C_BUS,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AspeedI2CBus),
-    .class_init     = aspeed_i2c_bus_class_init,
-};
 
 static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
@@ -1627,13 +1613,18 @@ static void aspeed_2700_i2c_class_init(ObjectClass *klass, const void *data)
     aic->has_dma64 = true;
 }
 
-static void __attribute__((constructor)) register_aspeed_i2c_others(void)
-{
-    type_register_static(&aspeed_i2c_bus_info);
-    type_register_static(&aspeed_i2c_bus_slave_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_i2c_bus, AspeedI2CBus,
+                                       TYPE_ASPEED_I2C_BUS,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       aspeed_i2c_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_i2c_bus_slave, AspeedI2CBusSlave,
+                                       TYPE_ASPEED_I2C_BUS_SLAVE,
+                                       TYPE_I2C_SLAVE,
+                                       aspeed_i2c_bus_slave_class_init)
+
 /*
  * aspeed_i2c_info: abstract base with instance_init + class_size.
  * REGISTER_QEMU_DEVICE_ABSTRACT doesn't wire instance_init, so we
