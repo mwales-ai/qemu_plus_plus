@@ -1255,15 +1255,6 @@ static void virtio_ccw_device_class_init(ObjectClass *klass, const void *data)
                                        &vdc->parent_phases);
 }
 
-static const TypeInfo virtio_ccw_device_info = {
-    .name = TYPE_VIRTIO_CCW_DEVICE,
-    .parent = TYPE_CCW_DEVICE,
-    .instance_size = sizeof(VirtioCcwDevice),
-    .class_init = virtio_ccw_device_class_init,
-    .class_size = sizeof(VirtIOCCWDeviceClass),
-    .is_abstract = true,
-};
-
 /* virtio-ccw-bus */
 
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
@@ -1296,18 +1287,22 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, const void *data)
     k->ioeventfd_assign = virtio_ccw_ioeventfd_assign;
 }
 
-static const TypeInfo virtio_ccw_bus_info = {
-    .name = TYPE_VIRTIO_CCW_BUS,
-    .parent = TYPE_VIRTIO_BUS,
-    .instance_size = sizeof(VirtioCcwBusState),
-    .class_size = sizeof(VirtioCcwBusClass),
-    .class_init = virtio_ccw_bus_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void virtio_ccw_register(void)
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtioCcwDevice, VirtIOCCWDeviceClass,
+                                         TYPE_VIRTIO_CCW_DEVICE,
+                                         TYPE_CCW_DEVICE,
+                                         virtio_ccw_device_class_init)
+
+static void virtio_ccw_bus_cpp_register_types(void)
 {
-    type_register_static(&virtio_ccw_bus_info);
-    type_register_static(&virtio_ccw_device_info);
+    static const TypeInfo info = {
+        .name          = TYPE_VIRTIO_CCW_BUS,
+        .parent        = TYPE_VIRTIO_BUS,
+        .instance_size = sizeof(VirtioCcwBusState),
+        .class_size    = sizeof(VirtioCcwBusClass),
+        .class_init    = virtio_ccw_bus_class_init,
+    };
+    type_register_static(&info);
 }
-
-type_init(virtio_ccw_register)
+type_init(virtio_ccw_bus_cpp_register_types)
