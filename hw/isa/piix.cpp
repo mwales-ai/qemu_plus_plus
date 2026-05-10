@@ -502,20 +502,12 @@ static void piix4_class_init(ObjectClass *klass, const void *data)
 
 #include "qom/cpp/object.h"
 
-static void PIIXState_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_PIIX_PCI_DEVICE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PIIXState),
-        .instance_init = pci_piix_init,
-        .is_abstract   = true,
-        .class_init    = pci_piix_class_init,
-        .interfaces    = piix_pci_interfaces,
-    };
-    type_register_static(&info);
-}
-type_init(PIIXState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI_NO_CS_IFACES(PIIXState,
+                                                         TYPE_PIIX_PCI_DEVICE,
+                                                         TYPE_PCI_DEVICE,
+                                                         pci_piix_init,
+                                                         pci_piix_class_init,
+                                                         piix_pci_interfaces)
 
 REGISTER_QEMU_OBJECT_INIT_CLASS(piix3, TYPE_PIIX3_DEVICE,
                                  TYPE_PIIX_PCI_DEVICE,

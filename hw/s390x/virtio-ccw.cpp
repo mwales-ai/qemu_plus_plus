@@ -1294,15 +1294,7 @@ REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtioCcwDevice, VirtIOCCWDeviceClass,
                                          TYPE_CCW_DEVICE,
                                          virtio_ccw_device_class_init)
 
-static void virtio_ccw_bus_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_VIRTIO_CCW_BUS,
-        .parent        = TYPE_VIRTIO_BUS,
-        .instance_size = sizeof(VirtioCcwBusState),
-        .class_size    = sizeof(VirtioCcwBusClass),
-        .class_init    = virtio_ccw_bus_class_init,
-    };
-    type_register_static(&info);
-}
-type_init(virtio_ccw_bus_cpp_register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_FULL(VirtioCcwBus, VirtioCcwBusState,
+                                      VirtioCcwBusClass,
+                                      TYPE_VIRTIO_CCW_BUS, TYPE_VIRTIO_BUS,
+                                      nullptr, virtio_ccw_bus_class_init)
