@@ -654,17 +654,9 @@ static const InterfaceInfo xensysbus_interfaces[] = {
     { }
 };
 
-static void xensysbus_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name       = TYPE_XENSYSBUS,
-        .parent     = TYPE_BUS,
-        .class_init = xen_sysbus_class_init,
-        .interfaces = xensysbus_interfaces,
-    };
-    type_register_static(&info);
-}
-type_init(xensysbus_cpp_register_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(xensysbus, TYPE_XENSYSBUS, TYPE_BUS,
+                                        xen_sysbus_class_init,
+                                        xensysbus_interfaces)
 
 REGISTER_QEMU_OBJECT_ALIAS(xensysdev, TYPE_XENSYSDEV, TYPE_SYS_BUS_DEVICE)
 
