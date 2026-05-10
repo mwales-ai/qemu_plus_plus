@@ -3301,32 +3301,32 @@ void SDState::emmcClassInit(ObjectClass *klass, const void *data)
     sc->set_csd = emmc_set_csd;
 }
 
-static const TypeInfo sd_types[] = {
-    {
-        .name           = TYPE_SDMMC_COMMON,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(SDState),
-        .instance_init  = SDState::instanceInit,
-        .instance_finalize = SDState::instanceFinalize,
-        .is_abstract    = true,
-        .class_size     = sizeof(SDCardClass),
-        .class_init     = SDState::commonClassInit,
-    },
-    {
-        .name           = TYPE_SD_CARD,
-        .parent         = TYPE_SDMMC_COMMON,
-        .class_init     = SDState::sdClassInit,
-    },
-    {
-        .name           = TYPE_SD_CARD_SPI,
-        .parent         = TYPE_SD_CARD,
-        .class_init     = SDState::sdSpiClassInit,
-    },
-    {
-        .name           = TYPE_EMMC,
-        .parent         = TYPE_SDMMC_COMMON,
-        .class_init     = SDState::emmcClassInit,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(sd_types)
+/* TYPE_SDMMC_COMMON: abstract base. SDState has instanceInit/instanceFinalize
+ * as static methods (not the SFINAE-detected init()/finalize() names), so
+ * they're registered manually. */
+static void SDState_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name              = TYPE_SDMMC_COMMON,
+        .parent            = TYPE_DEVICE,
+        .instance_size     = sizeof(SDState),
+        .instance_init     = SDState::instanceInit,
+        .instance_finalize = SDState::instanceFinalize,
+        .is_abstract       = true,
+        .class_size        = sizeof(SDCardClass),
+        .class_init        = SDState::commonClassInit,
+    };
+    type_register_static(&info);
+}
+type_init(SDState_cpp_register_types)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sd_card, TYPE_SD_CARD, TYPE_SDMMC_COMMON,
+                                 SDState::sdClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sd_card_spi, TYPE_SD_CARD_SPI, TYPE_SD_CARD,
+                                 SDState::sdSpiClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(emmc, TYPE_EMMC, TYPE_SDMMC_COMMON,
+                                 SDState::emmcClassInit)
