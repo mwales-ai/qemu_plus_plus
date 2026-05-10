@@ -299,39 +299,12 @@ static const TypeInfo pci_bus_info = {
     .interfaces = pci_bus_interfaces,
 };
 
-static const TypeInfo cxl_interface_info = {
-    .name          = INTERFACE_CXL_DEVICE,
-    .parent        = TYPE_INTERFACE,
-};
-
-static const TypeInfo pcie_interface_info = {
-    .name          = INTERFACE_PCIE_DEVICE,
-    .parent        = TYPE_INTERFACE,
-};
-
-static const TypeInfo conventional_pci_interface_info = {
-    .name          = INTERFACE_CONVENTIONAL_PCI_DEVICE,
-    .parent        = TYPE_INTERFACE,
-};
-
 static void pcie_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
     k->realize = pcie_bus_realize;
 }
-
-static const TypeInfo pcie_bus_info = {
-    .name = TYPE_PCIE_BUS,
-    .parent = TYPE_PCI_BUS,
-    .class_init = pcie_bus_class_init,
-};
-
-static const TypeInfo cxl_bus_info = {
-    .name       = TYPE_CXL_BUS,
-    .parent     = TYPE_PCIE_BUS,
-    .class_init = pcie_bus_class_init,
-};
 
 static void pci_update_mappings(PCIDevice *d);
 static void pci_irq_handler(void *opaque, int irq_num, int level);
@@ -3358,12 +3331,23 @@ static const TypeInfo pci_device_type_info = {
 static void pci_register_types(void)
 {
     type_register_static(&pci_bus_info);
-    type_register_static(&pcie_bus_info);
-    type_register_static(&cxl_bus_info);
-    type_register_static(&conventional_pci_interface_info);
-    type_register_static(&cxl_interface_info);
-    type_register_static(&pcie_interface_info);
     type_register_static(&pci_device_type_info);
 }
 
 type_init(pci_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ALIAS(cxl_interface, INTERFACE_CXL_DEVICE,
+                            TYPE_INTERFACE)
+REGISTER_QEMU_OBJECT_ALIAS(pcie_interface, INTERFACE_PCIE_DEVICE,
+                            TYPE_INTERFACE)
+REGISTER_QEMU_OBJECT_ALIAS(conventional_pci_interface,
+                            INTERFACE_CONVENTIONAL_PCI_DEVICE,
+                            TYPE_INTERFACE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pcie_bus, TYPE_PCIE_BUS, TYPE_PCI_BUS,
+                                 pcie_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(cxl_bus, TYPE_CXL_BUS, TYPE_PCIE_BUS,
+                                 pcie_bus_class_init)
