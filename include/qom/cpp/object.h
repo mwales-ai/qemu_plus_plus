@@ -979,6 +979,27 @@ type_init(ClassName##_cpp_register_types)
  * class struct but no class_init (the class struct just declares vtable
  * entries that subclasses fill in).
  */
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_SIZED: register an abstract object type
+ * with its own state struct (instance_size = sizeof(ClassName)) but no
+ * class_init, no instance_init, no class_size. Used for intermediate
+ * abstract types in a hierarchy that just add storage.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(ClassName, type_name_str,        \
+                                             parent_type_str)                \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .is_abstract   = true,                                               \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
 #define REGISTER_QEMU_OBJECT_ABSTRACT_CS(ClassName, ClassStruct,             \
                                           type_name_str, parent_type_str)    \
 static void ClassName##_cpp_register_types(void)                             \

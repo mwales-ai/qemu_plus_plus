@@ -159,14 +159,6 @@ REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOInputPCI,
                                                TYPE_VIRTIO_PCI,
                                                virtio_input_pci_class_init)
 
-static void virtio_input_hid_pci_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_VIRTIO_INPUT_HID_PCI,
-        .parent        = TYPE_VIRTIO_INPUT_PCI,
-        .instance_size = sizeof(VirtIOInputHIDPCI),
-        .is_abstract   = true,
-    };
-    type_register_static(&info);
-}
-type_init(virtio_input_hid_pci_cpp_register_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(VirtIOInputHIDPCI,
+                                     TYPE_VIRTIO_INPUT_HID_PCI,
+                                     TYPE_VIRTIO_INPUT_PCI)
