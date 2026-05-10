@@ -3530,22 +3530,15 @@ static const InterfaceInfo virt_machine_interfaces[] = {
     { }
 };
 
-static const TypeInfo virt_machine_info = {
-    .name          = TYPE_VIRT_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .instance_size = sizeof(VirtMachineState),
-    .instance_init = virt_instance_init,
-    .is_abstract   = true,
-    .class_size    = sizeof(VirtMachineClass),
-    .class_init    = virt_machine_class_init,
-    .interfaces    = virt_machine_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void machvirt_machine_init(void)
-{
-    type_register_static(&virt_machine_info);
-}
-type_init(machvirt_machine_init);
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI_IFACES(VirtMachineState,
+                                                    VirtMachineClass,
+                                                    TYPE_VIRT_MACHINE,
+                                                    TYPE_MACHINE,
+                                                    virt_instance_init,
+                                                    virt_machine_class_init,
+                                                    virt_machine_interfaces)
 
 static void virt_machine_10_2_options(MachineClass *mc)
 {
