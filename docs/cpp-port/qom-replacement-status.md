@@ -10,7 +10,7 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
 **As of:** 2026-05-10
 
-**Conversion progress:** 942 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 946 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
 
@@ -31,8 +31,14 @@ block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
   interfaces, drops class_size
 - `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI` — abstract with free
   instance_finalize
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI_CI` — abstract with free
+  instance_finalize + free class_init
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI_IFACES` — abstract with
+  class_size + interfaces; full kit for abstract bases
 - `REGISTER_QEMU_OBJECT_INIT_CLASS_FULL` — concrete sibling subtype with
   own state struct + class struct + free instance_init + free class_init
+- `REGISTER_QEMU_OBJECT_ABSTRACT_SIZED` — intermediate abstract type
+  that just adds storage (no class_init/finalize)
 
 Recent additions extend coverage into io/, audio, accel, migration, util,
 gdbstub, scsi, authz, ui, and core QOM interfaces. Many derived subtypes
