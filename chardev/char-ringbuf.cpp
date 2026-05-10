@@ -237,26 +237,27 @@ static void char_ringbuf_class_init(ObjectClass *oc, const void *data)
     cc->chr_write = ringbuf_chr_write;
 }
 
-static const TypeInfo char_ringbuf_type_info = {
-    .name = TYPE_CHARDEV_RINGBUF,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(RingBufChardev),
-    .instance_finalize = char_ringbuf_finalize,
-    .class_init = char_ringbuf_class_init,
-};
-
-/* Bug-compatibility: */
-static const TypeInfo char_memory_type_info = {
-    .name = TYPE_CHARDEV_MEMORY,
-    .parent = TYPE_CHARDEV_RINGBUF,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_ringbuf_type_info);
-    type_register_static(&char_memory_type_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+/*
+ * RingBufChardev: concrete subtype with own state struct, free
+ * instance_finalize, free class_init.
+ */
+static void RingBufChardev_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name              = TYPE_CHARDEV_RINGBUF,
+        .parent            = TYPE_CHARDEV,
+        .instance_size     = sizeof(RingBufChardev),
+        .instance_finalize = char_ringbuf_finalize,
+        .class_init        = char_ringbuf_class_init,
+    };
+    type_register_static(&info);
+}
+type_init(RingBufChardev_cpp_register_types)
+
+/* Bug-compatibility: TYPE_CHARDEV_MEMORY is an alias for TYPE_CHARDEV_RINGBUF. */
+REGISTER_QEMU_OBJECT_ALIAS(char_memory, TYPE_CHARDEV_MEMORY,
+                            TYPE_CHARDEV_RINGBUF)
