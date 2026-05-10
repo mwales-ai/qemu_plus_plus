@@ -156,17 +156,10 @@ static void kvm_s390_tod_init(Object *obj)
     td->stopped = false;
 }
 
-static const TypeInfo kvm_s390_tod_info = {
-    .name = TYPE_KVM_S390_TOD,
-    .parent = TYPE_S390_TOD,
-    .instance_size = sizeof(S390TODState),
-    .instance_init = kvm_s390_tod_init,
-    .class_init = kvm_s390_tod_class_init,
-    .class_size = sizeof(S390TODClass),
-};
+#include "qom/cpp/object.h"
 
-static void register_types(void)
-{
-    type_register_static(&kvm_s390_tod_info);
-}
-type_init(register_types);
+REGISTER_QEMU_OBJECT_INIT_CLASS_FULL(kvm_s390_tod, S390TODState,
+                                      S390TODClass, TYPE_KVM_S390_TOD,
+                                      TYPE_S390_TOD,
+                                      kvm_s390_tod_init,
+                                      kvm_s390_tod_class_init)
