@@ -357,15 +357,6 @@ static void lasips2_port_class_init(ObjectClass *klass, const void *data)
     dc->realize = lasips2_port_realize;
 }
 
-static const TypeInfo lasips2_port_info = {
-    .name          = TYPE_LASIPS2_PORT,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(LASIPS2Port),
-    .instance_init = lasips2_port_init,
-    .is_abstract   = true,
-    .class_size    = sizeof(LASIPS2PortDeviceClass),
-    .class_init    = lasips2_port_class_init,
-};
 
 static void lasips2_kbd_port_realize(DeviceState *dev, Error **errp)
 {
@@ -456,11 +447,10 @@ static void lasips2_mouse_port_class_init(ObjectClass *klass, const void *data)
 
 #include "qom/cpp/object.h"
 
-static void lasips2_port_register(void)
-{
-    type_register_static(&lasips2_port_info);
-}
-type_init(lasips2_port_register)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(LASIPS2Port, LASIPS2PortDeviceClass,
+                                            TYPE_LASIPS2_PORT, TYPE_DEVICE,
+                                            lasips2_port_init,
+                                            lasips2_port_class_init)
 
 REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED(lasips2_kbd_port, LASIPS2KbdPort,
                                        TYPE_LASIPS2_KBD_PORT,
