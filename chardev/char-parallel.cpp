@@ -298,21 +298,27 @@ static void char_parallel_finalize(Object *obj)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static const TypeInfo char_parallel_type_info = {
-    .name = TYPE_CHARDEV_PARALLEL,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(ParallelChardev),
-    .instance_finalize = char_parallel_finalize,
-    .class_init = char_parallel_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_parallel_type_info);
-}
-
-type_init(register_types);
-
 #endif  /* HAVE_CHARDEV_PARALLEL */
 
 } /* extern "C" */
+
+#ifdef HAVE_CHARDEV_PARALLEL
+#include "qom/cpp/object.h"
+
+/*
+ * ParallelChardev: typedef-only struct in C-style (no init() member),
+ * with free instance_finalize and free class_init.
+ */
+static void ParallelChardev_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name              = TYPE_CHARDEV_PARALLEL,
+        .parent            = TYPE_CHARDEV,
+        .instance_size     = sizeof(ParallelChardev),
+        .instance_finalize = char_parallel_finalize,
+        .class_init        = char_parallel_class_init,
+    };
+    type_register_static(&info);
+}
+type_init(ParallelChardev_cpp_register_types)
+#endif
