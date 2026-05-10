@@ -818,17 +818,9 @@ static void macfb_nubus_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, macfb_nubus_properties);
 }
 
-static void MacfbNubusState_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_NUBUS_MACFB,
-        .parent        = TYPE_NUBUS_DEVICE,
-        .instance_size = sizeof(MacfbNubusState),
-        .class_init    = macfb_nubus_class_init,
-        .class_size    = sizeof(MacfbNubusDeviceClass),
-    };
-    type_register_static(&info);
-}
-type_init(MacfbNubusState_cpp_register_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_FULL(macfb_nubus, MacfbNubusState,
+                                      MacfbNubusDeviceClass,
+                                      TYPE_NUBUS_MACFB, TYPE_NUBUS_DEVICE,
+                                      nullptr, macfb_nubus_class_init)
 
 REGISTER_QEMU_DEVICE(MacfbSysBusState, TYPE_MACFB, TYPE_SYS_BUS_DEVICE)
