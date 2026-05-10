@@ -834,20 +834,11 @@ static inline void s390_machine_initfn(Object *obj)
     ms->dea_key_wrap = true;
 }
 
-static const TypeInfo ccw_machine_info = {
-    .name          = TYPE_S390_CCW_MACHINE,
-    .parent        = TYPE_MACHINE,
-    .is_abstract      = true,
-    .instance_size = sizeof(S390CcwMachineState),
-    .instance_init = s390_machine_initfn,
-    .class_size = sizeof(S390CcwMachineClass),
-    .class_init    = ccw_machine_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NMI },
-        { TYPE_HOTPLUG_HANDLER},
-        { TYPE_DUMP_SKEYS_INTERFACE},
-        { }
-    },
+static const InterfaceInfo s390_ccw_machine_interfaces[] = {
+    { TYPE_NMI },
+    { TYPE_HOTPLUG_HANDLER},
+    { TYPE_DUMP_SKEYS_INTERFACE},
+    { }
 };
 
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
@@ -1145,9 +1136,12 @@ static void ccw_machine_5_0_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(5, 0);
 
-static void ccw_machine_register_types(void)
-{
-    type_register_static(&ccw_machine_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(ccw_machine_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI_IFACES(S390CcwMachineState,
+                                                    S390CcwMachineClass,
+                                                    TYPE_S390_CCW_MACHINE,
+                                                    TYPE_MACHINE,
+                                                    s390_machine_initfn,
+                                                    ccw_machine_class_init,
+                                                    s390_ccw_machine_interfaces)
