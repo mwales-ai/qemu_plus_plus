@@ -1604,19 +1604,19 @@ static void s390_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->replay = s390_pci_iommu_replay;
 }
 
-static const TypeInfo s390_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .name = TYPE_S390_IOMMU_MEMORY_REGION,
-    .class_init = s390_iommu_memory_region_class_init,
-};
-
 static void s390_pci_register_types(void)
 {
     type_register_static(&s390_pcihost_info);
     type_register_static(&s390_pcibus_info);
     type_register_static(&s390_pci_device_info);
     type_register_static(&s390_pci_iommu_info);
-    type_register_static(&s390_iommu_memory_region_info);
 }
 
 type_init(s390_pci_register_types)
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(s390_iommu_memory_region,
+                                 TYPE_S390_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 s390_iommu_memory_region_class_init)
