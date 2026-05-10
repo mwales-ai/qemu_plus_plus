@@ -1415,6 +1415,30 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI_CI: abstract device with both
+ * a free instance_finalize AND a free class_init function. No class_size.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI_CI(ClassName,                \
+                                                    type_name_str,           \
+                                                    parent_type_str,         \
+                                                    instance_finalize_fn,    \
+                                                    class_init_fn)           \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_finalize = instance_finalize_fn,                           \
+        .is_abstract       = true,                                           \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI: abstract device with a
  * caller-supplied free instance_finalize function and trampolined
  * classInit. instance_init goes through SFINAE on ClassName::init().

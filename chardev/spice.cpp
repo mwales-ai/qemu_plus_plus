@@ -365,14 +365,6 @@ static void char_spice_class_init(ObjectClass *oc, const void *data)
     cc->chr_accept_input = spice_chr_accept_input;
 }
 
-static const TypeInfo char_spice_type_info = {
-    .name = TYPE_CHARDEV_SPICE,
-    .parent = TYPE_CHARDEV,
-    .instance_size = sizeof(SpiceChardev),
-    .instance_finalize = char_spice_finalize,
-    .is_abstract = true,
-    .class_init = char_spice_class_init,
-};
 module_obj(TYPE_CHARDEV_SPICE);
 
 static void char_spicevmc_class_init(ObjectClass *oc, const void *data)
@@ -384,11 +376,6 @@ static void char_spicevmc_class_init(ObjectClass *oc, const void *data)
     cc->chr_set_fe_open = spice_vmc_set_fe_open;
 }
 
-static const TypeInfo char_spicevmc_type_info = {
-    .name = TYPE_CHARDEV_SPICEVMC,
-    .parent = TYPE_CHARDEV_SPICE,
-    .class_init = char_spicevmc_class_init,
-};
 module_obj(TYPE_CHARDEV_SPICEVMC);
 
 static void char_spiceport_class_init(ObjectClass *oc, const void *data)
@@ -400,22 +387,23 @@ static void char_spiceport_class_init(ObjectClass *oc, const void *data)
     cc->chr_set_fe_open = spice_port_set_fe_open;
 }
 
-static const TypeInfo char_spiceport_type_info = {
-    .name = TYPE_CHARDEV_SPICEPORT,
-    .parent = TYPE_CHARDEV_SPICE,
-    .class_init = char_spiceport_class_init,
-};
 module_obj(TYPE_CHARDEV_SPICEPORT);
-
-static void register_types(void)
-{
-    type_register_static(&char_spice_type_info);
-    type_register_static(&char_spicevmc_type_info);
-    type_register_static(&char_spiceport_type_info);
-}
-
-type_init(register_types);
 
 module_dep("ui-spice-core");
 
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI_CI(SpiceChardev, TYPE_CHARDEV_SPICE,
+                                            TYPE_CHARDEV,
+                                            char_spice_finalize,
+                                            char_spice_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_spicevmc, TYPE_CHARDEV_SPICEVMC,
+                                 TYPE_CHARDEV_SPICE,
+                                 char_spicevmc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_spiceport, TYPE_CHARDEV_SPICEPORT,
+                                 TYPE_CHARDEV_SPICE,
+                                 char_spiceport_class_init)
