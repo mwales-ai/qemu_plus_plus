@@ -39,6 +39,12 @@ block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
   own state struct + class struct + free instance_init + free class_init
 - `REGISTER_QEMU_OBJECT_ABSTRACT_SIZED` — intermediate abstract type
   that just adds storage (no class_init/finalize)
+- `REGISTER_QEMU_OBJECT_FREE_INIT_FINI_CS` — concrete object with free
+  init + free finalize + class_size, no class_init
+- `REGISTER_QEMU_OBJECT_ABSTRACT_FREE_INIT_CS` — abstract object with
+  free init + class_size only
+- `REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS` — full kit for
+  abstract device with free init/finalize/class_init + class_size
 
 Recent additions extend coverage into io/, audio, accel, migration, util,
 gdbstub, scsi, authz, ui, and core QOM interfaces. Many derived subtypes
