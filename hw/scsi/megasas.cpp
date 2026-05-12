@@ -2617,22 +2617,14 @@ void MegasasState::classInit(ObjectClass *oc, const void *data)
 REGISTER_QEMU_DEVICE_ABSTRACT(MegasasState, MegasasBaseClass,
                               TYPE_MEGASAS_BASE, TYPE_PCI_DEVICE)
 
-static void megasas_register_concrete_types(void)
-{
-    int i;
+REGISTER_QEMU_OBJECT_CLASS_DATA_IFACES(megasas_gen1, TYPE_MEGASAS_GEN1,
+                                        TYPE_MEGASAS_BASE,
+                                        MegasasState::classInit,
+                                        &megasas_devices[0],
+                                        megasas_devices[0].interfaces)
 
-    for (i = 0; i < ARRAY_SIZE(megasas_devices); i++) {
-        const MegasasInfo *info = &megasas_devices[i];
-        TypeInfo type_info = {};
-
-        type_info.name = info->name;
-        type_info.parent = TYPE_MEGASAS_BASE;
-        type_info.class_data = info;
-        type_info.class_init = MegasasState::classInit;
-        type_info.interfaces = info->interfaces;
-
-        type_register_static(&type_info);
-    }
-}
-
-type_init(megasas_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA_IFACES(megasas_gen2, TYPE_MEGASAS_GEN2,
+                                        TYPE_MEGASAS_BASE,
+                                        MegasasState::classInit,
+                                        &megasas_devices[1],
+                                        megasas_devices[1].interfaces)
