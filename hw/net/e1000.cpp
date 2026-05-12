@@ -1967,21 +1967,11 @@ static const E1000Info e1000_devices[] = {
     },
 };
 
-static void e1000_register_concrete_types(void)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(e1000_devices); i++) {
-        const E1000Info *info = &e1000_devices[i];
-        TypeInfo type_info = {};
-
-        type_info.name = info->name;
-        type_info.parent = TYPE_E1000_BASE;
-        type_info.class_data = info;
-        type_info.class_init = E1000State_st::classInit;
-
-        type_register_static(&type_info);
-    }
-}
-
-type_init(e1000_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA(e1000, "e1000", TYPE_E1000_BASE,
+                                 E1000State_st::classInit, &e1000_devices[0])
+REGISTER_QEMU_OBJECT_CLASS_DATA(e1000_82544gc, "e1000-82544gc",
+                                 TYPE_E1000_BASE, E1000State_st::classInit,
+                                 &e1000_devices[1])
+REGISTER_QEMU_OBJECT_CLASS_DATA(e1000_82545em, "e1000-82545em",
+                                 TYPE_E1000_BASE, E1000State_st::classInit,
+                                 &e1000_devices[2])

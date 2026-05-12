@@ -1482,6 +1482,30 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES: sibling subtype with own
+ * state struct (sized) + free instance_init + free class_init + interfaces.
+ * Used for runtime-table-driven concrete types that all share the same
+ * state struct (e.g. eepro100 variants).
+ */
+#define REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(                        \
+    unique_tag, ClassName, type_name_str, parent_type_str,                   \
+    instance_init_fn, class_init_fn, ifaces_array)                           \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .class_init    = class_init_fn,                                      \
+        .interfaces    = ifaces_array,                                       \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_DATA_IFACES: like REGISTER_QEMU_OBJECT_CLASS_DATA
  * but also with an interfaces array (per-instance, often coming from the
  * same struct as class_data).

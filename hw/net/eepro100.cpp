@@ -2084,26 +2084,33 @@ static void eepro100_class_init(ObjectClass *klass, const void *data)
     k->subsystem_id = info->subsystem_id;
 }
 
-static void eepro100_register_types(void)
-{
-    size_t i;
-    for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
-        TypeInfo type_info = {};
-        E100PCIDeviceInfo *info = &e100_devices[i];
+static const InterfaceInfo eepro100_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
 
-        type_info.name = info->name;
-        type_info.parent = TYPE_PCI_DEVICE;
-        type_info.class_init = eepro100_class_init;
-        type_info.instance_size = sizeof(EEPRO100State);
-        type_info.instance_init = eepro100_instance_init;
-        static const InterfaceInfo eepro100_interfaces[] = {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        };
-        type_info.interfaces = eepro100_interfaces;
+#include "qom/cpp/object.h"
 
-        type_register_static(&type_info);
-    }
-}
+#define EEPRO100_REG(tag, name)                                              \
+    REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(eepro100_##tag,             \
+                                                  EEPRO100State,             \
+                                                  name, TYPE_PCI_DEVICE,     \
+                                                  eepro100_instance_init,    \
+                                                  eepro100_class_init,       \
+                                                  eepro100_interfaces)
 
-type_init(eepro100_register_types)
+EEPRO100_REG(i82550,   "i82550")
+EEPRO100_REG(i82551,   "i82551")
+EEPRO100_REG(i82557a,  "i82557a")
+EEPRO100_REG(i82557b,  "i82557b")
+EEPRO100_REG(i82557c,  "i82557c")
+EEPRO100_REG(i82558a,  "i82558a")
+EEPRO100_REG(i82558b,  "i82558b")
+EEPRO100_REG(i82559a,  "i82559a")
+EEPRO100_REG(i82559b,  "i82559b")
+EEPRO100_REG(i82559c,  "i82559c")
+EEPRO100_REG(i82559er, "i82559er")
+EEPRO100_REG(i82562,   "i82562")
+EEPRO100_REG(i82801,   "i82801")
+
+#undef EEPRO100_REG
