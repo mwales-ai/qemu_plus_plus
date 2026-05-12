@@ -224,19 +224,11 @@ static struct EHCIPCIInfo ehci_pci_info[] = {
     }
 };
 
-static void ehci_pci_register_concrete_types(void)
-{
-    TypeInfo ehci_type_info = {
-        .parent        = TYPE_PCI_EHCI,
-        .class_init    = ehci_data_class_init,
-    };
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(ehci_pci_info); i++) {
-        ehci_type_info.name = ehci_pci_info[i].name;
-        ehci_type_info.class_data = ehci_pci_info + i;
-        type_register_static(&ehci_type_info);
-    }
-}
-
-type_init(ehci_pci_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA(usb_ehci, "usb-ehci", TYPE_PCI_EHCI,
+                                 ehci_data_class_init, &ehci_pci_info[0])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_ehci1, "ich9-usb-ehci1",
+                                 TYPE_PCI_EHCI, ehci_data_class_init,
+                                 &ehci_pci_info[1])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_ehci2, "ich9-usb-ehci2",
+                                 TYPE_PCI_EHCI, ehci_data_class_init,
+                                 &ehci_pci_info[2])
