@@ -90,47 +90,25 @@ static void virtio_ccw_tablet_instance_init(Object *obj)
                                 TYPE_VIRTIO_TABLET);
 }
 
-static const TypeInfo virtio_ccw_input = {
-    .name          = TYPE_VIRTIO_INPUT_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VirtIOInputCcw),
-    .class_init    = virtio_ccw_input_class_init,
-    .is_abstract = true,
-};
+#include "qom/cpp/object.h"
 
-static const TypeInfo virtio_ccw_input_hid = {
-    .name          = TYPE_VIRTIO_INPUT_HID_CCW,
-    .parent        = TYPE_VIRTIO_INPUT_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
-    .is_abstract = true,
-};
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOInputCcw,
+                                               TYPE_VIRTIO_INPUT_CCW,
+                                               TYPE_VIRTIO_CCW_DEVICE,
+                                               virtio_ccw_input_class_init)
 
-static const TypeInfo virtio_ccw_keyboard = {
-    .name          = TYPE_VIRTIO_KEYBOARD_CCW,
-    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
-    .instance_init = virtio_ccw_keyboard_instance_init,
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(VirtIOInputHIDCcw,
+                                     TYPE_VIRTIO_INPUT_HID_CCW,
+                                     TYPE_VIRTIO_INPUT_CCW)
 
-static const TypeInfo virtio_ccw_mouse = {
-    .name          = TYPE_VIRTIO_MOUSE_CCW,
-    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
-    .instance_init = virtio_ccw_mouse_instance_init,
-};
+REGISTER_QEMU_OBJECT_INIT_ONLY(virtio_ccw_keyboard, TYPE_VIRTIO_KEYBOARD_CCW,
+                                TYPE_VIRTIO_INPUT_HID_CCW,
+                                virtio_ccw_keyboard_instance_init)
 
-static const TypeInfo virtio_ccw_tablet = {
-    .name          = TYPE_VIRTIO_TABLET_CCW,
-    .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
-    .instance_init = virtio_ccw_tablet_instance_init,
-};
+REGISTER_QEMU_OBJECT_INIT_ONLY(virtio_ccw_mouse, TYPE_VIRTIO_MOUSE_CCW,
+                                TYPE_VIRTIO_INPUT_HID_CCW,
+                                virtio_ccw_mouse_instance_init)
 
-static void __attribute__((constructor)) virtio_ccw_input_register(void)
-{
-    type_register_static(&virtio_ccw_input);
-    type_register_static(&virtio_ccw_input_hid);
-    type_register_static(&virtio_ccw_keyboard);
-    type_register_static(&virtio_ccw_mouse);
-    type_register_static(&virtio_ccw_tablet);
-}
+REGISTER_QEMU_OBJECT_INIT_ONLY(virtio_ccw_tablet, TYPE_VIRTIO_TABLET_CCW,
+                                TYPE_VIRTIO_INPUT_HID_CCW,
+                                virtio_ccw_tablet_instance_init)
