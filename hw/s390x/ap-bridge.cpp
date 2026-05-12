@@ -32,12 +32,6 @@ static void ap_bus_class_init(ObjectClass *oc, const void *data)
     k->max_dev = 1;
 }
 
-static const TypeInfo ap_bus_info = {
-    .name = TYPE_AP_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = 0,
-    .class_init = ap_bus_class_init,
-};
 
 void s390_init_ap(void)
 {
@@ -76,16 +70,22 @@ static const InterfaceInfo ap_bridge_interfaces[] = {
     { }
 };
 
-static const TypeInfo ap_bridge_info = {
-    .name          = TYPE_AP_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = 0,
-    .class_init    = ap_bridge_class_init,
-    .interfaces    = ap_bridge_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void __attribute__((constructor)) ap_register(void)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(ap_bridge, TYPE_AP_BRIDGE,
+                                        TYPE_SYS_BUS_DEVICE,
+                                        ap_bridge_class_init,
+                                        ap_bridge_interfaces)
+
+/* TYPE_AP_BUS: BUS_CI with explicit instance_size = 0 to avoid sizeof(StateStruct) */
+static void ap_bus_cpp_register_types(void)
 {
-    type_register_static(&ap_bridge_info);
-    type_register_static(&ap_bus_info);
+    static const TypeInfo info = {
+        .name          = TYPE_AP_BUS,
+        .parent        = TYPE_BUS,
+        .instance_size = 0,
+        .class_init    = ap_bus_class_init,
+    };
+    type_register_static(&info);
 }
+type_init(ap_bus_cpp_register_types)
