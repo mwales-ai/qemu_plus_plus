@@ -1745,19 +1745,15 @@ static const TypeInfo armsse_info = {
 
 static void armsse_register_types(void)
 {
-    int i;
-
     type_register_static(&armsse_info);
-
-    for (i = 0; i < ARRAY_SIZE(armsse_variants); i++) {
-        TypeInfo ti = {
-            .name = armsse_variants[i].name,
-            .parent = TYPE_ARM_SSE,
-            .class_init = armsse_class_init,
-            .class_data = &armsse_variants[i],
-        };
-        type_register_static(&ti);
-    }
 }
-
 type_init(armsse_register_types);
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_DATA(armsse_iotkit, TYPE_IOTKIT, TYPE_ARM_SSE,
+                                 armsse_class_init, &armsse_variants[0])
+REGISTER_QEMU_OBJECT_CLASS_DATA(armsse_sse200, TYPE_SSE200, TYPE_ARM_SSE,
+                                 armsse_class_init, &armsse_variants[1])
+REGISTER_QEMU_OBJECT_CLASS_DATA(armsse_sse300, TYPE_SSE300, TYPE_ARM_SSE,
+                                 armsse_class_init, &armsse_variants[2])
