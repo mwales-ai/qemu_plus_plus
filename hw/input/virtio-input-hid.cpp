@@ -263,13 +263,6 @@ static void virtio_input_hid_class_init(ObjectClass *klass, const void *data)
     vic->handle_status = virtio_input_hid_handle_status;
 }
 
-static const TypeInfo virtio_input_hid_info = {
-    .name          = TYPE_VIRTIO_INPUT_HID,
-    .parent        = TYPE_VIRTIO_INPUT,
-    .instance_size = sizeof(VirtIOInputHID),
-    .is_abstract   = true,
-    .class_init    = virtio_input_hid_class_init,
-};
 
 /* ----------------------------------------------------------------- */
 
@@ -294,12 +287,6 @@ static void virtio_keyboard_init(Object *obj)
                                VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
-static const TypeInfo virtio_keyboard_info = {
-    .name          = TYPE_VIRTIO_KEYBOARD,
-    .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
-    .instance_init = virtio_keyboard_init,
-};
 
 /* ----------------------------------------------------------------- */
 
@@ -338,13 +325,6 @@ static void virtio_mouse_init(Object *obj)
                                VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
-static const TypeInfo virtio_mouse_info = {
-    .name          = TYPE_VIRTIO_MOUSE,
-    .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
-    .instance_init = virtio_mouse_init,
-    .class_init    = virtio_mouse_class_init,
-};
 
 /* ----------------------------------------------------------------- */
 
@@ -383,13 +363,6 @@ static void virtio_tablet_init(Object *obj)
                                VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
-static const TypeInfo virtio_tablet_info = {
-    .name          = TYPE_VIRTIO_TABLET,
-    .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
-    .instance_init = virtio_tablet_init,
-    .class_init    = virtio_tablet_class_init,
-};
 
 /* ----------------------------------------------------------------- */
 
@@ -429,12 +402,6 @@ static void virtio_multitouch_init(Object *obj)
                                VIRTIO_INPUT_CFG_EV_BITS, EV_ABS);
 }
 
-static const TypeInfo virtio_multitouch_info = {
-    .name          = TYPE_VIRTIO_MULTITOUCH,
-    .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
-    .instance_init = virtio_multitouch_init,
-};
 
 /* ----------------------------------------------------------------- */
 
@@ -557,11 +524,25 @@ static void __attribute__((constructor)) init_virtio_input_hid_configs(void)
     /* [6] is zero-initialized end of list */
 }
 
-static void __attribute__((constructor)) virtio_register_types(void)
-{
-    type_register_static(&virtio_input_hid_info);
-    type_register_static(&virtio_keyboard_info);
-    type_register_static(&virtio_mouse_info);
-    type_register_static(&virtio_tablet_info);
-    type_register_static(&virtio_multitouch_info);
-}
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOInputHID,
+                                               TYPE_VIRTIO_INPUT_HID,
+                                               TYPE_VIRTIO_INPUT,
+                                               virtio_input_hid_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(virtio_keyboard, TYPE_VIRTIO_KEYBOARD,
+                                TYPE_VIRTIO_INPUT_HID,
+                                virtio_keyboard_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(virtio_mouse, TYPE_VIRTIO_MOUSE,
+                                 TYPE_VIRTIO_INPUT_HID,
+                                 virtio_mouse_init, virtio_mouse_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(virtio_tablet, TYPE_VIRTIO_TABLET,
+                                 TYPE_VIRTIO_INPUT_HID,
+                                 virtio_tablet_init, virtio_tablet_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(virtio_multitouch, TYPE_VIRTIO_MULTITOUCH,
+                                TYPE_VIRTIO_INPUT_HID,
+                                virtio_multitouch_init)
