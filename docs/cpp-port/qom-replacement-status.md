@@ -10,7 +10,7 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
 **As of:** 2026-05-10
 
-**Conversion progress:** 948 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 951 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
 
