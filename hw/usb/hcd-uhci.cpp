@@ -1375,19 +1375,27 @@ static UHCIInfo uhci_info[] = {
     }
 };
 
-static void uhci_register_concrete_types(void)
-{
-    TypeInfo uhci_type_info = {
-        .parent        = TYPE_UHCI,
-        .class_init    = uhci_data_class_init,
-    };
-    int i;
+#include "qom/cpp/object.h"
 
-    for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
-        uhci_type_info.name = uhci_info[i].name;
-        uhci_type_info.class_data = uhci_info + i;
-        type_register_static(&uhci_type_info);
-    }
-}
-
-type_init(uhci_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA(piix3_usb_uhci, TYPE_PIIX3_USB_UHCI, TYPE_UHCI,
+                                 uhci_data_class_init, &uhci_info[0])
+REGISTER_QEMU_OBJECT_CLASS_DATA(piix4_usb_uhci, TYPE_PIIX4_USB_UHCI, TYPE_UHCI,
+                                 uhci_data_class_init, &uhci_info[1])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_1, TYPE_ICH9_USB_UHCI(1),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[2])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_2, TYPE_ICH9_USB_UHCI(2),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[3])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_3, TYPE_ICH9_USB_UHCI(3),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[4])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_4, TYPE_ICH9_USB_UHCI(4),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[5])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_5, TYPE_ICH9_USB_UHCI(5),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[6])
+REGISTER_QEMU_OBJECT_CLASS_DATA(ich9_usb_uhci_6, TYPE_ICH9_USB_UHCI(6),
+                                 TYPE_UHCI, uhci_data_class_init,
+                                 &uhci_info[7])

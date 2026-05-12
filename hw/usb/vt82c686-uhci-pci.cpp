@@ -40,16 +40,7 @@ static UHCIInfo uhci_info[] = {
     }
 };
 
-static const TypeInfo vt82c686b_usb_uhci_type_info = {
-    .name           = TYPE_VT82C686B_USB_UHCI,
-    .parent         = TYPE_UHCI,
-    .class_init     = uhci_data_class_init,
-    .class_data     = uhci_info,
-};
+#include "qom/cpp/object.h"
 
-static void vt82c686b_usb_uhci_register_types(void)
-{
-    type_register_static(&vt82c686b_usb_uhci_type_info);
-}
-
-type_init(vt82c686b_usb_uhci_register_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA(vt82c686b_usb_uhci, TYPE_VT82C686B_USB_UHCI,
+                                 TYPE_UHCI, uhci_data_class_init, uhci_info)
