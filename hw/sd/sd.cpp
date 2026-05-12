@@ -3303,24 +3303,12 @@ void SDState::emmcClassInit(ObjectClass *klass, const void *data)
 
 #include "qom/cpp/object.h"
 
-/* TYPE_SDMMC_COMMON: abstract base. SDState has instanceInit/instanceFinalize
- * as static methods (not the SFINAE-detected init()/finalize() names), so
- * they're registered manually. */
-static void SDState_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name              = TYPE_SDMMC_COMMON,
-        .parent            = TYPE_DEVICE,
-        .instance_size     = sizeof(SDState),
-        .instance_init     = SDState::instanceInit,
-        .instance_finalize = SDState::instanceFinalize,
-        .is_abstract       = true,
-        .class_size        = sizeof(SDCardClass),
-        .class_init        = SDState::commonClassInit,
-    };
-    type_register_static(&info);
-}
-type_init(SDState_cpp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS(SDState, SDCardClass,
+                                                    TYPE_SDMMC_COMMON,
+                                                    TYPE_DEVICE,
+                                                    SDState::instanceInit,
+                                                    SDState::instanceFinalize,
+                                                    SDState::commonClassInit)
 
 REGISTER_QEMU_OBJECT_CLASS_ONLY(sd_card, TYPE_SD_CARD, TYPE_SDMMC_COMMON,
                                  SDState::sdClassInit)

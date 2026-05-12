@@ -1436,6 +1436,77 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_FREE_INIT_FINI_CS: concrete object type with free
+ * instance_init + free instance_finalize + class_size. No class_init.
+ * Used for QOM types that need finalizer cleanup but no class methods,
+ * e.g. core types like TYPE_MEMORY_REGION.
+ */
+#define REGISTER_QEMU_OBJECT_FREE_INIT_FINI_CS(                              \
+    ClassName, ClassStruct, type_name_str, parent_type_str,                  \
+    instance_init_fn, instance_finalize_fn)                                  \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .class_size        = sizeof(ClassStruct),                            \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_FREE_INIT_CS: abstract object type with
+ * free instance_init + class_size. No class_init, no finalize.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_FREE_INIT_CS(                          \
+    ClassName, ClassStruct, type_name_str, parent_type_str,                  \
+    instance_init_fn)                                                        \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS: abstract device with
+ * free instance_init + free instance_finalize + free class_init + class_size.
+ * The full toolkit when ClassName has none of the SFINAE-detected members.
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS(                  \
+    ClassName, ClassStruct, type_name_str, parent_type_str,                  \
+    instance_init_fn, instance_finalize_fn, class_init_fn)                   \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_FINI_CI: abstract device with both
  * a free instance_finalize AND a free class_init function. No class_size.
  */

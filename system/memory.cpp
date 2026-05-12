@@ -3833,32 +3833,17 @@ void __attribute__((weak)) fuzz_dma_read_cb(size_t addr,
 }
 #endif
 
-static const TypeInfo memory_region_info = {
-    .name               = TYPE_MEMORY_REGION,
-    .parent             = TYPE_OBJECT,
-    .instance_size      = sizeof(MemoryRegion),
-    .instance_init      = memory_region_initfn,
-    .instance_finalize  = memory_region_finalize,
-    .class_size         = sizeof(MemoryRegionClass),
-};
-
-static const TypeInfo iommu_memory_region_info = {
-    .name               = TYPE_IOMMU_MEMORY_REGION,
-    .parent             = TYPE_MEMORY_REGION,
-    .instance_size      = sizeof(IOMMUMemoryRegion),
-    .instance_init      = iommu_memory_region_initfn,
-    .is_abstract        = true,
-    .class_size         = sizeof(IOMMUMemoryRegionClass),
-};
-
-static void memory_register_types(void)
-{
-    type_register_static(&memory_region_info);
-    type_register_static(&iommu_memory_region_info);
-}
-
-type_init(memory_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_FREE_INIT_FINI_CS(MemoryRegion, MemoryRegionClass,
+                                        TYPE_MEMORY_REGION, TYPE_OBJECT,
+                                        memory_region_initfn,
+                                        memory_region_finalize)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_FREE_INIT_CS(IOMMUMemoryRegion,
+                                           IOMMUMemoryRegionClass,
+                                           TYPE_IOMMU_MEMORY_REGION,
+                                           TYPE_MEMORY_REGION,
+                                           iommu_memory_region_initfn)
 
 REGISTER_QEMU_INTERFACE(RamDiscardManagerClass, TYPE_RAM_DISCARD_MANAGER)
