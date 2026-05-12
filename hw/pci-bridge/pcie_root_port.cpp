@@ -186,19 +186,12 @@ static const InterfaceInfo rp_interfaces[] = {
     { }
 };
 
-static const TypeInfo rp_info = {
-    .name          = TYPE_PCIE_ROOT_PORT,
-    .parent        = TYPE_PCIE_SLOT,
-    .instance_post_init = rp_instance_post_init,
-    .is_abstract      = true,
-    .class_size = sizeof(PCIERootPortClass),
-    .class_init    = rp_class_init,
-    .interfaces = rp_interfaces,
-};
+#include "qom/cpp/object.h"
 
-static void rp_register_types(void)
-{
-    type_register_static(&rp_info);
-}
-
-type_init(rp_register_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_POST_INIT_CI_IFACES(pcie_root_port,
+                                                   PCIERootPortClass,
+                                                   TYPE_PCIE_ROOT_PORT,
+                                                   TYPE_PCIE_SLOT,
+                                                   rp_instance_post_init,
+                                                   rp_class_init,
+                                                   rp_interfaces)

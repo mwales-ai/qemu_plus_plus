@@ -1482,6 +1482,32 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_ABSTRACT_POST_INIT_CI_IFACES: abstract device with
+ * instance_post_init + class_size + class_init + interfaces. No regular
+ * instance_init or finalize. instance_size is inherited from parent.
+ * Used by abstract bases that need to defer setup until after children's
+ * instance_init runs (e.g. pcie_root_port).
+ */
+#define REGISTER_QEMU_DEVICE_ABSTRACT_POST_INIT_CI_IFACES(                   \
+    unique_tag, ClassStruct, type_name_str, parent_type_str,                 \
+    instance_post_init_fn, class_init_fn, ifaces_array)                      \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name               = type_name_str,                                 \
+        .parent             = parent_type_str,                               \
+        .instance_post_init = instance_post_init_fn,                         \
+        .is_abstract        = true,                                          \
+        .class_size         = sizeof(ClassStruct),                           \
+        .class_init         = class_init_fn,                                 \
+        .interfaces         = ifaces_array,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS: abstract device with
  * free instance_init + free instance_finalize + free class_init + class_size.
  * The full toolkit when ClassName has none of the SFINAE-detected members.
