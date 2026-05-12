@@ -702,20 +702,17 @@ REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(M48txxSysBusState,
                                                       M48txxSysBusState::classInit,
                                                       m48txx_sysbus_interfaces)
 
-static void m48t59_register_concrete_types(void)
-{
-    TypeInfo sysbus_type_info = {
-        .parent = TYPE_M48TXX_SYS_BUS,
-        .class_size = sizeof(M48txxSysBusDeviceClass),
-        .class_init = M48txxSysBusState::concreteClassInit,
-    };
-    int i;
+REGISTER_QEMU_OBJECT_CLASS_DATA_CS(sysbus_m48t02, M48txxSysBusDeviceClass,
+                                    "sysbus-m48t02", TYPE_M48TXX_SYS_BUS,
+                                    M48txxSysBusState::concreteClassInit,
+                                    &m48txx_sysbus_info[0])
 
-    for (i = 0; i < ARRAY_SIZE(m48txx_sysbus_info); i++) {
-        sysbus_type_info.name = m48txx_sysbus_info[i].bus_name;
-        sysbus_type_info.class_data = &m48txx_sysbus_info[i];
-        type_register_static(&sysbus_type_info);
-    }
-}
+REGISTER_QEMU_OBJECT_CLASS_DATA_CS(sysbus_m48t08, M48txxSysBusDeviceClass,
+                                    "sysbus-m48t08", TYPE_M48TXX_SYS_BUS,
+                                    M48txxSysBusState::concreteClassInit,
+                                    &m48txx_sysbus_info[1])
 
-type_init(m48t59_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA_CS(sysbus_m48t59, M48txxSysBusDeviceClass,
+                                    "sysbus-m48t59", TYPE_M48TXX_SYS_BUS,
+                                    M48txxSysBusState::concreteClassInit,
+                                    &m48txx_sysbus_info[2])

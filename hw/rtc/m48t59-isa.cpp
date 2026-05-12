@@ -160,20 +160,7 @@ REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS_IFACES(M48txxISAState,
                                                       M48txxISAState::classInit,
                                                       m48txx_isa_interfaces)
 
-static void m48t59_isa_register_concrete_types(void)
-{
-    TypeInfo isa_type_info = {
-        .parent = TYPE_M48TXX_ISA,
-        .class_size = sizeof(M48txxISADeviceClass),
-        .class_init = M48txxISAState::concreteClassInit,
-    };
-    size_t i;
-
-    for (i = 0; i < ARRAY_SIZE(m48txx_isa_info); i++) {
-        isa_type_info.name = m48txx_isa_info[i].bus_name;
-        isa_type_info.class_data = &m48txx_isa_info[i];
-        type_register_static(&isa_type_info);
-    }
-}
-
-type_init(m48t59_isa_register_concrete_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA_CS(isa_m48t59, M48txxISADeviceClass,
+                                    "isa-m48t59", TYPE_M48TXX_ISA,
+                                    M48txxISAState::concreteClassInit,
+                                    &m48txx_isa_info[0])

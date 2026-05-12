@@ -1530,6 +1530,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_CLASS_DATA_CS: like REGISTER_QEMU_OBJECT_CLASS_DATA
+ * but also sets class_size. Used by types where the class struct extends
+ * the parent's (e.g. m48txx variants with M48txxSysBusDeviceClass).
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_DATA_CS(unique_tag, ClassStruct,          \
+                                            type_name_str, parent_type_str,  \
+                                            class_init_fn, class_data_ptr)   \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name       = type_name_str,                                         \
+        .parent     = parent_type_str,                                       \
+        .class_size = sizeof(ClassStruct),                                   \
+        .class_init = class_init_fn,                                         \
+        .class_data = class_data_ptr,                                        \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_DATA: register a derived type that only sets
  * a class_init function plus class_data pointer. instance_size is
  * inherited from parent. Used by types like vt82c686b-usb-uhci that
