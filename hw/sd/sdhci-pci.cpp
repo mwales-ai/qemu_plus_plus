@@ -22,6 +22,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"
+#include "qom/cpp/object.h"
 
 static const Property sdhci_pci_properties[] = {
     DEFINE_SDHCI_COMMON_PROPERTIES(SDHCIState),
@@ -74,14 +75,9 @@ static const InterfaceInfo sdhci_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo sdhci_pci_types[] = {
-    {
-        .name           = TYPE_PCI_SDHCI,
-        .parent         = TYPE_PCI_DEVICE,
-        .instance_size  = sizeof(SDHCIState),
-        .class_init     = sdhci_pci_class_init,
-        .interfaces     = sdhci_pci_interfaces,
-    },
-};
-
-DEFINE_TYPES(sdhci_pci_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(sdhci_pci,
+                                             SDHCIState,
+                                             TYPE_PCI_SDHCI,
+                                             TYPE_PCI_DEVICE,
+                                             sdhci_pci_class_init,
+                                             sdhci_pci_interfaces);

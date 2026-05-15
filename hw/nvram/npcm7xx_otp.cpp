@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "qom/cpp/object.h"
 
 /* Each module has 4 KiB of register space. Only a fraction of it is used. */
 #define NPCM7XX_OTP_REGS_SIZE (4 * KiB)
@@ -419,24 +420,17 @@ static void npcm7xx_fuse_array_class_init(ObjectClass *klass, const void *data)
     oc->mmio_ops = &npcm7xx_fuse_array_ops;
 }
 
-static const TypeInfo npcm7xx_otp_types[] = {
-    {
-        .name = TYPE_NPCM7XX_OTP,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxOTPState),
-        .is_abstract = true,
-        .class_size = sizeof(NPCM7xxOTPClass),
-        .class_init = npcm7xx_otp_class_init,
-    },
-    {
-        .name = TYPE_NPCM7XX_KEY_STORAGE,
-        .parent = TYPE_NPCM7XX_OTP,
-        .class_init = npcm7xx_key_storage_class_init,
-    },
-    {
-        .name = TYPE_NPCM7XX_FUSE_ARRAY,
-        .parent = TYPE_NPCM7XX_OTP,
-        .class_init = npcm7xx_fuse_array_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_otp_types);
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(npcm7xx_otp_base,
+                                         NPCM7xxOTPState,
+                                         NPCM7xxOTPClass,
+                                         TYPE_NPCM7XX_OTP,
+                                         TYPE_SYS_BUS_DEVICE,
+                                         npcm7xx_otp_class_init);
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(npcm7xx_key_storage, TYPE_NPCM7XX_KEY_STORAGE,
+                                TYPE_NPCM7XX_OTP,
+                                npcm7xx_key_storage_class_init);
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(npcm7xx_fuse_array, TYPE_NPCM7XX_FUSE_ARRAY,
+                                TYPE_NPCM7XX_OTP,
+                                npcm7xx_fuse_array_class_init);

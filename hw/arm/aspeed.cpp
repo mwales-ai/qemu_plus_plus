@@ -23,6 +23,7 @@
 #include "qemu/units.h"
 #include "hw/qdev-clock.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
@@ -419,16 +420,10 @@ static void aspeed_machine_class_init(ObjectClass *oc, const void *data)
     aspeed_machine_class_props_init(oc);
 }
 
-static const TypeInfo aspeed_machine_types[] = {
-    {
-        .name          = TYPE_ASPEED_MACHINE,
-        .parent        = TYPE_MACHINE,
-        .instance_size = sizeof(AspeedMachineState),
-        .instance_init = aspeed_machine_instance_init,
-        .is_abstract      = true,
-        .class_size    = sizeof(AspeedMachineClass),
-        .class_init    = aspeed_machine_class_init,
-    }
-};
-
-DEFINE_TYPES(aspeed_machine_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(aspeed_machine,
+                                                 AspeedMachineState,
+                                                 AspeedMachineClass,
+                                                 TYPE_ASPEED_MACHINE,
+                                                 TYPE_MACHINE,
+                                                 aspeed_machine_instance_init,
+                                                 aspeed_machine_class_init);

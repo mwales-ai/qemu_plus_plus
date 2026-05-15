@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "qemu/queue.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define PCA9548_CHANNEL_COUNT 8
@@ -235,26 +236,16 @@ static void pca954x_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pca954x_props);
 }
 
-static const TypeInfo pca954x_info[] = {
-    {
-        .name          = TYPE_PCA954X,
-        .parent        = TYPE_SMBUS_DEVICE,
-        .instance_size = sizeof(Pca954xState),
-        .instance_init = pca954x_init,
-        .is_abstract   = true,
-        .class_size    = sizeof(Pca954xClass),
-        .class_init    = pca954x_class_init,
-    },
-    {
-        .name          = TYPE_PCA9546,
-        .parent        = TYPE_PCA954X,
-        .class_init    = pca9546_class_init,
-    },
-    {
-        .name          = TYPE_PCA9548,
-        .parent        = TYPE_PCA954X,
-        .class_init    = pca9548_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(pca954x_base,
+                                                 Pca954xState,
+                                                 Pca954xClass,
+                                                 TYPE_PCA954X,
+                                                 TYPE_SMBUS_DEVICE,
+                                                 pca954x_init,
+                                                 pca954x_class_init);
 
-DEFINE_TYPES(pca954x_info)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pca9546, TYPE_PCA9546, TYPE_PCA954X,
+                                pca9546_class_init);
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pca9548, TYPE_PCA9548, TYPE_PCA954X,
+                                pca9548_class_init);

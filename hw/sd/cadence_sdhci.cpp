@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #include "hw/sd/cadence_sdhci.h"
 #include "sdhci-internal.h"
+#include "qom/cpp/object.h"
 
 /* HRS - Host Register Set (specific to Cadence) */
 
@@ -175,14 +176,9 @@ static void cadence_sdhci_class_init(ObjectClass *classp, const void *data)
     dc->vmsd = &vmstate_cadence_sdhci;
 }
 
-static const TypeInfo cadence_sdhci_types[] = {
-    {
-        .name           = TYPE_CADENCE_SDHCI,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(CadenceSDHCIState),
-        .instance_init  = cadence_sdhci_instance_init,
-        .class_init     = cadence_sdhci_class_init,
-    },
-};
-
-DEFINE_TYPES(cadence_sdhci_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(cadence_sdhci,
+                                          CadenceSDHCIState,
+                                          TYPE_CADENCE_SDHCI,
+                                          TYPE_SYS_BUS_DEVICE,
+                                          cadence_sdhci_instance_init,
+                                          cadence_sdhci_class_init);

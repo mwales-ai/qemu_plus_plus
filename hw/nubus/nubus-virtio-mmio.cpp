@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/nubus/nubus-virtio-mmio.h"
+#include "qom/cpp/object.h"
 
 
 #define NUBUS_VIRTIO_MMIO_PIC_OFFSET   0
@@ -90,15 +91,10 @@ static void nubus_virtio_mmio_class_init(ObjectClass *oc, const void *data)
                                     &nvmdc->parent_realize);
 }
 
-static const TypeInfo nubus_virtio_mmio_types[] = {
-    {
-        .name = TYPE_NUBUS_VIRTIO_MMIO,
-        .parent = TYPE_NUBUS_DEVICE,
-        .instance_init = nubus_virtio_mmio_init,
-        .instance_size = sizeof(NubusVirtioMMIO),
-        .class_init = nubus_virtio_mmio_class_init,
-        .class_size = sizeof(NubusVirtioMMIODeviceClass),
-    },
-};
-
-DEFINE_TYPES(nubus_virtio_mmio_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(nubus_virtio_mmio,
+                                        NubusVirtioMMIO,
+                                        NubusVirtioMMIODeviceClass,
+                                        TYPE_NUBUS_VIRTIO_MMIO,
+                                        TYPE_NUBUS_DEVICE,
+                                        nubus_virtio_mmio_init,
+                                        nubus_virtio_mmio_class_init);

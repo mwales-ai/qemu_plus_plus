@@ -30,6 +30,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/pci-host/designware.h"
+#include "qom/cpp/object.h"
 
 #define DESIGNWARE_PCIE_PORT_LINK_CONTROL          0x710
 #define DESIGNWARE_PCIE_PHY_DEBUG_R1               0x72C
@@ -766,25 +767,22 @@ static const InterfaceInfo designware_pcie_root_interfaces[] = {
     { }
 };
 
-static const TypeInfo designware_pcie_types[] = {
-    {
-        .name           = TYPE_DESIGNWARE_PCIE_ROOT_BUS,
-        .parent         = TYPE_PCIE_BUS,
-        .instance_size  = sizeof(DesignwarePCIERootBus),
-        .class_init     = designware_pcie_root_bus_class_init,
-    }, {
-        .name           = TYPE_DESIGNWARE_PCIE_HOST,
-        .parent         = TYPE_PCI_HOST_BRIDGE,
-        .instance_size  = sizeof(DesignwarePCIEHost),
-        .instance_init  = designware_pcie_host_init,
-        .class_init     = designware_pcie_host_class_init,
-    }, {
-        .name           = TYPE_DESIGNWARE_PCIE_ROOT,
-        .parent         = TYPE_PCI_BRIDGE,
-        .instance_size  = sizeof(DesignwarePCIERoot),
-        .class_init     = designware_pcie_root_class_init,
-        .interfaces     = designware_pcie_root_interfaces,
-    },
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(designware_pcie_root_bus,
+                                     DesignwarePCIERootBus,
+                                     TYPE_DESIGNWARE_PCIE_ROOT_BUS,
+                                     TYPE_PCIE_BUS,
+                                     designware_pcie_root_bus_class_init);
 
-DEFINE_TYPES(designware_pcie_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(designware_pcie_host,
+                                          DesignwarePCIEHost,
+                                          TYPE_DESIGNWARE_PCIE_HOST,
+                                          TYPE_PCI_HOST_BRIDGE,
+                                          designware_pcie_host_init,
+                                          designware_pcie_host_class_init);
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(designware_pcie_root,
+                                            DesignwarePCIERoot,
+                                            TYPE_DESIGNWARE_PCIE_ROOT,
+                                            TYPE_PCI_BRIDGE,
+                                            designware_pcie_root_class_init,
+                                            designware_pcie_root_interfaces);

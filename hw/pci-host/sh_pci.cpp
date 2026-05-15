@@ -32,6 +32,7 @@
 #include "hw/pci/pci_host.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"
 
@@ -190,19 +191,15 @@ static const InterfaceInfo sh_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo sh_pcic_types[] = {
-    {
-        .name           = TYPE_SH_PCI_HOST_BRIDGE,
-        .parent         = TYPE_PCI_HOST_BRIDGE,
-        .instance_size  = sizeof(SHPCIState),
-        .class_init     = SHPCIState::hostClassInit,
-    }, {
-        .name           = "sh_pci_host",
-        .parent         = TYPE_PCI_DEVICE,
-        .instance_size  = sizeof(PCIDevice),
-        .class_init     = SHPCIState::pciDeviceClassInit,
-        .interfaces     = sh_pci_host_interfaces,
-    },
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(sh_pci_host_bridge,
+                                     SHPCIState,
+                                     TYPE_SH_PCI_HOST_BRIDGE,
+                                     TYPE_PCI_HOST_BRIDGE,
+                                     SHPCIState::hostClassInit);
 
-DEFINE_TYPES(sh_pcic_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(sh_pci_host,
+                                            PCIDevice,
+                                            "sh_pci_host",
+                                            TYPE_PCI_DEVICE,
+                                            SHPCIState::pciDeviceClassInit,
+                                            sh_pci_host_interfaces);

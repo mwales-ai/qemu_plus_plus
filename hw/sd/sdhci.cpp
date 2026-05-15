@@ -39,6 +39,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_SDHCI_BUS "sdhci-bus"
 /* This is reusing the SDBus typedef from SD_BUS */
@@ -1955,31 +1956,22 @@ static void sdhci_s3c_init(Object *obj)
     s->io_ops = &sdhci_s3c_mmio_ops;
 }
 
-static const TypeInfo sdhci_types[] = {
-    {
-        .name = TYPE_SDHCI_BUS,
-        .parent = TYPE_SD_BUS,
-        .instance_size = sizeof(SDBus),
-        .class_init = sdhci_bus_class_init,
-    },
-    {
-        .name = TYPE_SYSBUS_SDHCI,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(SDHCIState),
-        .instance_init = sdhci_sysbus_init,
-        .instance_finalize = sdhci_sysbus_finalize,
-        .class_init = sdhci_sysbus_class_init,
-    },
-    {
-        .name = TYPE_IMX_USDHC,
-        .parent = TYPE_SYSBUS_SDHCI,
-        .instance_init = imx_usdhc_init,
-    },
-    {
-        .name = TYPE_S3C_SDHCI,
-        .parent = TYPE_SYSBUS_SDHCI,
-        .instance_init = sdhci_s3c_init,
-    },
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(sdhci_bus,
+                                     SDBus,
+                                     TYPE_SDHCI_BUS,
+                                     TYPE_SD_BUS,
+                                     sdhci_bus_class_init);
 
-DEFINE_TYPES(sdhci_types)
+REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED(sdhci_sysbus,
+                                          SDHCIState,
+                                          TYPE_SYSBUS_SDHCI,
+                                          TYPE_SYS_BUS_DEVICE,
+                                          sdhci_sysbus_init,
+                                          sdhci_sysbus_finalize,
+                                          sdhci_sysbus_class_init);
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx_usdhc, TYPE_IMX_USDHC, TYPE_SYSBUS_SDHCI,
+                              imx_usdhc_init);
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(sdhci_s3c, TYPE_S3C_SDHCI, TYPE_SYSBUS_SDHCI,
+                              sdhci_s3c_init);

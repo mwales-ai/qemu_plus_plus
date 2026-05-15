@@ -50,6 +50,7 @@
 #include "hw/ssi/pl022.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "qom/cpp/object.h"
 
 /* Define the layout of RAM and ROM in a board */
 typedef struct RAMInfo {
@@ -628,20 +629,15 @@ void MPS3RMachineState::an536ClassInit(ObjectClass *oc, const void *data)
     mps3r_set_default_ram_info(mmc);
 }
 
-static const TypeInfo mps3r_machine_types[] = {
-    {
-        .name = TYPE_MPS3R_MACHINE,
-        .parent = TYPE_MACHINE,
-        .instance_size = sizeof(MPS3RMachineState),
-        .is_abstract = true,
-        .class_size = sizeof(MPS3RMachineClass),
-        .class_init = MPS3RMachineState::baseClassInit,
-    }, {
-        .name = TYPE_MPS3R_AN536_MACHINE,
-        .parent = TYPE_MPS3R_MACHINE,
-        .class_init = MPS3RMachineState::an536ClassInit,
-        .interfaces = arm_machine_interfaces,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(mps3r_machine_base,
+                                         MPS3RMachineState,
+                                         MPS3RMachineClass,
+                                         TYPE_MPS3R_MACHINE,
+                                         TYPE_MACHINE,
+                                         MPS3RMachineState::baseClassInit);
 
-DEFINE_TYPES(mps3r_machine_types);
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps3r_an536_machine,
+                                      TYPE_MPS3R_AN536_MACHINE,
+                                      TYPE_MPS3R_MACHINE,
+                                      MPS3RMachineState::an536ClassInit,
+                                      arm_machine_interfaces);

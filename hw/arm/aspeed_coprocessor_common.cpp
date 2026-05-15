@@ -15,6 +15,7 @@ extern "C" {
 }
 
 #include "hw/arm/aspeed_coprocessor.h"
+#include "qom/cpp/object.h"
 
 static void aspeed_coprocessor_realize(DeviceState *dev, Error **errp)
 {
@@ -46,15 +47,9 @@ static void aspeed_coprocessor_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, aspeed_coprocessor_properties);
 }
 
-static const TypeInfo aspeed_coprocessor_types[] = {
-    {
-        .name           = TYPE_ASPEED_COPROCESSOR,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(AspeedCoprocessorState),
-        .is_abstract       = true,
-        .class_size     = sizeof(AspeedCoprocessorClass),
-        .class_init     = aspeed_coprocessor_class_init,
-    },
-};
-
-DEFINE_TYPES(aspeed_coprocessor_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(aspeed_coprocessor,
+                                         AspeedCoprocessorState,
+                                         AspeedCoprocessorClass,
+                                         TYPE_ASPEED_COPROCESSOR,
+                                         TYPE_DEVICE,
+                                         aspeed_coprocessor_class_init);

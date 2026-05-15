@@ -10,6 +10,7 @@
 #include "hw/pci-host/fsl_imx8m_phy.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define CMN_REG075 0x1d4
 #define ANA_PLL_LOCK_DONE BIT(1)
@@ -88,13 +89,8 @@ static void fsl_imx8m_pcie_phy_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = fsl_imx8m_pcie_phy_reset_hold;
 }
 
-static const TypeInfo fsl_imx8m_pcie_phy_types[] = {
-    {
-        .name = TYPE_FSL_IMX8M_PCIE_PHY,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(FslImx8mPciePhyState),
-        .class_init = fsl_imx8m_pcie_phy_class_init,
-    }
-};
-
-DEFINE_TYPES(fsl_imx8m_pcie_phy_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(fsl_imx8m_pcie_phy,
+                                     FslImx8mPciePhyState,
+                                     TYPE_FSL_IMX8M_PCIE_PHY,
+                                     TYPE_SYS_BUS_DEVICE,
+                                     fsl_imx8m_pcie_phy_class_init);
