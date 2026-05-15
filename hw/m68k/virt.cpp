@@ -322,19 +322,12 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_id = "m68k_virt.ram";
 }
 
-static const TypeInfo virt_machine_info = {
-    .name       = MACHINE_TYPE_NAME("virt"),
-    .parent     = TYPE_MACHINE,
-    .is_abstract   = true,
-    .class_init = virt_machine_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void virt_machine_register_types(void)
-{
-    type_register_static(&virt_machine_info);
-}
-
-type_init(virt_machine_register_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE(m68k_virt_machine,
+                                       MACHINE_TYPE_NAME("virt"),
+                                       TYPE_MACHINE,
+                                       virt_machine_class_init)
 
 #define DEFINE_VIRT_MACHINE_IMPL(latest, ...) \
     static void MACHINE_VER_SYM(class_init, virt, __VA_ARGS__)( \

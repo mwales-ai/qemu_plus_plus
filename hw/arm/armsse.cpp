@@ -1733,23 +1733,12 @@ static const InterfaceInfo armsse_interfaces[] = {
     { }
 };
 
-static const TypeInfo armsse_info = {
-    .name = TYPE_ARM_SSE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMSSE),
-    .instance_init = armsse_init,
-    .is_abstract = true,
-    .class_size = sizeof(ARMSSEClass),
-    .interfaces = armsse_interfaces,
-};
-
-static void armsse_register_types(void)
-{
-    type_register_static(&armsse_info);
-}
-type_init(armsse_register_types);
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CS_IFACES(armsse, ARMSSE, ARMSSEClass,
+                                              TYPE_ARM_SSE, TYPE_SYS_BUS_DEVICE,
+                                              armsse_init,
+                                              armsse_interfaces)
 
 REGISTER_QEMU_OBJECT_CLASS_DATA(armsse_iotkit, TYPE_IOTKIT, TYPE_ARM_SSE,
                                  armsse_class_init, &armsse_variants[0])

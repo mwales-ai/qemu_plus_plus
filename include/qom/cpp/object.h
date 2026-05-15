@@ -1109,6 +1109,50 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CS_IFACES: abstract sized + free
+ * instance_init + class_size + interfaces. No class_init.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CS_IFACES(                        \
+    unique_tag, ClassName, ClassStruct, type_name_str, parent_type_str,      \
+    instance_init_fn, ifaces_array)                                          \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
+        .interfaces    = ifaces_array,                                       \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE: abstract type with class_init
+ * only. No instance_size, no class_size, no instance_init, no interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE(unique_tag,                    \
+                                               type_name_str,                \
+                                               parent_type_str,              \
+                                               class_init_fn)                \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name        = type_name_str,                                        \
+        .parent      = parent_type_str,                                      \
+        .is_abstract = true,                                                 \
+        .class_init  = class_init_fn,                                        \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_CS_CI_BARE: abstract type with class_size
  * + class_init only. No instance_size, no instance_init, no interfaces.
  * Used by machine bases that don't add their own state struct (just inherit
