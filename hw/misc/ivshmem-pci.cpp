@@ -1142,12 +1142,6 @@ void IVShmemState::plainClassInit(ObjectClass *klass, const void *data)
     dc->vmsd = &ivshmem_plain_vmsd;
 }
 
-static const TypeInfo ivshmem_plain_info = {
-    .name          = TYPE_IVSHMEM_PLAIN,
-    .parent        = TYPE_IVSHMEM_COMMON,
-    .instance_size = sizeof(IVShmemState),
-    .class_init    = IVShmemState::plainClassInit,
-};
 
 static const VMStateField ivshmem_doorbell_vmsd_fields[] = {
     VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
@@ -1213,16 +1207,12 @@ void IVShmemState::doorbellClassInit(ObjectClass *klass, const void *data)
     dc->vmsd = &ivshmem_doorbell_vmsd;
 }
 
-static const TypeInfo ivshmem_doorbell_info = {
-    .name          = TYPE_IVSHMEM_DOORBELL,
-    .parent        = TYPE_IVSHMEM_COMMON,
-    .instance_size = sizeof(IVShmemState),
-    .instance_init = ivshmem_doorbell_init,
-    .class_init    = IVShmemState::doorbellClassInit,
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ivshmem_plain, IVShmemState,
+                                       TYPE_IVSHMEM_PLAIN, TYPE_IVSHMEM_COMMON,
+                                       IVShmemState::plainClassInit)
 
-static void __attribute__((constructor)) ivshmem_register_types(void)
-{
-    type_register_static(&ivshmem_plain_info);
-    type_register_static(&ivshmem_doorbell_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(ivshmem_doorbell, IVShmemState,
+                                            TYPE_IVSHMEM_DOORBELL,
+                                            TYPE_IVSHMEM_COMMON,
+                                            ivshmem_doorbell_init,
+                                            IVShmemState::doorbellClassInit)

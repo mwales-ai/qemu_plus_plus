@@ -2399,16 +2399,6 @@ const VMStateDescription vmstate_vmbus_dev = {
     .fields = vmstate_vmbus_dev_fields,
 };
 
-/* vmbus generic device base */
-static const TypeInfo vmbus_dev_type_info = {
-    .name = TYPE_VMBUS_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(VMBusDevice),
-    .instance_init = vmbus_dev_instance_init,
-    .is_abstract = true,
-    .class_size = sizeof(VMBusDeviceClass),
-    .class_init = vmbus_dev_class_init,
-};
 
 static void vmbus_realize(BusState *bus, Error **errp)
 {
@@ -2688,10 +2678,10 @@ void VMBusBridge::classInit(DeviceClass *dc)
     dc->user_creatable = true;
 }
 
-static void __attribute__((constructor)) vmbus_register_non_cpp_types(void)
-{
-    type_register_static(&vmbus_dev_type_info);
-}
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(VMBusDevice, VMBusDeviceClass,
+                                            TYPE_VMBUS_DEVICE, TYPE_DEVICE,
+                                            vmbus_dev_instance_init,
+                                            vmbus_dev_class_init)
 
 REGISTER_QEMU_BUS_CI(VMBus, TYPE_VMBUS, vmbus_class_init)
 

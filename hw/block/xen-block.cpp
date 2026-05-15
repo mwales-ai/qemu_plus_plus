@@ -726,12 +726,6 @@ static void xen_disk_class_init(ObjectClass *klass, const void *data)
     dev_class->desc = "Xen Disk Device";
 }
 
-static const TypeInfo xen_disk_type_info = {
-    .name = TYPE_XEN_DISK_DEVICE,
-    .parent = TYPE_XEN_BLOCK_DEVICE,
-    .instance_size = sizeof(XenDiskDevice),
-    .class_init = xen_disk_class_init,
-};
 
 static void xen_cdrom_unrealize(XenBlockDevice *blockdev)
 {
@@ -773,22 +767,20 @@ static void xen_cdrom_class_init(ObjectClass *klass, const void *data)
     dev_class->desc = "Xen CD-ROM Device";
 }
 
-static const TypeInfo xen_cdrom_type_info = {
-    .name = TYPE_XEN_CDROM_DEVICE,
-    .parent = TYPE_XEN_BLOCK_DEVICE,
-    .instance_size = sizeof(XenCDRomDevice),
-    .class_init = xen_cdrom_class_init,
-};
-
-static void __attribute__((constructor)) register_xen_block_concretes(void)
-{
-    type_register_static(&xen_disk_type_info);
-    type_register_static(&xen_cdrom_type_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(XenBlockDevice, XenBlockDeviceClass,
                                TYPE_XEN_BLOCK_DEVICE, TYPE_XEN_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(xen_disk, XenDiskDevice,
+                                       TYPE_XEN_DISK_DEVICE,
+                                       TYPE_XEN_BLOCK_DEVICE,
+                                       xen_disk_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(xen_cdrom, XenCDRomDevice,
+                                       TYPE_XEN_CDROM_DEVICE,
+                                       TYPE_XEN_BLOCK_DEVICE,
+                                       xen_cdrom_class_init)
 
 static void xen_block_blockdev_del(const char *node_name, Error **errp)
 {
