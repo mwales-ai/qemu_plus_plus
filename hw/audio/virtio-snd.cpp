@@ -1383,13 +1383,8 @@ static void virtio_snd_class_init(ObjectClass *klass, const void *data)
     vdc->legacy_features = 0;
 }
 
-static const TypeInfo virtio_snd_types[] = {
-    {
-      .name          = TYPE_VIRTIO_SND,
-      .parent        = TYPE_VIRTIO_DEVICE,
-      .instance_size = sizeof(VirtIOSound),
-      .class_init    = virtio_snd_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(virtio_snd_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(virtio_snd, VirtIOSound, TYPE_VIRTIO_SND,
+                                       TYPE_VIRTIO_DEVICE,
+                                       virtio_snd_class_init)

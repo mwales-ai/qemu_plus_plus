@@ -1711,6 +1711,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED: concrete sized object with
+ * free instance_init + free instance_finalize + free class_init. No interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED(                          \
+    unique_tag, ClassName, type_name_str, parent_type_str,                   \
+    instance_init_fn, instance_finalize_fn, class_init_fn)                   \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_FINI: like REGISTER_QEMU_OBJECT_CLASS_ONLY
  * but additionally takes a free instance_finalize function (not a member).
  * Useful for chardev subtypes with custom finalize logic but no own state.

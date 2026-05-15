@@ -1086,13 +1086,10 @@ static void npcm7xx_smbus_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = npcm7xx_smbus_hold_reset;
 }
 
-static const TypeInfo npcm7xx_smbus_types[] = {
-    {
-        .name = TYPE_NPCM7XX_SMBUS,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxSMBusState),
-        .instance_init = npcm7xx_smbus_init,
-        .class_init = npcm7xx_smbus_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_smbus_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(npcm7xx_smbus, NPCM7xxSMBusState,
+                                            TYPE_NPCM7XX_SMBUS,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            npcm7xx_smbus_init,
+                                            npcm7xx_smbus_class_init)

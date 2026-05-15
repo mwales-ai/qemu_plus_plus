@@ -153,16 +153,11 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo smbus_eeprom_types[] = {
-    {
-        .name          = TYPE_SMBUS_EEPROM,
-        .parent        = TYPE_SMBUS_DEVICE,
-        .instance_size = sizeof(SMBusEEPROMDevice),
-        .class_init    = smbus_eeprom_class_initfn,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(smbus_eeprom_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(smbus_eeprom, SMBusEEPROMDevice,
+                                       TYPE_SMBUS_EEPROM, TYPE_SMBUS_DEVICE,
+                                       smbus_eeprom_class_initfn)
 
 extern "C"
 void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)

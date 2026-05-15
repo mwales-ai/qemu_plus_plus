@@ -366,15 +366,10 @@ static void vub_class_init(ObjectClass *klass, const void *data)
     vdc->set_status = vub_set_status;
 }
 
-static const TypeInfo vub_types[] = {
-    {
-        .name = TYPE_VHOST_USER_BASE,
-        .parent = TYPE_VIRTIO_DEVICE,
-        .instance_size = sizeof(VHostUserBase),
-        .is_abstract = true,
-        .class_size = sizeof(VHostUserBaseClass),
-        .class_init = vub_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(vub_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(vhost_user_base, VHostUserBase,
+                                           VHostUserBaseClass,
+                                           TYPE_VHOST_USER_BASE,
+                                           TYPE_VIRTIO_DEVICE,
+                                           vub_class_init)

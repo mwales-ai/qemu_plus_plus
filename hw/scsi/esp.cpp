@@ -1675,22 +1675,15 @@ static void esp_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo esp_info_types[] = {
-    {
-        .name          = TYPE_SYSBUS_ESP,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(SysBusESPState),
-        .instance_init = sysbus_esp_init,
-        .class_init    = sysbus_esp_class_init,
-    },
-    {
-        .name = TYPE_ESP,
-        .parent = TYPE_DEVICE,
-        .instance_size = sizeof(ESPState),
-        .instance_init = esp_init,
-        .instance_finalize = esp_finalize,
-        .class_init = esp_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(esp_info_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(sysbus_esp, SysBusESPState,
+                                            TYPE_SYSBUS_ESP,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            sysbus_esp_init,
+                                            sysbus_esp_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED(esp, ESPState,
+                                            TYPE_ESP, TYPE_DEVICE,
+                                            esp_init, esp_finalize,
+                                            esp_class_init)
