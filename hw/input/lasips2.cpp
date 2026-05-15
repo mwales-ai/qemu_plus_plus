@@ -400,13 +400,6 @@ static void lasips2_kbd_port_class_init(ObjectClass *klass, const void *data)
                                     &lpdc->parent_realize);
 }
 
-static const TypeInfo lasips2_kbd_port_info = {
-    .name          = TYPE_LASIPS2_KBD_PORT,
-    .parent        = TYPE_LASIPS2_PORT,
-    .instance_size = sizeof(LASIPS2KbdPort),
-    .instance_init = lasips2_kbd_port_init,
-    .class_init    = lasips2_kbd_port_class_init,
-};
 
 static void lasips2_mouse_port_realize(DeviceState *dev, Error **errp)
 {
