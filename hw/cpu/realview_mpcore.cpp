@@ -114,14 +114,11 @@ static void mpcore_rirq_class_init(ObjectClass *klass, const void *data)
     dc->realize = realview_mpcore_realize;
 }
 
-static const TypeInfo realview_mpcore_types[] = {
-    {
-        .name           = TYPE_REALVIEW_MPCORE_RIRQ,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(mpcore_rirq_state),
-        .instance_init  = mpcore_rirq_init,
-        .class_init     = mpcore_rirq_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(realview_mpcore_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(realview_mpcore_rirq,
+                                            mpcore_rirq_state,
+                                            TYPE_REALVIEW_MPCORE_RIRQ,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            mpcore_rirq_init,
+                                            mpcore_rirq_class_init)

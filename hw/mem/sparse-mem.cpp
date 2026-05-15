@@ -151,12 +151,8 @@ static void sparse_mem_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = sparse_mem_enter_reset;
 }
 
-static const TypeInfo sparse_mem_types[] = {
-    {
-        .name = TYPE_SPARSE_MEM,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(SparseMemState),
-        .class_init = sparse_mem_class_init,
-    },
-};
-DEFINE_TYPES(sparse_mem_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(sparse_mem, SparseMemState,
+                                       TYPE_SPARSE_MEM, TYPE_SYS_BUS_DEVICE,
+                                       sparse_mem_class_init)

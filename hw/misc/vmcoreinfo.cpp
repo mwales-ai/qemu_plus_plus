@@ -95,13 +95,8 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = vmcoreinfo_reset_hold;
 }
 
-static const TypeInfo vmcoreinfo_types[] = {
-    {
-        .name           = TYPE_VMCOREINFO,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(VMCoreInfoState),
-        .class_init     = vmcoreinfo_device_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(vmcoreinfo_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vmcoreinfo, VMCoreInfoState,
+                                       TYPE_VMCOREINFO, TYPE_DEVICE,
+                                       vmcoreinfo_device_class_init)

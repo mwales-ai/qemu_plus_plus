@@ -183,14 +183,10 @@ static void a9mp_priv_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, a9mp_priv_properties);
 }
 
-static const TypeInfo a9mp_types[] = {
-    {
-        .name           = TYPE_A9MPCORE_PRIV,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  =  sizeof(A9MPPrivState),
-        .instance_init  = a9mp_priv_initfn,
-        .class_init     = a9mp_priv_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(a9mp_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(a9mp_priv, A9MPPrivState,
+                                            TYPE_A9MPCORE_PRIV,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            a9mp_priv_initfn,
+                                            a9mp_priv_class_init)

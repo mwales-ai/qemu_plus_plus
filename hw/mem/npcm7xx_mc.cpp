@@ -73,12 +73,8 @@ static void npcm7xx_mc_class_init(ObjectClass *klass, const void *data)
     dc->realize = npcm7xx_mc_realize;
 }
 
-static const TypeInfo npcm7xx_mc_types[] = {
-    {
-        .name = TYPE_NPCM7XX_MC,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxMCState),
-        .class_init = npcm7xx_mc_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_mc_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(npcm7xx_mc, NPCM7xxMCState,
+                                       TYPE_NPCM7XX_MC, TYPE_SYS_BUS_DEVICE,
+                                       npcm7xx_mc_class_init)

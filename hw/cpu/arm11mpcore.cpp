@@ -152,14 +152,10 @@ static void mpcore_priv_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, mpcore_priv_properties);
 }
 
-static const TypeInfo arm11mp_types[] = {
-    {
-        .name           = TYPE_ARM11MPCORE_PRIV,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(ARM11MPCorePriveState),
-        .instance_init  = mpcore_priv_initfn,
-        .class_init     = mpcore_priv_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(arm11mp_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(arm11mp_priv, ARM11MPCorePriveState,
+                                            TYPE_ARM11MPCORE_PRIV,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            mpcore_priv_initfn,
+                                            mpcore_priv_class_init)

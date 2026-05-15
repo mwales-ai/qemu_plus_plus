@@ -170,14 +170,10 @@ static void a15mp_priv_class_init(ObjectClass *klass, const void *data)
     /* We currently have no saveable state */
 }
 
-static const TypeInfo a15mp_types[] = {
-    {
-        .name           = TYPE_A15MPCORE_PRIV,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(A15MPPrivState),
-        .instance_init  = a15mp_priv_initfn,
-        .class_init     = a15mp_priv_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(a15mp_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(a15mp_priv, A15MPPrivState,
+                                            TYPE_A15MPCORE_PRIV,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            a15mp_priv_initfn,
+                                            a15mp_priv_class_init)
