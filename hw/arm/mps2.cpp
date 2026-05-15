@@ -569,34 +569,22 @@ REGISTER_QEMU_MACHINE_ABSTRACT(MPS2MachineState, MPS2MachineClass,
                                TYPE_MPS2_MACHINE, TYPE_MACHINE,
                                MPS2MachineState::mps2ClassInit)
 
-static void __attribute__((constructor)) mps2_concrete_machine_init(void)
-{
-    static const TypeInfo mps2_an385_info = {
-        .name = TYPE_MPS2_AN385_MACHINE,
-        .parent = TYPE_MPS2_MACHINE,
-        .class_init = MPS2MachineState::an385ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps2_an386_info = {
-        .name = TYPE_MPS2_AN386_MACHINE,
-        .parent = TYPE_MPS2_MACHINE,
-        .class_init = MPS2MachineState::an386ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps2_an500_info = {
-        .name = TYPE_MPS2_AN500_MACHINE,
-        .parent = TYPE_MPS2_MACHINE,
-        .class_init = MPS2MachineState::an500ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps2_an511_info = {
-        .name = TYPE_MPS2_AN511_MACHINE,
-        .parent = TYPE_MPS2_MACHINE,
-        .class_init = MPS2MachineState::an511ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    type_register_static(&mps2_an385_info);
-    type_register_static(&mps2_an386_info);
-    type_register_static(&mps2_an500_info);
-    type_register_static(&mps2_an511_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2_an385, TYPE_MPS2_AN385_MACHINE,
+                                        TYPE_MPS2_MACHINE,
+                                        MPS2MachineState::an385ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2_an386, TYPE_MPS2_AN386_MACHINE,
+                                        TYPE_MPS2_MACHINE,
+                                        MPS2MachineState::an386ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2_an500, TYPE_MPS2_AN500_MACHINE,
+                                        TYPE_MPS2_MACHINE,
+                                        MPS2MachineState::an500ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2_an511, TYPE_MPS2_AN511_MACHINE,
+                                        TYPE_MPS2_MACHINE,
+                                        MPS2MachineState::an511ClassInit,
+                                        arm_machine_interfaces)

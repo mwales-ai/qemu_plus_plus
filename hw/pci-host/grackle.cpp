@@ -139,19 +139,12 @@ void GrackleState::classInit(DeviceClass *dc)
     sbc->explicit_ofw_unit_address = grackle_ofw_unit_address;
 }
 
-static void grackle_pci_register(void) __attribute__((constructor));
-static void grackle_pci_register(void)
-{
-    static TypeInfo info = {
-        .name          = "grackle",
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIDevice),
-        .class_init = grackle_pci_class_init,
-        .interfaces = grackle_pci_interfaces,
-    };
-    type_register_static(&info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(grackle_pci, PCIDevice,
+                                              "grackle", TYPE_PCI_DEVICE,
+                                              grackle_pci_class_init,
+                                              grackle_pci_interfaces)
+
 REGISTER_QEMU_DEVICE(GrackleState, TYPE_GRACKLE_PCI_HOST_BRIDGE,
                       TYPE_PCI_HOST_BRIDGE)

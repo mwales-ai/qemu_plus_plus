@@ -1496,34 +1496,22 @@ REGISTER_QEMU_MACHINE_ABSTRACT_IFACES(MPS2TZMachineState, MPS2TZMachineClass,
                                       MPS2TZMachineClass::classInit,
                                       mps2tz_info_interfaces)
 
-static void __attribute__((constructor)) mps2tz_concrete_machine_init(void)
-{
-    static const TypeInfo mps2tz_an505_info = {
-        .name = TYPE_MPS2TZ_AN505_MACHINE,
-        .parent = TYPE_MPS2TZ_MACHINE,
-        .class_init = MPS2TZMachineClass::an505ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps2tz_an521_info = {
-        .name = TYPE_MPS2TZ_AN521_MACHINE,
-        .parent = TYPE_MPS2TZ_MACHINE,
-        .class_init = MPS2TZMachineClass::an521ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps3tz_an524_info = {
-        .name = TYPE_MPS3TZ_AN524_MACHINE,
-        .parent = TYPE_MPS2TZ_MACHINE,
-        .class_init = MPS2TZMachineClass::an524ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo mps3tz_an547_info = {
-        .name = TYPE_MPS3TZ_AN547_MACHINE,
-        .parent = TYPE_MPS2TZ_MACHINE,
-        .class_init = MPS2TZMachineClass::an547ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    type_register_static(&mps2tz_an505_info);
-    type_register_static(&mps2tz_an521_info);
-    type_register_static(&mps3tz_an524_info);
-    type_register_static(&mps3tz_an547_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2tz_an505, TYPE_MPS2TZ_AN505_MACHINE,
+                                        TYPE_MPS2TZ_MACHINE,
+                                        MPS2TZMachineClass::an505ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps2tz_an521, TYPE_MPS2TZ_AN521_MACHINE,
+                                        TYPE_MPS2TZ_MACHINE,
+                                        MPS2TZMachineClass::an521ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps3tz_an524, TYPE_MPS3TZ_AN524_MACHINE,
+                                        TYPE_MPS2TZ_MACHINE,
+                                        MPS2TZMachineClass::an524ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mps3tz_an547, TYPE_MPS3TZ_AN547_MACHINE,
+                                        TYPE_MPS2TZ_MACHINE,
+                                        MPS2TZMachineClass::an547ClassInit,
+                                        arm_machine_interfaces)

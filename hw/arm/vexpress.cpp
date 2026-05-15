@@ -851,22 +851,14 @@ REGISTER_QEMU_MACHINE_ABSTRACT(VexpressMachineState, VexpressMachineClass,
                                TYPE_VEXPRESS_MACHINE, TYPE_MACHINE,
                                VexpressMachineState::classInit)
 
-static void __attribute__((constructor)) vexpress_concrete_machine_init(void)
-{
-    static const TypeInfo vexpress_a9_info = {
-        .name = TYPE_VEXPRESS_A9_MACHINE,
-        .parent = TYPE_VEXPRESS_MACHINE,
-        .instance_init = vexpress_a9_instance_init,
-        .class_init = VexpressMachineState::a9ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo vexpress_a15_info = {
-        .name = TYPE_VEXPRESS_A15_MACHINE,
-        .parent = TYPE_VEXPRESS_MACHINE,
-        .instance_init = vexpress_a15_instance_init,
-        .class_init = VexpressMachineState::a15ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    type_register_static(&vexpress_a9_info);
-    type_register_static(&vexpress_a15_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_IFACES(vexpress_a9, TYPE_VEXPRESS_A9_MACHINE,
+                                       TYPE_VEXPRESS_MACHINE,
+                                       vexpress_a9_instance_init,
+                                       VexpressMachineState::a9ClassInit,
+                                       arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_IFACES(vexpress_a15, TYPE_VEXPRESS_A15_MACHINE,
+                                       TYPE_VEXPRESS_MACHINE,
+                                       vexpress_a15_instance_init,
+                                       VexpressMachineState::a15ClassInit,
+                                       arm_machine_interfaces)

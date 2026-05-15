@@ -657,20 +657,12 @@ REGISTER_QEMU_MACHINE_ABSTRACT(MuscaMachineState, MuscaMachineClass,
                                TYPE_MUSCA_MACHINE, TYPE_MACHINE,
                                MuscaMachineState::baseClassInit)
 
-static void __attribute__((constructor)) musca_concrete_machine_init(void)
-{
-    static const TypeInfo musca_a_info = {
-        .name = TYPE_MUSCA_A_MACHINE,
-        .parent = TYPE_MUSCA_MACHINE,
-        .class_init = MuscaMachineState::muscaAClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    static const TypeInfo musca_b1_info = {
-        .name = TYPE_MUSCA_B1_MACHINE,
-        .parent = TYPE_MUSCA_MACHINE,
-        .class_init = MuscaMachineState::muscaB1ClassInit,
-        .interfaces = arm_machine_interfaces,
-    };
-    type_register_static(&musca_a_info);
-    type_register_static(&musca_b1_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(musca_a, TYPE_MUSCA_A_MACHINE,
+                                        TYPE_MUSCA_MACHINE,
+                                        MuscaMachineState::muscaAClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(musca_b1, TYPE_MUSCA_B1_MACHINE,
+                                        TYPE_MUSCA_MACHINE,
+                                        MuscaMachineState::muscaB1ClassInit,
+                                        arm_machine_interfaces)

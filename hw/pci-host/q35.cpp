@@ -723,17 +723,12 @@ static const InterfaceInfo mch_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_mch_type(void)
-{
-    static TypeInfo mch_info = {
-        .name = TYPE_MCH_PCI_DEVICE,
-        .parent = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(MCHPCIState),
-        .class_init = mch_class_init,
-        .interfaces = mch_interfaces,
-    };
-    type_register_static(&mch_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(mch, MCHPCIState,
+                                              TYPE_MCH_PCI_DEVICE,
+                                              TYPE_PCI_DEVICE,
+                                              mch_class_init,
+                                              mch_interfaces)
+
 REGISTER_QEMU_DEVICE(Q35PCIHost, TYPE_Q35_HOST_DEVICE, TYPE_PCIE_HOST_BRIDGE)

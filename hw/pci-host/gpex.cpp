@@ -258,17 +258,12 @@ static const InterfaceInfo gpex_root_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_gpex_root(void)
-{
-    static TypeInfo gpex_root_info = {
-        .name = TYPE_GPEX_ROOT_DEVICE,
-        .parent = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(GPEXRootState),
-        .class_init = gpex_root_class_init,
-        .interfaces = gpex_root_interfaces,
-    };
-    type_register_static(&gpex_root_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(gpex_root, GPEXRootState,
+                                              TYPE_GPEX_ROOT_DEVICE,
+                                              TYPE_PCI_DEVICE,
+                                              gpex_root_class_init,
+                                              gpex_root_interfaces)
+
 REGISTER_QEMU_DEVICE(GPEXHost, TYPE_GPEX_HOST, TYPE_PCIE_HOST_BRIDGE)

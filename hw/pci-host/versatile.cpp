@@ -521,23 +521,15 @@ void PCIVPBState::realviewInit(Object *obj)
     s->mem_win_size[2] = 0x08000000;
 }
 
-static void __attribute__((constructor)) register_versatile_extra_types(void)
-{
-    static TypeInfo pci_realview_info = {
-        .name          = "realview_pci",
-        .parent        = TYPE_VERSATILE_PCI,
-        .instance_init = PCIVPBState::realviewInit,
-    };
-    static TypeInfo versatile_pci_host = {
-        .name          = TYPE_VERSATILE_PCI_HOST,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIDevice),
-        .class_init    = PCIVPBState::hostClassInit,
-        .interfaces    = versatile_pci_host_interfaces,
-    };
-    type_register_static(&pci_realview_info);
-    type_register_static(&versatile_pci_host);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(pci_realview, "realview_pci", TYPE_VERSATILE_PCI,
+                                PCIVPBState::realviewInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(versatile_pci_host, PCIDevice,
+                                              TYPE_VERSATILE_PCI_HOST,
+                                              TYPE_PCI_DEVICE,
+                                              PCIVPBState::hostClassInit,
+                                              versatile_pci_host_interfaces)
+
 REGISTER_QEMU_DEVICE(PCIVPBState, TYPE_VERSATILE_PCI, TYPE_PCI_HOST_BRIDGE)

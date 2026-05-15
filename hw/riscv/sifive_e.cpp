@@ -289,14 +289,7 @@ static void sifive_e_soc_class_init_trampoline(ObjectClass *oc,
     SiFiveESoCState::classInit(DEVICE_CLASS(oc));
 }
 
-static void __attribute__((constructor)) sifive_e_soc_register(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_RISCV_E_SOC,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(SiFiveESoCState),
-        .instance_init = sifive_e_soc_instance_init_trampoline,
-        .class_init    = sifive_e_soc_class_init_trampoline,
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(sifive_e_soc, SiFiveESoCState,
+                                            TYPE_RISCV_E_SOC, TYPE_DEVICE,
+                                            sifive_e_soc_instance_init_trampoline,
+                                            sifive_e_soc_class_init_trampoline)

@@ -170,14 +170,7 @@ static void shakti_c_soc_class_init_trampoline(ObjectClass *oc,
     ShaktiCSoCState::classInit(DEVICE_CLASS(oc));
 }
 
-static void __attribute__((constructor)) shakti_c_soc_register(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_RISCV_SHAKTI_SOC,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(ShaktiCSoCState),
-        .instance_init = shakti_c_soc_instance_init_trampoline,
-        .class_init    = shakti_c_soc_class_init_trampoline,
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(shakti_c_soc, ShaktiCSoCState,
+                                            TYPE_RISCV_SHAKTI_SOC, TYPE_DEVICE,
+                                            shakti_c_soc_instance_init_trampoline,
+                                            shakti_c_soc_class_init_trampoline)

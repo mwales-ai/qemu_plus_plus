@@ -959,14 +959,7 @@ static void sifive_u_soc_class_init_trampoline(ObjectClass *oc,
     SiFiveUSoCState::classInit(DEVICE_CLASS(oc));
 }
 
-static void __attribute__((constructor)) sifive_u_soc_register(void)
-{
-    static TypeInfo info = {
-        .name          = TYPE_RISCV_U_SOC,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(SiFiveUSoCState),
-        .instance_init = sifive_u_soc_instance_init_trampoline,
-        .class_init    = sifive_u_soc_class_init_trampoline,
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(sifive_u_soc, SiFiveUSoCState,
+                                            TYPE_RISCV_U_SOC, TYPE_DEVICE,
+                                            sifive_u_soc_instance_init_trampoline,
+                                            sifive_u_soc_class_init_trampoline)

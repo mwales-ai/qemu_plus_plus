@@ -1690,6 +1690,29 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_INIT_CLASS_IFACES: like REGISTER_QEMU_OBJECT_INIT_CLASS
+ * but adds an interfaces array.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_CLASS_IFACES(unique_tag, type_name_str,    \
+                                                parent_type_str,             \
+                                                instance_init_fn,            \
+                                                class_init_fn,               \
+                                                ifaces_array)                \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_init     = instance_init_fn,                               \
+        .class_init        = class_init_fn,                                  \
+        .interfaces        = ifaces_array,                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_FREE_INIT_FINI_CS: concrete object type with free
  * instance_init + free instance_finalize + class_size. No class_init.
  * Used for QOM types that need finalizer cleanup but no class methods,

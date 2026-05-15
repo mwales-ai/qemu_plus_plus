@@ -535,18 +535,14 @@ static const InterfaceInfo e500_pci_bridge_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_e500_pci_bridge_type(void)
-{
-    static TypeInfo e500_pci_bridge_info = {
-        .name          = TYPE_PPC_E500_PCI_BRIDGE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PPCE500PCIBridgeState),
-        .class_init    = e500_host_bridge_class_initfn,
-        .interfaces    = e500_pci_bridge_interfaces,
-    };
-    type_register_static(&e500_pci_bridge_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(e500_pci_bridge,
+                                              PPCE500PCIBridgeState,
+                                              TYPE_PPC_E500_PCI_BRIDGE,
+                                              TYPE_PCI_DEVICE,
+                                              e500_host_bridge_class_initfn,
+                                              e500_pci_bridge_interfaces)
+
 REGISTER_QEMU_DEVICE(PPCE500PCIState, TYPE_PPC_E500_PCI_HOST_BRIDGE,
                       TYPE_PCI_HOST_BRIDGE)
