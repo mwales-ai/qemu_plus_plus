@@ -19,6 +19,7 @@ extern "C" {
 
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/aspeed_coprocessor.h"
+#include "qom/cpp/object.h"
 
 #define AST2700_TSP_SDRAM_SIZE (512 * MiB)
 
@@ -294,14 +295,9 @@ static void aspeed_soc_ast27x0tsp_class_init(ObjectClass *klass,
     sc->memmap = aspeed_soc_ast27x0tsp_memmap;
 }
 
-static const TypeInfo aspeed_soc_ast27x0tsp_types[] = {
-    {
-        .name           = TYPE_ASPEED27X0TSP_COPROCESSOR,
-        .parent         = TYPE_ASPEED_COPROCESSOR,
-        .instance_size  = sizeof(Aspeed27x0CoprocessorState),
-        .instance_init  = aspeed_soc_ast27x0tsp_init,
-        .class_init     = aspeed_soc_ast27x0tsp_class_init,
-    },
-};
-
-DEFINE_TYPES(aspeed_soc_ast27x0tsp_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(aspeed_soc_ast27x0tsp,
+                                            Aspeed27x0CoprocessorState,
+                                            TYPE_ASPEED27X0TSP_COPROCESSOR,
+                                            TYPE_ASPEED_COPROCESSOR,
+                                            aspeed_soc_ast27x0tsp_init,
+                                            aspeed_soc_ast27x0tsp_class_init)

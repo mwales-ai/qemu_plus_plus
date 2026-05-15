@@ -20,6 +20,7 @@ extern "C" {
 }
 
 #include "hw/arm/aspeed_soc.h"
+#include "qom/cpp/object.h"
 
 #define ASPEED_SOC_IOMEM_SIZE 0x00200000
 
@@ -477,18 +478,12 @@ static void aspeed_soc_ast1030_class_init(ObjectClass *klass, const void *data)
     sc->num_cpus = 1;
 }
 
-static const TypeInfo aspeed_soc_ast10x0_types[] = {
-    {
-        .name           = TYPE_ASPEED10X0_SOC,
-        .parent         = TYPE_ASPEED_SOC,
-        .instance_size  = sizeof(Aspeed10x0SoCState),
-        .is_abstract       = true,
-    }, {
-        .name           = "ast1030-a1",
-        .parent         = TYPE_ASPEED10X0_SOC,
-        .instance_init  = aspeed_soc_ast1030_init,
-        .class_init     = aspeed_soc_ast1030_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(Aspeed10x0SoCState,
+                                     TYPE_ASPEED10X0_SOC,
+                                     TYPE_ASPEED_SOC)
 
-DEFINE_TYPES(aspeed_soc_ast10x0_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(ast1030_a1,
+                                 "ast1030-a1",
+                                 TYPE_ASPEED10X0_SOC,
+                                 aspeed_soc_ast1030_init,
+                                 aspeed_soc_ast1030_class_init)

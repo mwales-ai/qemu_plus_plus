@@ -1062,6 +1062,29 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED: abstract object type with
+ * instance_size + free instance_init. No class_init, no class_size,
+ * no interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED(unique_tag, ClassName,      \
+                                                  type_name_str,             \
+                                                  parent_type_str,           \
+                                                  instance_init_fn)          \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED_IFACES: abstract object type
  * with instance_size + free instance_init + interfaces.
  */
@@ -1289,6 +1312,34 @@ static void unique_tag##_cpp_register_types(void)                            \
         .instance_size = sizeof(ClassName),                                  \
         .instance_init = instance_init_fn,                                   \
         .is_abstract   = true,                                               \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS: abstract object with
+ * instance_size + free instance_init + class_size + free class_init.
+ * No interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(unique_tag,        \
+                                                           ClassName,        \
+                                                           ClassStruct,      \
+                                                           type_name_str,    \
+                                                           parent_type_str,  \
+                                                           instance_init_fn, \
+                                                           class_init_fn)    \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
         .class_init    = class_init_fn,                                      \
     };                                                                       \
     type_register_static(&info);                                             \

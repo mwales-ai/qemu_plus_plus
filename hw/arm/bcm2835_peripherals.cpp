@@ -16,6 +16,7 @@
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspi_platform.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 /* Peripheral base address on the VC (GPU) system bus */
 #define BCM2835_VC_PERI_BASE 0x7e000000
@@ -529,21 +530,15 @@ static void bcm2835_peripherals_class_init(ObjectClass *oc, const void *data)
     dc->realize = bcm2835_peripherals_realize;
 }
 
-static const TypeInfo bcm2835_peripherals_types[] = {
-    {
-        .name = TYPE_BCM2835_PERIPHERALS,
-        .parent = TYPE_BCM_SOC_PERIPHERALS_BASE,
-        .instance_size = sizeof(BCM2835PeripheralState),
-        .instance_init = bcm2835_peripherals_init,
-        .class_init = bcm2835_peripherals_class_init,
-    }, {
-        .name = TYPE_BCM_SOC_PERIPHERALS_BASE,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(BCMSocPeripheralBaseState),
-        .instance_init = raspi_peripherals_base_init,
-        .is_abstract = true,
-        .class_size = sizeof(BCMSocPeripheralBaseClass),
-    }
-};
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(bcm2835_peripherals,
+                                            BCM2835PeripheralState,
+                                            TYPE_BCM2835_PERIPHERALS,
+                                            TYPE_BCM_SOC_PERIPHERALS_BASE,
+                                            bcm2835_peripherals_init,
+                                            bcm2835_peripherals_class_init)
 
-DEFINE_TYPES(bcm2835_peripherals_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_FREE_INIT_CS(BCMSocPeripheralBaseState,
+                                            BCMSocPeripheralBaseClass,
+                                            TYPE_BCM_SOC_PERIPHERALS_BASE,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            raspi_peripherals_base_init)

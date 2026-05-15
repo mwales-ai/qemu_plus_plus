@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 #include "chardev/char.h"
 #include "hw/boards.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/arm/npcm8xx.h"
@@ -239,20 +240,15 @@ static void npcm845_evb_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1 * GiB;
 };
 
-static const TypeInfo npcm8xx_machine_types[] = {
-    {
-        .name           = TYPE_NPCM8XX_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(NPCM8xxMachine),
-        .is_abstract    = true,
-        .class_size     = sizeof(NPCM8xxMachineClass),
-        .class_init     = npcm8xx_machine_class_init,
-    }, {
-        .name           = MACHINE_TYPE_NAME("npcm845-evb"),
-        .parent         = TYPE_NPCM8XX_MACHINE,
-        .class_init     = npcm845_evb_machine_class_init,
-        .interfaces     = aarch64_machine_interfaces,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(npcm8xx_machine_abs,
+                                           NPCM8xxMachine,
+                                           NPCM8xxMachineClass,
+                                           TYPE_NPCM8XX_MACHINE,
+                                           TYPE_MACHINE,
+                                           npcm8xx_machine_class_init)
 
-DEFINE_TYPES(npcm8xx_machine_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(npcm845_evb_machine,
+                                        MACHINE_TYPE_NAME("npcm845-evb"),
+                                        TYPE_NPCM8XX_MACHINE,
+                                        npcm845_evb_machine_class_init,
+                                        aarch64_machine_interfaces)

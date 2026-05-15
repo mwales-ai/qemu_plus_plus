@@ -29,6 +29,7 @@ extern "C" {
 #include "hw/arm/boot.h"
 #include "hw/arm/aspeed_coprocessor.h"
 #include "hw/arm/machines-qom.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_AST2700A1FC MACHINE_TYPE_NAME("ast2700fc")
 OBJECT_DECLARE_SIMPLE_TYPE(Ast2700FCState, AST2700A1FC);
@@ -228,14 +229,9 @@ void Ast2700FCState::classInit(ObjectClass *oc, const void *data)
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
 }
 
-static const TypeInfo ast2700fc_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("ast2700fc"),
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(Ast2700FCState),
-        .class_init     = Ast2700FCState::classInit,
-        .interfaces     = aarch64_machine_interfaces,
-    },
-};
-
-DEFINE_TYPES(ast2700fc_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(ast2700fc_machine,
+                                              Ast2700FCState,
+                                              MACHINE_TYPE_NAME("ast2700fc"),
+                                              TYPE_MACHINE,
+                                              Ast2700FCState::classInit,
+                                              aarch64_machine_interfaces)

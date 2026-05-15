@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 #include "system/system.h"
 #include "system/block-backend.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "hw/arm/npcm7xx.h"
@@ -540,40 +541,39 @@ static void mori_bmc_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1 * GiB;
 }
 
-static const TypeInfo npcm7xx_machine_types[] = {
-    {
-        .name           = TYPE_NPCM7XX_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(NPCM7xxMachine),
-        .is_abstract    = true,
-        .class_size     = sizeof(NPCM7xxMachineClass),
-        .class_init     = npcm7xx_machine_class_init,
-    }, {
-        .name           = MACHINE_TYPE_NAME("npcm750-evb"),
-        .parent         = TYPE_NPCM7XX_MACHINE,
-        .class_init     = npcm750_evb_machine_class_init,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("quanta-gsj"),
-        .parent         = TYPE_NPCM7XX_MACHINE,
-        .class_init     = gsj_machine_class_init,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("quanta-gbs-bmc"),
-        .parent         = TYPE_NPCM7XX_MACHINE,
-        .class_init     = gbs_bmc_machine_class_init,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("kudo-bmc"),
-        .parent         = TYPE_NPCM7XX_MACHINE,
-        .class_init     = kudo_bmc_machine_class_init,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("mori-bmc"),
-        .parent         = TYPE_NPCM7XX_MACHINE,
-        .class_init     = mori_bmc_machine_class_init,
-        .interfaces     = arm_machine_interfaces,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(npcm7xx_machine_abs,
+                                           NPCM7xxMachine,
+                                           NPCM7xxMachineClass,
+                                           TYPE_NPCM7XX_MACHINE,
+                                           TYPE_MACHINE,
+                                           npcm7xx_machine_class_init)
 
-DEFINE_TYPES(npcm7xx_machine_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(npcm750_evb_machine,
+                                        MACHINE_TYPE_NAME("npcm750-evb"),
+                                        TYPE_NPCM7XX_MACHINE,
+                                        npcm750_evb_machine_class_init,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(quanta_gsj_machine,
+                                        MACHINE_TYPE_NAME("quanta-gsj"),
+                                        TYPE_NPCM7XX_MACHINE,
+                                        gsj_machine_class_init,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(quanta_gbs_bmc_machine,
+                                        MACHINE_TYPE_NAME("quanta-gbs-bmc"),
+                                        TYPE_NPCM7XX_MACHINE,
+                                        gbs_bmc_machine_class_init,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(kudo_bmc_machine,
+                                        MACHINE_TYPE_NAME("kudo-bmc"),
+                                        TYPE_NPCM7XX_MACHINE,
+                                        kudo_bmc_machine_class_init,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(mori_bmc_machine,
+                                        MACHINE_TYPE_NAME("mori-bmc"),
+                                        TYPE_NPCM7XX_MACHINE,
+                                        mori_bmc_machine_class_init,
+                                        arm_machine_interfaces)

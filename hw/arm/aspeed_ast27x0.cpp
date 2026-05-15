@@ -26,6 +26,7 @@ extern "C" {
 
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/bsa.h"
+#include "qom/cpp/object.h"
 
 #define AST2700_SOC_IO_SIZE          0x00FE0000
 #define AST2700_SOC_IOMEM_SIZE       0x01000000
@@ -1069,24 +1070,18 @@ static void aspeed_soc_ast2700a1_class_init(ObjectClass *oc, const void *data)
     sc->memmap       = aspeed_soc_ast2700_memmap;
 }
 
-static const TypeInfo aspeed_soc_ast27x0_types[] = {
-    {
-        .name           = TYPE_ASPEED27X0_SOC,
-        .parent         = TYPE_ASPEED_SOC,
-        .instance_size  = sizeof(Aspeed27x0SoCState),
-        .is_abstract       = true,
-    }, {
-        .name           = "ast2700-a0",
-        .parent         = TYPE_ASPEED27X0_SOC,
-        .instance_init  = aspeed_soc_ast2700_init,
-        .class_init     = aspeed_soc_ast2700a0_class_init,
-    },
-    {
-        .name           = "ast2700-a1",
-        .parent         = TYPE_ASPEED27X0_SOC,
-        .instance_init  = aspeed_soc_ast2700_init,
-        .class_init     = aspeed_soc_ast2700a1_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(Aspeed27x0SoCState,
+                                     TYPE_ASPEED27X0_SOC,
+                                     TYPE_ASPEED_SOC)
 
-DEFINE_TYPES(aspeed_soc_ast27x0_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(ast2700_a0,
+                                 "ast2700-a0",
+                                 TYPE_ASPEED27X0_SOC,
+                                 aspeed_soc_ast2700_init,
+                                 aspeed_soc_ast2700a0_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(ast2700_a1,
+                                 "ast2700-a1",
+                                 TYPE_ASPEED27X0_SOC,
+                                 aspeed_soc_ast2700_init,
+                                 aspeed_soc_ast2700a1_class_init)

@@ -28,6 +28,7 @@
 #include "qemu/units.h"
 #include "system/system.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/cpp/object.h"
 
 /*
  * This covers the whole MMIO space. We'll use this to catch any MMIO accesses
@@ -848,24 +849,20 @@ static void npcm750_class_init(ObjectClass *oc, const void *data)
     nc->num_cpus = 2;
 }
 
-static const TypeInfo npcm7xx_soc_types[] = {
-    {
-        .name           = TYPE_NPCM7XX,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(NPCM7xxState),
-        .instance_init  = npcm7xx_init,
-        .is_abstract       = true,
-        .class_size     = sizeof(NPCM7xxClass),
-        .class_init     = npcm7xx_class_init,
-    }, {
-        .name           = TYPE_NPCM730,
-        .parent         = TYPE_NPCM7XX,
-        .class_init     = npcm730_class_init,
-    }, {
-        .name           = TYPE_NPCM750,
-        .parent         = TYPE_NPCM7XX,
-        .class_init     = npcm750_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(npcm7xx_soc_abs,
+                                                   NPCM7xxState,
+                                                   NPCM7xxClass,
+                                                   TYPE_NPCM7XX,
+                                                   TYPE_DEVICE,
+                                                   npcm7xx_init,
+                                                   npcm7xx_class_init)
 
-DEFINE_TYPES(npcm7xx_soc_types);
+REGISTER_QEMU_OBJECT_CLASS_ONLY(npcm730_soc,
+                                 TYPE_NPCM730,
+                                 TYPE_NPCM7XX,
+                                 npcm730_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(npcm750_soc,
+                                 TYPE_NPCM750,
+                                 TYPE_NPCM7XX,
+                                 npcm750_class_init)

@@ -17,6 +17,7 @@
 #include "hw/sysbus.h"
 #include "target/arm/cpu-qom.h"
 #include "target/arm/gtimer.h"
+#include "qom/cpp/object.h"
 
 static const Property bcm2836_enabled_cores_property =
     DEFINE_PROP_UINT32("enabled-cpus", BCM283XBaseState, enabled_cpus, 0);
@@ -210,36 +211,33 @@ static void bcm2837_class_init(ObjectClass *oc, const void *data)
 };
 #endif
 
-static const TypeInfo bcm283x_types[] = {
-    {
-        .name           = TYPE_BCM2835,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2835_class_init,
-    }, {
-        .name           = TYPE_BCM2836,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2836_class_init,
-#ifdef TARGET_AARCH64
-    }, {
-        .name           = TYPE_BCM2837,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2837_class_init,
-#endif
-    }, {
-        .name           = TYPE_BCM283X,
-        .parent         = TYPE_BCM283X_BASE,
-        .instance_size  = sizeof(BCM283XState),
-        .instance_init  = bcm283x_init,
-        .is_abstract       = true,
-    }, {
-        .name           = TYPE_BCM283X_BASE,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(BCM283XBaseState),
-        .instance_init  = bcm283x_base_init,
-        .is_abstract       = true,
-        .class_size     = sizeof(BCM283XBaseClass),
-        .class_init     = bcm283x_base_class_init,
-    }
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(bcm2835,
+                                 TYPE_BCM2835,
+                                 TYPE_BCM283X,
+                                 bcm2835_class_init)
 
-DEFINE_TYPES(bcm283x_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(bcm2836,
+                                 TYPE_BCM2836,
+                                 TYPE_BCM283X,
+                                 bcm2836_class_init)
+
+#ifdef TARGET_AARCH64
+REGISTER_QEMU_OBJECT_CLASS_ONLY(bcm2837,
+                                 TYPE_BCM2837,
+                                 TYPE_BCM283X,
+                                 bcm2837_class_init)
+#endif
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED(bcm283x_abs,
+                                          BCM283XState,
+                                          TYPE_BCM283X,
+                                          TYPE_BCM283X_BASE,
+                                          bcm283x_init)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(bcm283x_base_abs,
+                                                   BCM283XBaseState,
+                                                   BCM283XBaseClass,
+                                                   TYPE_BCM283X_BASE,
+                                                   TYPE_DEVICE,
+                                                   bcm283x_base_init,
+                                                   bcm283x_base_class_init)

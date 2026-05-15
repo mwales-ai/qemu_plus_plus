@@ -27,6 +27,7 @@ extern "C" {
 }
 
 #include "hw/arm/aspeed_soc.h"
+#include "qom/cpp/object.h"
 
 #define ASPEED_SOC_IOMEM_SIZE       0x00200000
 
@@ -586,22 +587,18 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, const void *data)
     sc->num_cpus     = 1;
 }
 
-static const TypeInfo aspeed_soc_ast2400_types[] = {
-    {
-        .name           = TYPE_ASPEED2400_SOC,
-        .parent         = TYPE_ASPEED_SOC,
-        .instance_size  = sizeof(Aspeed2400SoCState),
-        .instance_init  = aspeed_ast2400_soc_init,
-        .is_abstract       = true,
-    }, {
-        .name           = "ast2400-a1",
-        .parent         = TYPE_ASPEED2400_SOC,
-        .class_init     = aspeed_soc_ast2400_class_init,
-    }, {
-        .name           = "ast2500-a1",
-        .parent         = TYPE_ASPEED2400_SOC,
-        .class_init     = aspeed_soc_ast2500_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED(aspeed2400_soc_abs,
+                                          Aspeed2400SoCState,
+                                          TYPE_ASPEED2400_SOC,
+                                          TYPE_ASPEED_SOC,
+                                          aspeed_ast2400_soc_init)
 
-DEFINE_TYPES(aspeed_soc_ast2400_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(ast2400_a1,
+                                 "ast2400-a1",
+                                 TYPE_ASPEED2400_SOC,
+                                 aspeed_soc_ast2400_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(ast2500_a1,
+                                 "ast2500-a1",
+                                 TYPE_ASPEED2400_SOC,
+                                 aspeed_soc_ast2500_class_init)

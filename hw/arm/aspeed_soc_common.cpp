@@ -25,6 +25,7 @@ extern "C" {
 }
 
 #include "hw/arm/aspeed_soc.h"
+#include "qom/cpp/object.h"
 
 
 extern "C"
@@ -254,15 +255,9 @@ static void aspeed_soc_class_init(ObjectClass *oc, const void *data)
     sc->boot_from_emmc = aspeed_soc_boot_from_emmc;
 }
 
-static const TypeInfo aspeed_soc_types[] = {
-    {
-        .name           = TYPE_ASPEED_SOC,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(AspeedSoCState),
-        .is_abstract       = true,
-        .class_size     = sizeof(AspeedSoCClass),
-        .class_init     = aspeed_soc_class_init,
-    },
-};
-
-DEFINE_TYPES(aspeed_soc_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(aspeed_soc_abs,
+                                           AspeedSoCState,
+                                           AspeedSoCClass,
+                                           TYPE_ASPEED_SOC,
+                                           TYPE_DEVICE,
+                                           aspeed_soc_class_init)

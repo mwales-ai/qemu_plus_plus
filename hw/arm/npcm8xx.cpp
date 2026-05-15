@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
+#include "qom/cpp/object.h"
 #include "system/system.h"
 
 /*
@@ -845,15 +846,10 @@ static void npcm8xx_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, npcm8xx_properties);
 }
 
-static const TypeInfo npcm8xx_soc_types[] = {
-    {
-        .name           = TYPE_NPCM8XX,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(NPCM8xxState),
-        .instance_init  = npcm8xx_init,
-        .class_size     = sizeof(NPCM8xxClass),
-        .class_init     = npcm8xx_class_init,
-    },
-};
-
-DEFINE_TYPES(npcm8xx_soc_types);
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(npcm8xx_soc,
+                                          NPCM8xxState,
+                                          NPCM8xxClass,
+                                          TYPE_NPCM8XX,
+                                          TYPE_DEVICE,
+                                          npcm8xx_init,
+                                          npcm8xx_class_init)

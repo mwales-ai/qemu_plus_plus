@@ -21,6 +21,7 @@
 #include "target/arm/kvm_arm.h"
 #include "qapi/error.h"
 #include "qobject/qlist.h"
+#include "qom/cpp/object.h"
 
 static struct {
     hwaddr addr;
@@ -730,14 +731,9 @@ static void fsl_imx8mp_class_init(ObjectClass *oc, const void *data)
     dc->desc = "i.MX 8M Plus SoC";
 }
 
-static const TypeInfo fsl_imx8mp_types[] = {
-    {
-        .name = TYPE_FSL_IMX8MP,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(FslImx8mpState),
-        .instance_init = fsl_imx8mp_init,
-        .class_init = fsl_imx8mp_class_init,
-    },
-};
-
-DEFINE_TYPES(fsl_imx8mp_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(fsl_imx8mp,
+                                            FslImx8mpState,
+                                            TYPE_FSL_IMX8MP,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            fsl_imx8mp_init,
+                                            fsl_imx8mp_class_init)

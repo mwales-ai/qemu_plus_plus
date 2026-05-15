@@ -33,6 +33,7 @@
 #include "hw/arm/stm32l4x5_soc.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
 #include "hw/display/dm163.h"
+#include "qom/cpp/object.h"
 
 /* B-L475E-IOT01A implementation is inspired from netduinoplus2 and arduino */
 
@@ -126,14 +127,9 @@ static void bl475e_machine_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 0;
 }
 
-static const TypeInfo bl475e_machine_type[] = {
-    {
-        .name           = TYPE_B_L475E_IOT01A,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(Bl475eMachineState),
-        .class_init     = bl475e_machine_init,
-        .interfaces     = arm_machine_interfaces,
-    }
-};
-
-DEFINE_TYPES(bl475e_machine_type)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(bl475e_machine,
+                                              Bl475eMachineState,
+                                              TYPE_B_L475E_IOT01A,
+                                              TYPE_MACHINE,
+                                              bl475e_machine_init,
+                                              arm_machine_interfaces)

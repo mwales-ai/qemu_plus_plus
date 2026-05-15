@@ -20,6 +20,8 @@ extern "C" {
 #include "hw/arm/machines-qom.h"
 }
 
+#include "qom/cpp/object.h"
+
 #define TYPE_FBY35 MACHINE_TYPE_NAME("fby35")
 OBJECT_DECLARE_SIMPLE_TYPE(Fby35State, FBY35);
 
@@ -205,15 +207,10 @@ void Fby35State::classInit(ObjectClass *oc, const void *data)
                            "boot directly from CE0 flash device");
 }
 
-static const TypeInfo fby35_types[] = {
-    {
-        .name = MACHINE_TYPE_NAME("fby35"),
-        .parent = TYPE_MACHINE,
-        .instance_size = sizeof(Fby35State),
-        .instance_init = Fby35State::instanceInit,
-        .class_init = Fby35State::classInit,
-        .interfaces = arm_machine_interfaces,
-    },
-};
-
-DEFINE_TYPES(fby35_types);
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(fby35_machine,
+                                              Fby35State,
+                                              MACHINE_TYPE_NAME("fby35"),
+                                              TYPE_MACHINE,
+                                              Fby35State::instanceInit,
+                                              Fby35State::classInit,
+                                              arm_machine_interfaces)

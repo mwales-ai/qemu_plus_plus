@@ -32,6 +32,7 @@
 #include "hw/gpio/stm32l4x5_gpio.h"
 #include "hw/qdev-clock.h"
 #include "hw/misc/unimp.h"
+#include "qom/cpp/object.h"
 
 #define FLASH_BASE_ADDRESS 0x08000000
 #define SRAM1_BASE_ADDRESS 0x20000000
@@ -467,28 +468,25 @@ static void stm32l4x5xg_soc_class_init(ObjectClass *oc, const void *data)
     ssc->flash_size = 1 * MiB;
 }
 
-static const TypeInfo stm32l4x5_soc_types[] = {
-    {
-        .name           = TYPE_STM32L4X5XC_SOC,
-        .parent         = TYPE_STM32L4X5_SOC,
-        .class_init     = stm32l4x5xc_soc_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5XE_SOC,
-        .parent         = TYPE_STM32L4X5_SOC,
-        .class_init     = stm32l4x5xe_soc_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5XG_SOC,
-        .parent         = TYPE_STM32L4X5_SOC,
-        .class_init     = stm32l4x5xg_soc_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5_SOC,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(Stm32l4x5SocState),
-        .instance_init  = stm32l4x5_soc_initfn,
-        .is_abstract       = true,
-        .class_size     = sizeof(Stm32l4x5SocClass),
-        .class_init     = stm32l4x5_soc_class_init,
-    }
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5xc_soc,
+                                 TYPE_STM32L4X5XC_SOC,
+                                 TYPE_STM32L4X5_SOC,
+                                 stm32l4x5xc_soc_class_init)
 
-DEFINE_TYPES(stm32l4x5_soc_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5xe_soc,
+                                 TYPE_STM32L4X5XE_SOC,
+                                 TYPE_STM32L4X5_SOC,
+                                 stm32l4x5xe_soc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5xg_soc,
+                                 TYPE_STM32L4X5XG_SOC,
+                                 TYPE_STM32L4X5_SOC,
+                                 stm32l4x5xg_soc_class_init)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED_CS(stm32l4x5_soc_abs,
+                                                   Stm32l4x5SocState,
+                                                   Stm32l4x5SocClass,
+                                                   TYPE_STM32L4X5_SOC,
+                                                   TYPE_SYS_BUS_DEVICE,
+                                                   stm32l4x5_soc_initfn,
+                                                   stm32l4x5_soc_class_init)
