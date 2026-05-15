@@ -894,16 +894,6 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, const void *data)
     bus_class->get_dev_path = virtio_mmio_bus_get_dev_path;
 }
 
-static const TypeInfo virtio_mmio_bus_info = {
-    .name          = TYPE_VIRTIO_MMIO_BUS,
-    .parent        = TYPE_VIRTIO_BUS,
-    .instance_size = sizeof(VirtioBusState),
-    .class_init    = virtio_mmio_bus_class_init,
-};
-
-static void virtio_mmio_register_bus(void)
-{
-    type_register_static(&virtio_mmio_bus_info);
-}
-
-type_init(virtio_mmio_register_bus)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(virtio_mmio_bus, VirtioBusState,
+                                       TYPE_VIRTIO_MMIO_BUS, TYPE_VIRTIO_BUS,
+                                       virtio_mmio_bus_class_init)
