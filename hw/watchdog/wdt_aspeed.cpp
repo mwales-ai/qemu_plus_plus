@@ -333,12 +333,6 @@ static void aspeed_2400_wdt_class_init(ObjectClass *klass, const void *data)
     awc->default_reload_value = 0x03EF1480;
 }
 
-static const TypeInfo aspeed_2400_wdt_info = {
-    .name = TYPE_ASPEED_2400_WDT,
-    .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
-    .class_init = aspeed_2400_wdt_class_init,
-};
 
 static void aspeed_2500_wdt_reset_pulse(AspeedWDTState *s, uint32_t property)
 {
@@ -371,12 +365,6 @@ static void aspeed_2500_wdt_class_init(ObjectClass *klass, const void *data)
     awc->default_reload_value = 0x014FB180;
 }
 
-static const TypeInfo aspeed_2500_wdt_info = {
-    .name = TYPE_ASPEED_2500_WDT,
-    .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
-    .class_init = aspeed_2500_wdt_class_init,
-};
 
 static void aspeed_2600_wdt_class_init(ObjectClass *klass, const void *data)
 {
@@ -394,12 +382,6 @@ static void aspeed_2600_wdt_class_init(ObjectClass *klass, const void *data)
     awc->default_reload_value = 0x014FB180;
 }
 
-static const TypeInfo aspeed_2600_wdt_info = {
-    .name = TYPE_ASPEED_2600_WDT,
-    .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
-    .class_init = aspeed_2600_wdt_class_init,
-};
 
 static void aspeed_1030_wdt_class_init(ObjectClass *klass, const void *data)
 {
@@ -417,12 +399,6 @@ static void aspeed_1030_wdt_class_init(ObjectClass *klass, const void *data)
     awc->default_reload_value = 0x014FB180;
 }
 
-static const TypeInfo aspeed_1030_wdt_info = {
-    .name = TYPE_ASPEED_1030_WDT,
-    .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
-    .class_init = aspeed_1030_wdt_class_init,
-};
 
 static void aspeed_2700_wdt_class_init(ObjectClass *klass, const void *data)
 {
@@ -440,22 +416,26 @@ static void aspeed_2700_wdt_class_init(ObjectClass *klass, const void *data)
     awc->default_reload_value = 0x014FB180;
 }
 
-static const TypeInfo aspeed_2700_wdt_info = {
-    .name = TYPE_ASPEED_2700_WDT,
-    .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
-    .class_init = aspeed_2700_wdt_class_init,
-};
-
-static void __attribute__((constructor)) wdt_aspeed_subtypes_register(void)
-{
-    type_register_static(&aspeed_2400_wdt_info);
-    type_register_static(&aspeed_2500_wdt_info);
-    type_register_static(&aspeed_2600_wdt_info);
-    type_register_static(&aspeed_2700_wdt_info);
-    type_register_static(&aspeed_1030_wdt_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2400_wdt, AspeedWDTState,
+                                       TYPE_ASPEED_2400_WDT, TYPE_ASPEED_WDT,
+                                       aspeed_2400_wdt_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2500_wdt, AspeedWDTState,
+                                       TYPE_ASPEED_2500_WDT, TYPE_ASPEED_WDT,
+                                       aspeed_2500_wdt_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2600_wdt, AspeedWDTState,
+                                       TYPE_ASPEED_2600_WDT, TYPE_ASPEED_WDT,
+                                       aspeed_2600_wdt_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_1030_wdt, AspeedWDTState,
+                                       TYPE_ASPEED_1030_WDT, TYPE_ASPEED_WDT,
+                                       aspeed_1030_wdt_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2700_wdt, AspeedWDTState,
+                                       TYPE_ASPEED_2700_WDT, TYPE_ASPEED_WDT,
+                                       aspeed_2700_wdt_class_init)
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedWDTState, AspeedWDTClass,
                                TYPE_ASPEED_WDT, TYPE_SYS_BUS_DEVICE)

@@ -308,19 +308,11 @@ static const InterfaceInfo xilinx_pcie_root_interfaces[] = {
     { }
 };
 
-static const TypeInfo xilinx_pcie_root_info = {
-    .name = TYPE_XILINX_PCIE_ROOT,
-    .parent = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(XilinxPCIERoot),
-    .class_init = xilinx_pcie_root_class_init,
-    .interfaces = xilinx_pcie_root_interfaces,
-};
-
 REGISTER_QEMU_DEVICE(XilinxPCIEHost, TYPE_XILINX_PCIE_HOST,
                      TYPE_PCIE_HOST_BRIDGE)
 
-static void xilinx_pcie_secondary_register(void) __attribute__((constructor));
-static void xilinx_pcie_secondary_register(void)
-{
-    type_register_static(&xilinx_pcie_root_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(xilinx_pcie_root, XilinxPCIERoot,
+                                              TYPE_XILINX_PCIE_ROOT,
+                                              TYPE_PCI_BRIDGE,
+                                              xilinx_pcie_root_class_init,
+                                              xilinx_pcie_root_interfaces)

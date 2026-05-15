@@ -918,11 +918,6 @@ static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2400_timer_write;
 }
 
-static const TypeInfo aspeed_2400_timer_info = {
-    .name = TYPE_ASPEED_2400_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2400_timer_class_init,
-};
 
 static void aspeed_2500_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -934,11 +929,6 @@ static void aspeed_2500_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2500_timer_write;
 }
 
-static const TypeInfo aspeed_2500_timer_info = {
-    .name = TYPE_ASPEED_2500_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2500_timer_class_init,
-};
 
 static void aspeed_2600_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -950,11 +940,6 @@ static void aspeed_2600_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2600_timer_write;
 }
 
-static const TypeInfo aspeed_2600_timer_info = {
-    .name = TYPE_ASPEED_2600_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2600_timer_class_init,
-};
 
 static void aspeed_1030_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -966,11 +951,6 @@ static void aspeed_1030_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2600_timer_write;
 }
 
-static const TypeInfo aspeed_1030_timer_info = {
-    .name = TYPE_ASPEED_1030_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_1030_timer_class_init,
-};
 
 static void aspeed_2700_timer_class_init(ObjectClass *klass, const void *data)
 {
@@ -982,21 +962,27 @@ static void aspeed_2700_timer_class_init(ObjectClass *klass, const void *data)
     awc->write = aspeed_2700_timer_write;
 }
 
-static const TypeInfo aspeed_2700_timer_info = {
-    .name = TYPE_ASPEED_2700_TIMER,
-    .parent = TYPE_ASPEED_TIMER,
-    .class_init = aspeed_2700_timer_class_init,
-};
-
-static void __attribute__((constructor)) aspeed_timer_subtypes_register(void)
-{
-    type_register_static(&aspeed_2400_timer_info);
-    type_register_static(&aspeed_2500_timer_info);
-    type_register_static(&aspeed_2600_timer_info);
-    type_register_static(&aspeed_1030_timer_info);
-    type_register_static(&aspeed_2700_timer_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedTimerCtrlState, AspeedTimerClass,
                                TYPE_ASPEED_TIMER, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2400_timer, TYPE_ASPEED_2400_TIMER,
+                                 TYPE_ASPEED_TIMER,
+                                 aspeed_2400_timer_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2500_timer, TYPE_ASPEED_2500_TIMER,
+                                 TYPE_ASPEED_TIMER,
+                                 aspeed_2500_timer_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_timer, TYPE_ASPEED_2600_TIMER,
+                                 TYPE_ASPEED_TIMER,
+                                 aspeed_2600_timer_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_1030_timer, TYPE_ASPEED_1030_TIMER,
+                                 TYPE_ASPEED_TIMER,
+                                 aspeed_1030_timer_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_timer, TYPE_ASPEED_2700_TIMER,
+                                 TYPE_ASPEED_TIMER,
+                                 aspeed_2700_timer_class_init)

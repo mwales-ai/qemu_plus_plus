@@ -3291,11 +3291,6 @@ void SCSIDiskState::hdClassInit(ObjectClass *klass, const void *data)
     scsi_property_add_specifics(dc);
 }
 
-static const TypeInfo scsi_hd_info = {
-    .name          = "scsi-hd",
-    .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = SCSIDiskState::hdClassInit,
-};
 
 static const Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
@@ -3332,11 +3327,6 @@ void SCSIDiskState::cdClassInit(ObjectClass *klass, const void *data)
     scsi_property_add_specifics(dc);
 }
 
-static const TypeInfo scsi_cd_info = {
-    .name          = "scsi-cd",
-    .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = SCSIDiskState::cdClassInit,
-};
 
 #ifdef __linux__
 static const Property scsi_block_properties[] = {
@@ -3372,22 +3362,20 @@ void SCSIDiskState::blockClassInit(ObjectClass *klass, const void *data)
     dc->vmsd  = &vmstate_scsi_disk_state;
 }
 
-static const TypeInfo scsi_block_info = {
-    .name          = "scsi-block",
-    .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = SCSIDiskState::blockClassInit,
-};
 #endif
-
-static void __attribute__((constructor)) register_scsi_disk_concretes(void)
-{
-    type_register_static(&scsi_hd_info);
-    type_register_static(&scsi_cd_info);
-#ifdef __linux__
-    type_register_static(&scsi_block_info);
-#endif
-}
 
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(SCSIDiskState, SCSIDiskClass,
                                TYPE_SCSI_DISK_BASE, TYPE_SCSI_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(scsi_hd, "scsi-hd", TYPE_SCSI_DISK_BASE,
+                                 SCSIDiskState::hdClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(scsi_cd, "scsi-cd", TYPE_SCSI_DISK_BASE,
+                                 SCSIDiskState::cdClassInit)
+
+#ifdef __linux__
+REGISTER_QEMU_OBJECT_CLASS_ONLY(scsi_block, "scsi-block", TYPE_SCSI_DISK_BASE,
+                                 SCSIDiskState::blockClassInit)
+#endif

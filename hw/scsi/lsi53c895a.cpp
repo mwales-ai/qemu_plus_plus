@@ -2481,18 +2481,11 @@ static void lsi53c810_class_init(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_LSI_53C810;
 }
 
-static const TypeInfo lsi53c810_info = {
-    .name          = TYPE_LSI53C810,
-    .parent        = TYPE_LSI53C895A,
-    .class_init    = lsi53c810_class_init,
-};
-
-static void __attribute__((constructor)) lsi53c810_register_types(void)
-{
-    type_register_static(&lsi53c810_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(lsi53c810, TYPE_LSI53C810, TYPE_LSI53C895A,
+                                 lsi53c810_class_init)
+
 REGISTER_QEMU_DEVICE_IFACES(LSIState, TYPE_LSI53C895A,
                              TYPE_PCI_DEVICE, lsi_interfaces)
 

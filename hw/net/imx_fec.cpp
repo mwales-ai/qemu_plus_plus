@@ -1249,15 +1249,9 @@ static void imx_enet_instance_init(Object *obj)
     s->is_fec = false;
 }
 
-static void __attribute__((constructor)) register_imx_enet(void)
-{
-    static const TypeInfo imx_enet_info = {
-        .name          = TYPE_IMX_ENET,
-        .parent        = TYPE_IMX_FEC,
-        .instance_init = imx_enet_instance_init,
-    };
-    type_register_static(&imx_enet_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx_enet, TYPE_IMX_ENET, TYPE_IMX_FEC,
+                                imx_enet_instance_init)
+
 REGISTER_QEMU_DEVICE(IMXFECState, TYPE_IMX_FEC, TYPE_SYS_BUS_DEVICE)

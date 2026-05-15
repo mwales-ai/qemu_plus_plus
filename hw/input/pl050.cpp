@@ -212,13 +212,6 @@ static void pl050_kbd_class_init(ObjectClass *oc, const void *data)
                                     &pdc->parent_realize);
 }
 
-static const TypeInfo pl050_kbd_info = {
-    .name          = TYPE_PL050_KBD_DEVICE,
-    .parent        = TYPE_PL050,
-    .instance_size = sizeof(PL050KbdState),
-    .instance_init = pl050_kbd_init,
-    .class_init    = pl050_kbd_class_init,
-};
 
 static void pl050_mouse_class_init(ObjectClass *oc, const void *data)
 {
@@ -229,13 +222,6 @@ static void pl050_mouse_class_init(ObjectClass *oc, const void *data)
                                     &pdc->parent_realize);
 }
 
-static const TypeInfo pl050_mouse_info = {
-    .name          = TYPE_PL050_MOUSE_DEVICE,
-    .parent        = TYPE_PL050,
-    .instance_size = sizeof(PL050MouseState),
-    .instance_init = pl050_mouse_init,
-    .class_init    = pl050_mouse_class_init,
-};
 
 void PL050State::init()
 {
@@ -255,11 +241,16 @@ void PL050State::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(PL050State, PL050DeviceClass,
                               TYPE_PL050, TYPE_SYS_BUS_DEVICE)
 
-static void __attribute__((constructor)) register_pl050_concrete(void)
-{
-    type_register_static(&pl050_kbd_info);
-    type_register_static(&pl050_mouse_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pl050_kbd, PL050KbdState,
+                                            TYPE_PL050_KBD_DEVICE, TYPE_PL050,
+                                            pl050_kbd_init,
+                                            pl050_kbd_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pl050_mouse, PL050MouseState,
+                                            TYPE_PL050_MOUSE_DEVICE, TYPE_PL050,
+                                            pl050_mouse_init,
+                                            pl050_mouse_class_init)

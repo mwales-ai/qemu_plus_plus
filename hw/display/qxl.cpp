@@ -2541,11 +2541,6 @@ static void qxl_primary_class_init(ObjectClass *klass, const void *data)
     dc->hotpluggable = false;
 }
 
-static const TypeInfo qxl_primary_info = {
-    .name          = "qxl-vga",
-    .parent        = TYPE_PCI_QXL,
-    .class_init    = qxl_primary_class_init,
-};
 module_obj("qxl-vga");
 module_kconfig(QXL);
 
@@ -2559,17 +2554,12 @@ static void qxl_secondary_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Spice QXL GPU (secondary)";
 }
 
-static const TypeInfo qxl_secondary_info = {
-    .name          = "qxl",
-    .parent        = TYPE_PCI_QXL,
-    .class_init    = qxl_secondary_class_init,
-};
 module_obj("qxl");
 
-static void __attribute__((constructor)) register_qxl_concretes(void)
-{
-    type_register_static(&qxl_primary_info);
-    type_register_static(&qxl_secondary_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(qxl_primary, "qxl-vga", TYPE_PCI_QXL,
+                                 qxl_primary_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(qxl_secondary, "qxl", TYPE_PCI_QXL,
+                                 qxl_secondary_class_init)
 
 module_dep("ui-spice-core");

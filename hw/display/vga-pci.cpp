@@ -452,21 +452,9 @@ void PCIVGAState::secondaryClassInit(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, pci_secondary_vga_reset);
 }
 
-static const TypeInfo vga_info = {
-    .name          = "VGA",
-    .parent        = TYPE_PCI_VGA,
-    .class_init    = PCIVGAState::vgaClassInit,
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(vga, "VGA", TYPE_PCI_VGA,
+                                 PCIVGAState::vgaClassInit)
 
-static const TypeInfo secondary_info = {
-    .name          = "secondary-vga",
-    .parent        = TYPE_PCI_VGA,
-    .instance_init = pci_secondary_vga_init,
-    .class_init    = PCIVGAState::secondaryClassInit,
-};
-
-static void __attribute__((constructor)) register_vga_concretes(void)
-{
-    type_register_static(&vga_info);
-    type_register_static(&secondary_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS(secondary_vga, "secondary-vga", TYPE_PCI_VGA,
+                                 pci_secondary_vga_init,
+                                 PCIVGAState::secondaryClassInit)

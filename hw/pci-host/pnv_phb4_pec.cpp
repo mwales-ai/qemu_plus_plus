@@ -439,15 +439,9 @@ static const InterfaceInfo pnv_phb5_pec_interfaces[] = {
     { }
 };
 
-static void __attribute__((constructor)) register_pnv_phb5_pec(void)
-{
-    static const TypeInfo pnv_phb5_pec_type_info = {
-        .name          = TYPE_PNV_PHB5_PEC,
-        .parent        = TYPE_PNV_PHB4_PEC,
-        .instance_size = sizeof(PnvPhb4PecState),
-        .class_size    = sizeof(PnvPhb4PecClass),
-        .class_init    = pnv_phb5_pec_class_init,
-        .interfaces    = pnv_phb5_pec_interfaces,
-    };
-    type_register_static(&pnv_phb5_pec_type_info);
-}
+REGISTER_QEMU_OBJECT_SIZED_CS_CI_IFACES(pnv_phb5_pec, PnvPhb4PecState,
+                                         PnvPhb4PecClass,
+                                         TYPE_PNV_PHB5_PEC,
+                                         TYPE_PNV_PHB4_PEC,
+                                         pnv_phb5_pec_class_init,
+                                         pnv_phb5_pec_interfaces)

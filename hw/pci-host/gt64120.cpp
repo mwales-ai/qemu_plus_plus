@@ -1309,21 +1309,10 @@ void GT64120State::pciClassInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo gt64120_pci_info = {
-    .name          = "gt64120_pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = GT64120State::pciClassInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo gt64120_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
-
-static void __attribute__((constructor)) gt64120_pci_register_type(void)
-{
-    type_register_static(&gt64120_pci_info);
-}
 
 static const Property gt64120_properties[] = {
     DEFINE_PROP_BOOL("cpu-little-endian", GT64120State,
@@ -1338,5 +1327,11 @@ void GT64120State::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(gt64120_pci, PCIDevice,
+                                              "gt64120_pci", TYPE_PCI_DEVICE,
+                                              GT64120State::pciClassInit,
+                                              gt64120_pci_interfaces)
+
 REGISTER_QEMU_DEVICE(GT64120State, TYPE_GT64120_PCI_HOST_BRIDGE,
                       TYPE_PCI_HOST_BRIDGE)

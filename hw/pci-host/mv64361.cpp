@@ -69,18 +69,6 @@ static const InterfaceInfo mv64361_pcibridge_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_mv64361_pcibridge_type(void)
-{
-    static TypeInfo mv64361_pcibridge_info = {
-        .name          = TYPE_MV64361_PCI_BRIDGE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIDevice),
-        .class_init    = MV64361PCIState::pciBridgeClassInit,
-        .interfaces    = mv64361_pcibridge_interfaces,
-    };
-    type_register_static(&mv64361_pcibridge_info);
-}
-
 void MV64361PCIState::setIrq(void *opaque, int n, int level)
 {
     MV64361PCIState *s = static_cast<MV64361PCIState *>(opaque);
@@ -121,16 +109,6 @@ void MV64361PCIState::hostClassInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static void __attribute__((constructor)) register_mv64361_pcihost_type(void)
-{
-    static TypeInfo mv64361_pcihost_info = {
-        .name          = TYPE_MV64361_PCI,
-        .parent        = TYPE_PCI_HOST_BRIDGE,
-        .instance_size = sizeof(MV64361PCIState),
-        .class_init    = MV64361PCIState::hostClassInit,
-    };
-    type_register_static(&mv64361_pcihost_info);
-}
 
 
 OBJECT_DECLARE_SIMPLE_TYPE(MV64361State, MV64361)
@@ -952,4 +930,15 @@ void MV64361State::classInit(DeviceClass *dc)
 }
 
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(mv64361_pcibridge, PCIDevice,
+                                              TYPE_MV64361_PCI_BRIDGE,
+                                              TYPE_PCI_DEVICE,
+                                              MV64361PCIState::pciBridgeClassInit,
+                                              mv64361_pcibridge_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(mv64361_pcihost, MV64361PCIState,
+                                       TYPE_MV64361_PCI, TYPE_PCI_HOST_BRIDGE,
+                                       MV64361PCIState::hostClassInit)
+
 REGISTER_QEMU_DEVICE(MV64361State, TYPE_MV64361, TYPE_SYS_BUS_DEVICE)

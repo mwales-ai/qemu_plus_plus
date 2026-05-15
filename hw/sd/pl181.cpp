@@ -533,17 +533,10 @@ void PL181State::busClassInit(ObjectClass *klass, const void *data)
     sbc->set_readonly = setReadonly;
 }
 
-static const TypeInfo pl181_bus_info = {
-    .name           = TYPE_PL181_BUS,
-    .parent         = TYPE_SD_BUS,
-    .instance_size  = sizeof(SDBus),
-    .class_init     = PL181State::busClassInit,
-};
-
-static void __attribute__((constructor)) pl181_bus_register_types(void)
-{
-    type_register_static(&pl181_bus_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pl181_bus, SDBus,
+                                       TYPE_PL181_BUS, TYPE_SD_BUS,
+                                       PL181State::busClassInit)
+
 REGISTER_QEMU_DEVICE(PL181State, TYPE_PL181, TYPE_SYS_BUS_DEVICE)

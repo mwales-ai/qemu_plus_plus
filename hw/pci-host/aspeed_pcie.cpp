@@ -1018,25 +1018,11 @@ REGISTER_QEMU_DEVICE_CUSTOM_CI(AspeedPCIEPhyState, AspeedPCIEPhyClass,
                                 TYPE_SYS_BUS_DEVICE,
                                 aspeed_pcie_phy_class_init)
 
-static void aspeed_2700_pcie_cfg_register(void) __attribute__((constructor));
-static void aspeed_2700_pcie_cfg_register(void)
-{
-    static const TypeInfo aspeed_2700_pcie_cfg_info = {
-        .name = TYPE_ASPEED_2700_PCIE_CFG,
-        .parent = TYPE_ASPEED_PCIE_CFG,
-        .class_init = aspeed_2700_pcie_cfg_class_init,
-    };
-    type_register_static(&aspeed_2700_pcie_cfg_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_pcie_cfg, TYPE_ASPEED_2700_PCIE_CFG,
+                                 TYPE_ASPEED_PCIE_CFG,
+                                 aspeed_2700_pcie_cfg_class_init)
 
-static void aspeed_2700_pcie_phy_register(void) __attribute__((constructor));
-static void aspeed_2700_pcie_phy_register(void)
-{
-    static const TypeInfo aspeed_2700_pcie_phy_info = {
-        .name = TYPE_ASPEED_2700_PCIE_PHY,
-        .parent = TYPE_ASPEED_PCIE_PHY,
-        .class_init = aspeed_2700_pcie_phy_class_init,
-    };
-    type_register_static(&aspeed_2700_pcie_phy_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_pcie_phy, TYPE_ASPEED_2700_PCIE_PHY,
+                                 TYPE_ASPEED_PCIE_PHY,
+                                 aspeed_2700_pcie_phy_class_init)
 

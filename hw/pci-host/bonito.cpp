@@ -795,14 +795,6 @@ static const InterfaceInfo bonito_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo bonito_pci_info = {
-    .name          = TYPE_PCI_BONITO,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIBonitoState),
-    .class_init    = PCIBonitoState::pciClassInit,
-    .interfaces    = bonito_pci_interfaces,
-};
-
 void BonitoState::classInit(DeviceClass *dc)
 {
     dc->realize = BonitoState::hostRealize;
@@ -811,8 +803,7 @@ void BonitoState::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE(BonitoState, TYPE_BONITO_PCI_HOST_BRIDGE,
                      TYPE_PCI_HOST_BRIDGE)
 
-static void bonito_secondary_register_types(void) __attribute__((constructor));
-static void bonito_secondary_register_types(void)
-{
-    type_register_static(&bonito_pci_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(bonito_pci, PCIBonitoState,
+                                              TYPE_PCI_BONITO, TYPE_PCI_DEVICE,
+                                              PCIBonitoState::pciClassInit,
+                                              bonito_pci_interfaces)

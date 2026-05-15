@@ -911,14 +911,9 @@ static void astro_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = astro_translate_iommu;
 }
 
-static void __attribute__((constructor)) astro_register_siblings(void)
-{
-    static const TypeInfo astro_iommu_memory_region_info = {
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .name = TYPE_ASTRO_IOMMU_MEMORY_REGION,
-        .class_init = astro_iommu_memory_region_class_init,
-    };
-    type_register_static(&astro_iommu_memory_region_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(astro_iommu_memory_region,
+                                 TYPE_ASTRO_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 astro_iommu_memory_region_class_init)
 
 REGISTER_QEMU_DEVICE(AstroState, TYPE_ASTRO_CHIP, TYPE_SYS_BUS_DEVICE)

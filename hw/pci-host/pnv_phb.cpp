@@ -345,13 +345,7 @@ static void pnv_phb_root_port_class_init_wrapper(ObjectClass *klass,
     PnvPHBRootPort::classInit(DEVICE_CLASS(klass));
 }
 
-static void __attribute__((constructor)) pnv_phb_register_siblings(void)
-{
-    static const TypeInfo pnv_phb_root_port_info = {
-        .name          = TYPE_PNV_PHB_ROOT_PORT,
-        .parent        = TYPE_PCIE_ROOT_PORT,
-        .instance_size = sizeof(PnvPHBRootPort),
-        .class_init    = pnv_phb_root_port_class_init_wrapper,
-    };
-    type_register_static(&pnv_phb_root_port_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_phb_root_port, PnvPHBRootPort,
+                                       TYPE_PNV_PHB_ROOT_PORT,
+                                       TYPE_PCIE_ROOT_PORT,
+                                       pnv_phb_root_port_class_init_wrapper)

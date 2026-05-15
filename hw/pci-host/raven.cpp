@@ -358,16 +358,11 @@ static const InterfaceInfo raven_pci_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_raven_pci_type(void)
-{
-    static TypeInfo raven_pci_info = {
-        .name = TYPE_RAVEN_PCI_DEVICE,
-        .parent = TYPE_PCI_DEVICE,
-        .class_init = PREPPCIState::ravenPciClassInit,
-        .interfaces = raven_pci_interfaces,
-    };
-    type_register_static(&raven_pci_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raven_pci, TYPE_RAVEN_PCI_DEVICE,
+                                        TYPE_PCI_DEVICE,
+                                        PREPPCIState::ravenPciClassInit,
+                                        raven_pci_interfaces)
+
 REGISTER_QEMU_DEVICE(PREPPCIState, TYPE_RAVEN_PCI_HOST_BRIDGE, TYPE_PCI_HOST_BRIDGE)
