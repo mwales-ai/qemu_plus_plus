@@ -75,13 +75,8 @@ static void ohci_sysbus_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, ohci_sysbus_reset);
 }
 
-static const TypeInfo ohci_sysbus_types[] = {
-    {
-        .name          = TYPE_SYSBUS_OHCI,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(OHCISysBusState),
-        .class_init    = ohci_sysbus_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(ohci_sysbus_types);
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(sysbus_ohci, OHCISysBusState,
+                                       TYPE_SYSBUS_OHCI, TYPE_SYS_BUS_DEVICE,
+                                       ohci_sysbus_class_init)

@@ -214,12 +214,8 @@ static void npcm_pspi_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = npcm_pspi_enter_reset;
 }
 
-static const TypeInfo npcm_pspi_types[] = {
-    {
-        .name = TYPE_NPCM_PSPI,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCMPSPIState),
-        .class_init = npcm_pspi_class_init,
-    },
-};
-DEFINE_TYPES(npcm_pspi_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(npcm_pspi, NPCMPSPIState, TYPE_NPCM_PSPI,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       npcm_pspi_class_init)

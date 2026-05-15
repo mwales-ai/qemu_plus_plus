@@ -233,55 +233,37 @@ static void fusbh200_ehci_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
-static const TypeInfo ehci_sysbus_types[] = {
-    {
-        .name          = TYPE_SYS_BUS_EHCI,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(EHCISysBusState),
-        .instance_init = ehci_sysbus_init,
-        .instance_finalize = ehci_sysbus_finalize,
-        .is_abstract      = true,
-        .class_size    = sizeof(SysBusEHCIClass),
-        .class_init    = ehci_sysbus_class_init,
-    },
-    {
-        .name          = TYPE_PLATFORM_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_platform_class_init,
-    },
-    {
-        .name          = TYPE_EXYNOS4210_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_exynos4210_class_init,
-    },
-    {
-        .name          = TYPE_AW_H3_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_aw_h3_class_init,
-    },
-    {
-        .name          = TYPE_NPCM7XX_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_npcm7xx_class_init,
-    },
-    {
-        .name          = TYPE_TEGRA2_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_tegra2_class_init,
-    },
-    {
-        .name          = TYPE_PPC4xx_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .instance_init = ehci_ppc4xx_init,
-        .class_init    = ehci_ppc4xx_class_init,
-    },
-    {
-        .name          = TYPE_FUSBH200_EHCI,
-        .parent        = TYPE_SYS_BUS_EHCI,
-        .instance_size = sizeof(FUSBH200EHCIState),
-        .instance_init = fusbh200_ehci_init,
-        .class_init    = fusbh200_ehci_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(ehci_sysbus_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS(EHCISysBusState,
+                                                    SysBusEHCIClass,
+                                                    TYPE_SYS_BUS_EHCI,
+                                                    TYPE_SYS_BUS_DEVICE,
+                                                    ehci_sysbus_init,
+                                                    ehci_sysbus_finalize,
+                                                    ehci_sysbus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(platform_ehci, TYPE_PLATFORM_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_platform_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(exynos4210_ehci, TYPE_EXYNOS4210_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_exynos4210_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aw_h3_ehci, TYPE_AW_H3_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_aw_h3_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(npcm7xx_ehci, TYPE_NPCM7XX_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_npcm7xx_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(tegra2_ehci, TYPE_TEGRA2_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_tegra2_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(ppc4xx_ehci, TYPE_PPC4xx_EHCI,
+                                 TYPE_SYS_BUS_EHCI, ehci_ppc4xx_init,
+                                 ehci_ppc4xx_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(fusbh200_ehci, FUSBH200EHCIState,
+                                            TYPE_FUSBH200_EHCI,
+                                            TYPE_SYS_BUS_EHCI,
+                                            fusbh200_ehci_init,
+                                            fusbh200_ehci_class_init)
