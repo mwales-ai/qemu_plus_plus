@@ -190,13 +190,10 @@ static void aspeed_machine_rainier_class_init(ObjectClass *oc, const void *data)
     aspeed_machine_ast2600_class_emmc_init(oc);
 };
 
-static const TypeInfo aspeed_ast2600_rainier_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("rainier-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_rainier_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2600_rainier_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_rainier,
+                                        MACHINE_TYPE_NAME("rainier-bmc"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_rainier_class_init,
+                                        arm_machine_interfaces)

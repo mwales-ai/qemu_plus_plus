@@ -132,13 +132,10 @@ static void aspeed_machine_fuji_class_init(ObjectClass *oc, const void *data)
     aspeed_machine_class_init_cpus_defaults(mc);
 };
 
-static const TypeInfo aspeed_ast2600_fuji_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("fuji-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_fuji_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2600_fuji_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_fuji,
+                                        MACHINE_TYPE_NAME("fuji-bmc"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_fuji_class_init,
+                                        arm_machine_interfaces)

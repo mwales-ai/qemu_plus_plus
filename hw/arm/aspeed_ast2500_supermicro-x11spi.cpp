@@ -69,13 +69,10 @@ static void aspeed_machine_supermicro_x11spi_bmc_class_init(ObjectClass *oc,
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
-static const TypeInfo aspeed_ast2500_supermicro_x11spi_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("supermicro-x11spi-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_supermicro_x11spi_bmc_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2500_supermicro_x11spi_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_supermicro_x11spi,
+                                        MACHINE_TYPE_NAME("supermicro-x11spi-bmc"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_supermicro_x11spi_bmc_class_init,
+                                        arm_machine_interfaces)

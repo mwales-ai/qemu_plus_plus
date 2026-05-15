@@ -47,13 +47,10 @@ static void aspeed_machine_qcom_dc_scm_v1_class_init(ObjectClass *oc,
     aspeed_machine_class_init_cpus_defaults(mc);
 };
 
-static const TypeInfo aspeed_ast2600_qcom_dc_scm_v1_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("qcom-dc-scm-v1-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_qcom_dc_scm_v1_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2600_qcom_dc_scm_v1_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_qcom_dc_scm_v1,
+                                        MACHINE_TYPE_NAME("qcom-dc-scm-v1-bmc"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_qcom_dc_scm_v1_class_init,
+                                        arm_machine_interfaces)

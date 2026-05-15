@@ -100,13 +100,10 @@ static void aspeed_minibmc_machine_ast1030_evb_class_init(ObjectClass *oc,
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
-static const TypeInfo aspeed_ast10x0_evb_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("ast1030-evb"),
-        .parent         = TYPE_ASPEED_MACHINE,
-        .class_init     = aspeed_minibmc_machine_ast1030_evb_class_init,
-        .interfaces     = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast10x0_evb_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_ast1030_evb,
+                                        MACHINE_TYPE_NAME("ast1030-evb"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_minibmc_machine_ast1030_evb_class_init,
+                                        arm_machine_interfaces)

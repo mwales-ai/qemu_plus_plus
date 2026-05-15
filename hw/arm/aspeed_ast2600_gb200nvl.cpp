@@ -103,13 +103,10 @@ static void aspeed_machine_gb200nvl_class_init(ObjectClass *oc,
     aspeed_machine_ast2600_class_emmc_init(oc);
 }
 
-static const TypeInfo aspeed_ast2600_gb200nvl_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("gb200nvl-bmc"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_gb200nvl_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2600_gb200nvl_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_gb200nvl,
+                                        MACHINE_TYPE_NAME("gb200nvl-bmc"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_gb200nvl_class_init,
+                                        arm_machine_interfaces)

@@ -170,13 +170,10 @@ static void aspeed_machine_fby35_class_init(ObjectClass *oc, const void *data)
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
-static const TypeInfo aspeed_ast2600_fby35_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("fby35-bmc"),
-        .parent        = MACHINE_TYPE_NAME("ast2600-evb"),
-        .class_init    = aspeed_machine_fby35_class_init,
-        .interfaces    = arm_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast2600_fby35_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_fby35,
+                                        MACHINE_TYPE_NAME("fby35-bmc"),
+                                        MACHINE_TYPE_NAME("ast2600-evb"),
+                                        aspeed_machine_fby35_class_init,
+                                        arm_machine_interfaces)
