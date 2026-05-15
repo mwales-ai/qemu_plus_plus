@@ -28,20 +28,20 @@ static void virtio_gpu_rutabaga_initfn(Object *obj)
     VIRTIO_GPU_PCI_BASE(obj)->vgpu = VIRTIO_GPU_BASE(&dev->vdev);
 }
 
-static const TypeInfo virtio_gpu_rutabaga_pci_info[] = {
-    {
-        .name = TYPE_VIRTIO_GPU_RUTABAGA_PCI,
-        .parent = TYPE_VIRTIO_GPU_PCI_BASE,
-        .instance_size = sizeof(VirtIOGPURutabagaPCI),
-        .instance_init = virtio_gpu_rutabaga_initfn,
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        }
-    },
+static const InterfaceInfo virtio_gpu_rutabaga_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-DEFINE_TYPES(virtio_gpu_rutabaga_pci_info)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(virtio_gpu_rutabaga_pci,
+                                              VirtIOGPURutabagaPCI,
+                                              TYPE_VIRTIO_GPU_RUTABAGA_PCI,
+                                              TYPE_VIRTIO_GPU_PCI_BASE,
+                                              virtio_gpu_rutabaga_initfn,
+                                              NULL,
+                                              virtio_gpu_rutabaga_pci_interfaces)
 
 module_obj(TYPE_VIRTIO_GPU_RUTABAGA_PCI);
 module_kconfig(VIRTIO_PCI);

@@ -560,13 +560,9 @@ static void vfio_iommu_spapr_class_init(ObjectClass *klass, const void *data)
     vioc->setup = vfio_spapr_container_setup;
 };
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_VFIO_IOMMU_SPAPR,
-        .parent = TYPE_VFIO_IOMMU_LEGACY,
-        .instance_size = sizeof(VFIOSpaprContainer),
-        .class_init = vfio_iommu_spapr_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vfio_iommu_spapr, VFIOSpaprContainer,
+                                       TYPE_VFIO_IOMMU_SPAPR,
+                                       TYPE_VFIO_IOMMU_LEGACY,
+                                       vfio_iommu_spapr_class_init)

@@ -934,17 +934,13 @@ static void hiod_iommufd_vfio_class_init(ObjectClass *oc, const void *data)
     idevc->detach_hwpt = host_iommu_device_iommufd_vfio_detach_hwpt;
 };
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_VFIO_IOMMU_IOMMUFD,
-        .parent = TYPE_VFIO_IOMMU,
-        .instance_size = sizeof(VFIOIOMMUFDContainer),
-        .class_init = vfio_iommu_iommufd_class_init,
-    }, {
-        .name = TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO,
-        .parent = TYPE_HOST_IOMMU_DEVICE_IOMMUFD,
-        .class_init = hiod_iommufd_vfio_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vfio_iommu_iommufd, VFIOIOMMUFDContainer,
+                                       TYPE_VFIO_IOMMU_IOMMUFD, TYPE_VFIO_IOMMU,
+                                       vfio_iommu_iommufd_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hiod_iommufd_vfio,
+                                 TYPE_HOST_IOMMU_DEVICE_IOMMUFD_VFIO,
+                                 TYPE_HOST_IOMMU_DEVICE_IOMMUFD,
+                                 hiod_iommufd_vfio_class_init)

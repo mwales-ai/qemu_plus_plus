@@ -76,18 +76,13 @@ static void triboard_machine_tc277d_class_init(ObjectClass *oc,
     amc->soc_name   = "tc277d-soc";
 };
 
-static const TypeInfo triboard_machine_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("KIT_AURIX_TC277_TRB"),
-        .parent         = TYPE_TRIBOARD_MACHINE,
-        .class_init     = triboard_machine_tc277d_class_init,
-    }, {
-        .name           = TYPE_TRIBOARD_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(TriBoardMachineState),
-        .class_size     = sizeof(TriBoardMachineClass),
-        .is_abstract       = true,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(triboard_machine_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS(triboard_machine, TriBoardMachineState,
+                                        TriBoardMachineClass,
+                                        TYPE_TRIBOARD_MACHINE, TYPE_MACHINE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(triboard_tc277_trb,
+                                 MACHINE_TYPE_NAME("KIT_AURIX_TC277_TRB"),
+                                 TYPE_TRIBOARD_MACHINE,
+                                 triboard_machine_tc277d_class_init)

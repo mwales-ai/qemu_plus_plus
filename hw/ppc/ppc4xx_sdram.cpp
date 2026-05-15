@@ -732,18 +732,14 @@ void ppc4xx_sdram_ddr2_enable(Ppc4xxSdramDdr2State *s)
     sdram_ddr2_dcr_write(s, SDRAM0_CFGDATA, 0x08000000);
 }
 
-static const TypeInfo ppc4xx_sdram_types[] = {
-    {
-        .name           = TYPE_PPC4xx_SDRAM_DDR,
-        .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc4xxSdramDdrState),
-        .class_init     = ppc4xx_sdram_ddr_class_init,
-    }, {
-        .name           = TYPE_PPC4xx_SDRAM_DDR2,
-        .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc4xxSdramDdr2State),
-        .class_init     = ppc4xx_sdram_ddr2_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(ppc4xx_sdram_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ppc4xx_sdram_ddr, Ppc4xxSdramDdrState,
+                                       TYPE_PPC4xx_SDRAM_DDR,
+                                       TYPE_PPC4xx_DCR_DEVICE,
+                                       ppc4xx_sdram_ddr_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ppc4xx_sdram_ddr2, Ppc4xxSdramDdr2State,
+                                       TYPE_PPC4xx_SDRAM_DDR2,
+                                       TYPE_PPC4xx_DCR_DEVICE,
+                                       ppc4xx_sdram_ddr2_class_init)

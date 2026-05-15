@@ -1086,6 +1086,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS: abstract object type with
+ * instance_size + class_size. No class_init / instance_init / interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS(unique_tag, ClassName,        \
+                                                ClassStruct,                 \
+                                                type_name_str,               \
+                                                parent_type_str)             \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .is_abstract   = true,                                               \
+        .class_size    = sizeof(ClassStruct),                                \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI: abstract object type with
  * instance_size + class_size + free class_init. No instance_init / interfaces.
  */
@@ -1658,6 +1680,30 @@ static void unique_tag##_cpp_register_types(void)                            \
         .parent        = parent_type_str,                                    \
         .instance_size = sizeof(ClassName),                                  \
         .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED_IFACES: concrete sized object
+ * with free instance_init + free instance_finalize + free class_init +
+ * interfaces. Used by types like q800-glue.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED_IFACES(                   \
+    unique_tag, ClassName, type_name_str, parent_type_str,                   \
+    instance_init_fn, instance_finalize_fn, class_init_fn, ifaces_array)     \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .class_init        = class_init_fn,                                  \
+        .interfaces        = ifaces_array,                                   \
     };                                                                       \
     type_register_static(&info);                                             \
 }                                                                            \

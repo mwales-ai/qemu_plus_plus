@@ -250,16 +250,12 @@ static const InterfaceInfo glue_interfaces[] = {
     { }
 };
 
-static const TypeInfo glue_info_types[] = {
-    {
-        .name = TYPE_GLUE,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(GLUEState),
-        .instance_init = glue_init,
-        .instance_finalize = glue_finalize,
-        .class_init = glue_class_init,
-        .interfaces = glue_interfaces,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(glue_info_types)
+REGISTER_QEMU_OBJECT_INIT_FINI_CLASS_SIZED_IFACES(glue, GLUEState,
+                                                   TYPE_GLUE,
+                                                   TYPE_SYS_BUS_DEVICE,
+                                                   glue_init,
+                                                   glue_finalize,
+                                                   glue_class_init,
+                                                   glue_interfaces)

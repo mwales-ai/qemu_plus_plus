@@ -337,16 +337,11 @@ static void vfio_container_instance_init(Object *obj)
     QLIST_INIT(&bcontainer->vrdl_list);
 }
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_VFIO_IOMMU,
-        .parent = TYPE_OBJECT,
-        .instance_size = sizeof(VFIOContainer),
-        .instance_init = vfio_container_instance_init,
-        .instance_finalize = vfio_container_instance_finalize,
-        .is_abstract = true,
-        .class_size = sizeof(VFIOIOMMUClass),
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_FINI_CI_CS(VFIOContainer,
+                                                    VFIOIOMMUClass,
+                                                    TYPE_VFIO_IOMMU, TYPE_OBJECT,
+                                                    vfio_container_instance_init,
+                                                    vfio_container_instance_finalize,
+                                                    nullptr)

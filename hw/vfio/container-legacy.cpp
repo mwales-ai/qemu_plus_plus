@@ -1249,18 +1249,16 @@ static void hiod_legacy_vfio_class_init(ObjectClass *oc, const void *data)
     hioc->get_page_size_mask = hiod_legacy_vfio_get_page_size_mask;
 };
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_VFIO_IOMMU_LEGACY,
-        .parent = TYPE_VFIO_IOMMU,
-        .instance_size = sizeof(VFIOLegacyContainer),
-        .instance_init = vfio_iommu_legacy_instance_init,
-        .class_init = vfio_iommu_legacy_class_init,
-    }, {
-        .name = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
-        .parent = TYPE_HOST_IOMMU_DEVICE,
-        .class_init = hiod_legacy_vfio_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(vfio_iommu_legacy,
+                                            VFIOLegacyContainer,
+                                            TYPE_VFIO_IOMMU_LEGACY,
+                                            TYPE_VFIO_IOMMU,
+                                            vfio_iommu_legacy_instance_init,
+                                            vfio_iommu_legacy_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hiod_legacy_vfio,
+                                 TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
+                                 TYPE_HOST_IOMMU_DEVICE,
+                                 hiod_legacy_vfio_class_init)

@@ -482,31 +482,25 @@ static void pnv_core_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-#define DEFINE_PNV_CORE_TYPE(family, cpu_model) \
-    {                                           \
-        .name = PNV_CORE_TYPE_NAME(cpu_model),  \
-        .parent = TYPE_PNV_CORE,                \
-        .class_init = pnv_core_##family##_class_init, \
-    }
+#include "qom/cpp/object.h"
 
-static const TypeInfo pnv_core_infos[] = {
-    {
-        .name           = TYPE_PNV_CORE,
-        .parent         = TYPE_CPU_CORE,
-        .instance_size  = sizeof(PnvCore),
-        .is_abstract    = true,
-        .class_size     = sizeof(PnvCoreClass),
-        .class_init     = pnv_core_class_init,
-    },
-    DEFINE_PNV_CORE_TYPE(power8, "power8e_v2.1"),
-    DEFINE_PNV_CORE_TYPE(power8, "power8_v2.0"),
-    DEFINE_PNV_CORE_TYPE(power8, "power8nvl_v1.0"),
-    DEFINE_PNV_CORE_TYPE(power9, "power9_v2.2"),
-    DEFINE_PNV_CORE_TYPE(power10, "power10_v2.0"),
-    DEFINE_PNV_CORE_TYPE(power11, "power11_v2.0"),
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(pnv_core, PnvCore, PnvCoreClass,
+                                           TYPE_PNV_CORE, TYPE_CPU_CORE,
+                                           pnv_core_class_init)
 
-DEFINE_TYPES(pnv_core_infos)
+#define REGISTER_PNV_CORE(tag, family, cpu_model) \
+    REGISTER_QEMU_OBJECT_CLASS_ONLY(tag, PNV_CORE_TYPE_NAME(cpu_model), \
+                                     TYPE_PNV_CORE, \
+                                     pnv_core_##family##_class_init)
+
+REGISTER_PNV_CORE(pnv_core_power8e_v2_1, power8, "power8e_v2.1")
+REGISTER_PNV_CORE(pnv_core_power8_v2_0, power8, "power8_v2.0")
+REGISTER_PNV_CORE(pnv_core_power8nvl_v1_0, power8, "power8nvl_v1.0")
+REGISTER_PNV_CORE(pnv_core_power9_v2_2, power9, "power9_v2.2")
+REGISTER_PNV_CORE(pnv_core_power10_v2_0, power10, "power10_v2.0")
+REGISTER_PNV_CORE(pnv_core_power11_v2_0, power11, "power11_v2.0")
+
+#undef REGISTER_PNV_CORE
 
 /*
  * POWER9 Quads
@@ -733,30 +727,15 @@ static void pnv_quad_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pnv_quad_infos[] = {
-    {
-        .name          = TYPE_PNV_QUAD,
-        .parent        = TYPE_DEVICE,
-        .instance_size = sizeof(PnvQuad),
-        .is_abstract   = true,
-        .class_size    = sizeof(PnvQuadClass),
-        .class_init    = pnv_quad_class_init,
-    },
-    {
-        .name = PNV_QUAD_TYPE_NAME("power9"),
-        .parent = TYPE_PNV_QUAD,
-        .class_init = pnv_quad_power9_class_init,
-    },
-    {
-        .name = PNV_QUAD_TYPE_NAME("power10"),
-        .parent = TYPE_PNV_QUAD,
-        .class_init = pnv_quad_power10_class_init,
-    },
-    {
-        .name = PNV_QUAD_TYPE_NAME("power11"),
-        .parent = TYPE_PNV_QUAD,
-        .class_init = pnv_quad_power11_class_init,
-    },
-};
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(pnv_quad, PnvQuad, PnvQuadClass,
+                                           TYPE_PNV_QUAD, TYPE_DEVICE,
+                                           pnv_quad_class_init)
 
-DEFINE_TYPES(pnv_quad_infos);
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_quad_power9, PNV_QUAD_TYPE_NAME("power9"),
+                                 TYPE_PNV_QUAD, pnv_quad_power9_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_quad_power10, PNV_QUAD_TYPE_NAME("power10"),
+                                 TYPE_PNV_QUAD, pnv_quad_power10_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_quad_power11, PNV_QUAD_TYPE_NAME("power11"),
+                                 TYPE_PNV_QUAD, pnv_quad_power11_class_init)

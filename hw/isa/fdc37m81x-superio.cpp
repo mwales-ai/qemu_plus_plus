@@ -21,12 +21,7 @@ static void fdc37m81x_class_init(ObjectClass *klass, const void *data)
     sc->ide.count = 0;
 }
 
-static const TypeInfo types[] = {
-    {
-        .name          = TYPE_FDC37M81X_SUPERIO,
-        .parent        = TYPE_ISA_SUPERIO,
-        .class_init    = fdc37m81x_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY(fdc37m81x_superio, TYPE_FDC37M81X_SUPERIO,
+                                 TYPE_ISA_SUPERIO, fdc37m81x_class_init)

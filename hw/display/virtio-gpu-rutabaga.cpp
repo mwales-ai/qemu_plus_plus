@@ -1126,16 +1126,11 @@ static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_gpu_rutabaga_properties);
 }
 
-static const TypeInfo virtio_gpu_rutabaga_info[] = {
-    {
-        .name = TYPE_VIRTIO_GPU_RUTABAGA,
-        .parent = TYPE_VIRTIO_GPU,
-        .instance_size = sizeof(VirtIOGPURutabaga),
-        .class_init = virtio_gpu_rutabaga_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(virtio_gpu_rutabaga_info)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(virtio_gpu_rutabaga, VirtIOGPURutabaga,
+                                       TYPE_VIRTIO_GPU_RUTABAGA, TYPE_VIRTIO_GPU,
+                                       virtio_gpu_rutabaga_class_init)
 
 module_obj(TYPE_VIRTIO_GPU_RUTABAGA);
 module_kconfig(VIRTIO_GPU);
