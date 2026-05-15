@@ -456,31 +456,21 @@ static void atmega2560_class_init(ObjectClass *oc, const void *data)
     amc->dev = dev1280_2560;
 };
 
-static const TypeInfo atmega_mcu_types[] = {
-    {
-        .name           = TYPE_ATMEGA168_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
-        .class_init     = atmega168_class_init,
-    }, {
-        .name           = TYPE_ATMEGA328_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
-        .class_init     = atmega328_class_init,
-    }, {
-        .name           = TYPE_ATMEGA1280_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
-        .class_init     = atmega1280_class_init,
-    }, {
-        .name           = TYPE_ATMEGA2560_MCU,
-        .parent         = TYPE_ATMEGA_MCU,
-        .class_init     = atmega2560_class_init,
-    }, {
-        .name           = TYPE_ATMEGA_MCU,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(AtmegaMcuState),
-        .class_size     = sizeof(AtmegaMcuClass),
-        .class_init     = atmega_class_init,
-        .is_abstract       = true,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(atmega_mcu_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(atmega_mcu, AtmegaMcuState,
+                                           AtmegaMcuClass,
+                                           TYPE_ATMEGA_MCU, TYPE_SYS_BUS_DEVICE,
+                                           atmega_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(atmega168, TYPE_ATMEGA168_MCU,
+                                 TYPE_ATMEGA_MCU, atmega168_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(atmega328, TYPE_ATMEGA328_MCU,
+                                 TYPE_ATMEGA_MCU, atmega328_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(atmega1280, TYPE_ATMEGA1280_MCU,
+                                 TYPE_ATMEGA_MCU, atmega1280_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(atmega2560, TYPE_ATMEGA2560_MCU,
+                                 TYPE_ATMEGA_MCU, atmega2560_class_init)

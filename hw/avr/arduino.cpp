@@ -130,31 +130,27 @@ typedef struct ArduinoMachineClass ArduinoMachineClass;
 DECLARE_OBJ_CHECKERS(ArduinoMachineState, ArduinoMachineClass,
                      ARDUINO_MACHINE, TYPE_ARDUINO_MACHINE)
 
-static const TypeInfo arduino_machine_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("arduino-duemilanove"),
-        .parent        = TYPE_ARDUINO_MACHINE,
-        .class_init    = ArduinoMachineClass::duemilanoveClassInit,
-    }, {
-        .name          = MACHINE_TYPE_NAME("arduino-uno"),
-        .parent        = TYPE_ARDUINO_MACHINE,
-        .class_init    = ArduinoMachineClass::unoClassInit,
-    }, {
-        .name          = MACHINE_TYPE_NAME("arduino-mega"),
-        .parent        = TYPE_ARDUINO_MACHINE,
-        .class_init    = ArduinoMachineClass::megaClassInit,
-    }, {
-        .name          = MACHINE_TYPE_NAME("arduino-mega-2560-v3"),
-        .parent        = TYPE_ARDUINO_MACHINE,
-        .class_init    = ArduinoMachineClass::mega2560ClassInit,
-    }, {
-        .name           = TYPE_ARDUINO_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(ArduinoMachineState),
-        .class_size     = sizeof(ArduinoMachineClass),
-        .class_init     = ArduinoMachineClass::classInit,
-        .is_abstract       = true,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(arduino_machine_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(arduino_machine, ArduinoMachineState,
+                                           ArduinoMachineClass,
+                                           TYPE_ARDUINO_MACHINE, TYPE_MACHINE,
+                                           ArduinoMachineClass::classInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(arduino_duemilanove,
+                                 MACHINE_TYPE_NAME("arduino-duemilanove"),
+                                 TYPE_ARDUINO_MACHINE,
+                                 ArduinoMachineClass::duemilanoveClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(arduino_uno, MACHINE_TYPE_NAME("arduino-uno"),
+                                 TYPE_ARDUINO_MACHINE,
+                                 ArduinoMachineClass::unoClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(arduino_mega, MACHINE_TYPE_NAME("arduino-mega"),
+                                 TYPE_ARDUINO_MACHINE,
+                                 ArduinoMachineClass::megaClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(arduino_mega_2560_v3,
+                                 MACHINE_TYPE_NAME("arduino-mega-2560-v3"),
+                                 TYPE_ARDUINO_MACHINE,
+                                 ArduinoMachineClass::mega2560ClassInit)

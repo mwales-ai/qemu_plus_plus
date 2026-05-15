@@ -323,19 +323,14 @@ static void lowrisc_ibex_soc_class_init(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo open_titan_types[] = {
-    {
-        .name           = TYPE_RISCV_IBEX_SOC,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(LowRISCIbexSoCState),
-        .instance_init  = lowrisc_ibex_soc_init,
-        .class_init     = lowrisc_ibex_soc_class_init,
-    }, {
-        .name           = TYPE_OPENTITAN_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(OpenTitanState),
-        .class_init     = opentitan_machine_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(open_titan_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(lowrisc_ibex_soc,
+                                            LowRISCIbexSoCState,
+                                            TYPE_RISCV_IBEX_SOC, TYPE_DEVICE,
+                                            lowrisc_ibex_soc_init,
+                                            lowrisc_ibex_soc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(opentitan_machine, OpenTitanState,
+                                       TYPE_OPENTITAN_MACHINE, TYPE_MACHINE,
+                                       opentitan_machine_class_init)
