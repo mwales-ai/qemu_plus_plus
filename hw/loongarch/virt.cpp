@@ -1381,18 +1381,17 @@ static void virt_class_init(ObjectClass *oc, const void *data)
                                           "The string may be up to 8 bytes in size");
 }
 
-static const TypeInfo virt_machine_types[] = {
-    {
-        .name           = TYPE_LOONGARCH_VIRT_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(LoongArchVirtMachineState),
-        .class_init     = virt_class_init,
-        .instance_init  = virt_initfn,
-        .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-        },
-    }
+static const InterfaceInfo loongarch_virt_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-DEFINE_TYPES(virt_machine_types)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(loongarch_virt_machine,
+                                              LoongArchVirtMachineState,
+                                              TYPE_LOONGARCH_VIRT_MACHINE,
+                                              TYPE_MACHINE,
+                                              virt_initfn,
+                                              virt_class_init,
+                                              loongarch_virt_machine_interfaces)

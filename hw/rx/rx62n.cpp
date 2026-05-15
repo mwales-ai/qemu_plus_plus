@@ -290,23 +290,14 @@ static void r5f562n8_class_init(ObjectClass *oc, const void *data)
     rxc->data_flash_size = 32 * KiB;
 };
 
-static const TypeInfo rx62n_types[] = {
-    {
-        .name           = TYPE_R5F562N7_MCU,
-        .parent         = TYPE_RX62N_MCU,
-        .class_init     = r5f562n7_class_init,
-    }, {
-        .name           = TYPE_R5F562N8_MCU,
-        .parent         = TYPE_RX62N_MCU,
-        .class_init     = r5f562n8_class_init,
-    }, {
-        .name           = TYPE_RX62N_MCU,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(RX62NState),
-        .class_size     = sizeof(RX62NClass),
-        .class_init     = rx62n_class_init,
-        .is_abstract       = true,
-     }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(rx62n_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(rx62n_mcu, RX62NState, RX62NClass,
+                                           TYPE_RX62N_MCU, TYPE_DEVICE,
+                                           rx62n_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(r5f562n7_mcu, TYPE_R5F562N7_MCU,
+                                 TYPE_RX62N_MCU, r5f562n7_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(r5f562n8_mcu, TYPE_R5F562N8_MCU,
+                                 TYPE_RX62N_MCU, r5f562n8_class_init)

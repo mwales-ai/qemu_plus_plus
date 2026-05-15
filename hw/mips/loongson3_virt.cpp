@@ -686,13 +686,8 @@ void LoongsonMachineState::classInit(ObjectClass *oc, const void *data)
     mc->default_nic = "virtio-net-pci";
 }
 
-static const TypeInfo loongson3_machine_types[] = {
-    {
-        .name           = TYPE_LOONGSON_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(LoongsonMachineState),
-        .class_init     = LoongsonMachineState::classInit,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongson3_machine_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(loongson3_machine, LoongsonMachineState,
+                                       TYPE_LOONGSON_MACHINE, TYPE_MACHINE,
+                                       LoongsonMachineState::classInit)

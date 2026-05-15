@@ -79,14 +79,10 @@ static void sysbus_ahci_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo sysbus_ahci_types[] = {
-    {
-        .name          = TYPE_SYSBUS_AHCI,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(SysbusAHCIState),
-        .instance_init = sysbus_ahci_init,
-        .class_init    = sysbus_ahci_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(sysbus_ahci_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(sysbus_ahci, SysbusAHCIState,
+                                            TYPE_SYSBUS_AHCI,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            sysbus_ahci_init,
+                                            sysbus_ahci_class_init)

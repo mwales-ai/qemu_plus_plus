@@ -95,14 +95,10 @@ static void stellaris_gamepad_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, stellaris_gamepad_properties);
 }
 
-static const TypeInfo stellaris_gamepad_info[] = {
-    {
-        .name = TYPE_STELLARIS_GAMEPAD,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(StellarisGamepad),
-        .instance_finalize = stellaris_gamepad_finalize,
-        .class_init = stellaris_gamepad_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(stellaris_gamepad_info);
+REGISTER_QEMU_OBJECT_CLASS_FINI_SIZED(stellaris_gamepad, StellarisGamepad,
+                                       TYPE_STELLARIS_GAMEPAD,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       stellaris_gamepad_class_init,
+                                       stellaris_gamepad_finalize)

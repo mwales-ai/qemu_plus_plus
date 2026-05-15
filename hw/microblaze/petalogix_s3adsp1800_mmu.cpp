@@ -188,13 +188,10 @@ void S3Adsp1800MachineState::classInit(ObjectClass *oc,
             "Defines whether the machine runs in big or little endian mode");
 }
 
-static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
-    {
-        .name           = TYPE_PETALOGIX_S3ADSP1800_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .class_init     = S3Adsp1800MachineState::classInit,
-        .instance_size  = sizeof(S3Adsp1800MachineState),
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(petalogix_s3adsp1800_machine_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(petalogix_s3adsp1800_machine,
+                                       S3Adsp1800MachineState,
+                                       TYPE_PETALOGIX_S3ADSP1800_MACHINE,
+                                       TYPE_MACHINE,
+                                       S3Adsp1800MachineState::classInit)

@@ -220,20 +220,13 @@ static void tc277d_soc_class_init(ObjectClass *oc, const void *data)
     sc->num_cpus     = 1;
 }
 
-static const TypeInfo tc27x_soc_types[] = {
-    {
-        .name          = "tc277d-soc",
-        .parent        = TYPE_TC27X_SOC,
-        .class_init    = tc277d_soc_class_init,
-    }, {
-        .name          = TYPE_TC27X_SOC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(TC27XSoCState),
-        .instance_init = tc27x_soc_init,
-        .class_size    = sizeof(TC27XSoCClass),
-        .class_init    = tc27x_soc_class_init,
-        .is_abstract      = true,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(tc27x_soc_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(TC27XSoCState, TC27XSoCClass,
+                                            TYPE_TC27X_SOC,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            tc27x_soc_init,
+                                            tc27x_soc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(tc277d_soc, "tc277d-soc", TYPE_TC27X_SOC,
+                                 tc277d_soc_class_init)

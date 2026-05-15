@@ -141,13 +141,8 @@ const MemoryRegionOps GutsState::ops = {
     },
 };
 
-static const TypeInfo mpc8544_guts_types[] = {
-    {
-        .name          = TYPE_MPC8544_GUTS,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(GutsState),
-        .instance_init = GutsState::instanceInit,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(mpc8544_guts_types)
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(mpc8544_guts, GutsState,
+                                      TYPE_MPC8544_GUTS, TYPE_SYS_BUS_DEVICE,
+                                      GutsState::instanceInit)

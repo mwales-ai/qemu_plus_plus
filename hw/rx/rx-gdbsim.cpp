@@ -196,23 +196,20 @@ void RxGdbSimMachineState::rx62n8ClassInit(ObjectClass *oc, const void *data)
     mc->desc = "gdb simulator (R5F562N8 MCU and external RAM)";
 }
 
-static const TypeInfo rx_gdbsim_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("gdbsim-r5f562n7"),
-        .parent         = TYPE_RX_GDBSIM_MACHINE,
-        .class_init     = RxGdbSimMachineState::rx62n7ClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("gdbsim-r5f562n8"),
-        .parent         = TYPE_RX_GDBSIM_MACHINE,
-        .class_init     = RxGdbSimMachineState::rx62n8ClassInit,
-    }, {
-        .name           = TYPE_RX_GDBSIM_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(RxGdbSimMachineState),
-        .class_size     = sizeof(RxGdbSimMachineClass),
-        .class_init     = RxGdbSimMachineState::classInit,
-        .is_abstract       = true,
-     }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(rx_gdbsim_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(rx_gdbsim_machine,
+                                           RxGdbSimMachineState,
+                                           RxGdbSimMachineClass,
+                                           TYPE_RX_GDBSIM_MACHINE, TYPE_MACHINE,
+                                           RxGdbSimMachineState::classInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(gdbsim_r5f562n7,
+                                 MACHINE_TYPE_NAME("gdbsim-r5f562n7"),
+                                 TYPE_RX_GDBSIM_MACHINE,
+                                 RxGdbSimMachineState::rx62n7ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(gdbsim_r5f562n8,
+                                 MACHINE_TYPE_NAME("gdbsim-r5f562n8"),
+                                 TYPE_RX_GDBSIM_MACHINE,
+                                 RxGdbSimMachineState::rx62n8ClassInit)

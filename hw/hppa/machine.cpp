@@ -845,30 +845,28 @@ void HppaMachineState::hp715ClassInit(ObjectClass *oc, const void *data)
 }
 
 
-static const TypeInfo hppa_machine_types[] = {
-    {
-        .name           = TYPE_HPPA_COMMON_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(HppaMachineState),
-        .class_init     = HppaMachineState::commonClassInit,
-        .is_abstract       = true,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_NMI },
-            { }
-        },
-    }, {
-        .name = MACHINE_TYPE_NAME("B160L"),
-        .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HppaMachineState::b160lClassInit,
-    }, {
-        .name = MACHINE_TYPE_NAME("C3700"),
-        .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HppaMachineState::c3700ClassInit,
-    }, {
-        .name = MACHINE_TYPE_NAME("715"),
-        .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HppaMachineState::hp715ClassInit,
-    },
+static const InterfaceInfo hppa_common_machine_interfaces[] = {
+    { TYPE_NMI },
+    { }
 };
 
-DEFINE_TYPES(hppa_machine_types)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CI_IFACES(hppa_common_machine,
+                                               HppaMachineState,
+                                               TYPE_HPPA_COMMON_MACHINE,
+                                               TYPE_MACHINE,
+                                               HppaMachineState::commonClassInit,
+                                               hppa_common_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hppa_b160l, MACHINE_TYPE_NAME("B160L"),
+                                 TYPE_HPPA_COMMON_MACHINE,
+                                 HppaMachineState::b160lClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hppa_c3700, MACHINE_TYPE_NAME("C3700"),
+                                 TYPE_HPPA_COMMON_MACHINE,
+                                 HppaMachineState::c3700ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(hppa_715, MACHINE_TYPE_NAME("715"),
+                                 TYPE_HPPA_COMMON_MACHINE,
+                                 HppaMachineState::hp715ClassInit)

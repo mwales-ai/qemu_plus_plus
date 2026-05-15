@@ -550,30 +550,23 @@ static void ppc4xx_dcr_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, ppc4xx_dcr_properties);
 }
 
-static const TypeInfo ppc4xx_types[] = {
-    {
-        .name           = TYPE_PPC4xx_MAL,
-        .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc4xxMalState),
-        .instance_finalize = ppc4xx_mal_finalize,
-        .class_init     = ppc4xx_mal_class_init,
-    }, {
-        .name           = TYPE_PPC4xx_PLB,
-        .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc4xxPlbState),
-        .class_init     = ppc405_plb_class_init,
-    }, {
-        .name           = TYPE_PPC4xx_EBC,
-        .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc4xxEbcState),
-        .class_init     = ppc405_ebc_class_init,
-    }, {
-        .name           = TYPE_PPC4xx_DCR_DEVICE,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(Ppc4xxDcrDeviceState),
-        .is_abstract    = true,
-        .class_init     = ppc4xx_dcr_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(ppc4xx_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED(ppc4xx_dcr_device,
+                                                Ppc4xxDcrDeviceState,
+                                                TYPE_PPC4xx_DCR_DEVICE,
+                                                TYPE_SYS_BUS_DEVICE,
+                                                NULL, ppc4xx_dcr_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_FINI_SIZED(ppc4xx_mal, Ppc4xxMalState,
+                                       TYPE_PPC4xx_MAL, TYPE_PPC4xx_DCR_DEVICE,
+                                       ppc4xx_mal_class_init,
+                                       ppc4xx_mal_finalize)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ppc4xx_plb, Ppc4xxPlbState,
+                                       TYPE_PPC4xx_PLB, TYPE_PPC4xx_DCR_DEVICE,
+                                       ppc405_plb_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ppc4xx_ebc, Ppc4xxEbcState,
+                                       TYPE_PPC4xx_EBC, TYPE_PPC4xx_DCR_DEVICE,
+                                       ppc405_ebc_class_init)

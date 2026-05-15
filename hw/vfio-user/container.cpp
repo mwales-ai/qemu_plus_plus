@@ -341,13 +341,8 @@ static void vfio_iommu_user_class_init(ObjectClass *klass, const void *data)
     vioc->pci_hot_reset = vfio_user_pci_hot_reset;
 };
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_VFIO_IOMMU_USER,
-        .parent = TYPE_VFIO_IOMMU,
-        .instance_size = sizeof(VFIOUserContainer),
-        .class_init = vfio_iommu_user_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vfio_iommu_user, VFIOUserContainer,
+                                       TYPE_VFIO_IOMMU_USER, TYPE_VFIO_IOMMU,
+                                       vfio_iommu_user_class_init)
