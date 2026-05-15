@@ -934,46 +934,29 @@ static void allwinner_sdhost_sun50i_a64_emmc_class_init(ObjectClass *klass,
     sc->can_calibrate = true;
 }
 
-static const TypeInfo allwinner_sdhost_sun4i_info = {
-    .name          = TYPE_AW_SDHOST_SUN4I,
-    .parent        = TYPE_AW_SDHOST,
-    .class_init    = allwinner_sdhost_sun4i_class_init,
-};
-
-static const TypeInfo allwinner_sdhost_sun5i_info = {
-    .name          = TYPE_AW_SDHOST_SUN5I,
-    .parent        = TYPE_AW_SDHOST,
-    .class_init    = allwinner_sdhost_sun5i_class_init,
-};
-
-static const TypeInfo allwinner_sdhost_sun50i_a64_info = {
-    .name          = TYPE_AW_SDHOST_SUN50I_A64,
-    .parent        = TYPE_AW_SDHOST,
-    .class_init    = allwinner_sdhost_sun50i_a64_class_init,
-};
-
-static const TypeInfo allwinner_sdhost_sun50i_a64_emmc_info = {
-    .name          = TYPE_AW_SDHOST_SUN50I_A64_EMMC,
-    .parent        = TYPE_AW_SDHOST,
-    .class_init    = allwinner_sdhost_sun50i_a64_emmc_class_init,
-};
-
-static const TypeInfo allwinner_sdhost_bus_info = {
-    .name = TYPE_AW_SDHOST_BUS,
-    .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
-    .class_init = allwinner_sdhost_bus_class_init,
-};
-
-static void __attribute__((constructor)) allwinner_sdhost_subtypes_register(void)
-{
-    type_register_static(&allwinner_sdhost_sun4i_info);
-    type_register_static(&allwinner_sdhost_sun5i_info);
-    type_register_static(&allwinner_sdhost_sun50i_a64_info);
-    type_register_static(&allwinner_sdhost_sun50i_a64_emmc_info);
-    type_register_static(&allwinner_sdhost_bus_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AwSdHostState, AwSdHostClass,
                                TYPE_AW_SDHOST, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_sdhost_sun4i, TYPE_AW_SDHOST_SUN4I,
+                                 TYPE_AW_SDHOST,
+                                 allwinner_sdhost_sun4i_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_sdhost_sun5i, TYPE_AW_SDHOST_SUN5I,
+                                 TYPE_AW_SDHOST,
+                                 allwinner_sdhost_sun5i_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_sdhost_sun50i_a64,
+                                 TYPE_AW_SDHOST_SUN50I_A64,
+                                 TYPE_AW_SDHOST,
+                                 allwinner_sdhost_sun50i_a64_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_sdhost_sun50i_a64_emmc,
+                                 TYPE_AW_SDHOST_SUN50I_A64_EMMC,
+                                 TYPE_AW_SDHOST,
+                                 allwinner_sdhost_sun50i_a64_emmc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(allwinner_sdhost_bus, SDBus,
+                                       TYPE_AW_SDHOST_BUS, TYPE_SD_BUS,
+                                       allwinner_sdhost_bus_class_init)

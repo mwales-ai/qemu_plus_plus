@@ -207,11 +207,6 @@ static void sysbus_fdc_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, sysbus_fdc_properties);
 }
 
-static const TypeInfo sysbus_fdc_typeinfo = {
-    .name          = "sysbus-fdc",
-    .parent        = TYPE_SYSBUS_FDC,
-    .class_init    = sysbus_fdc_class_init,
-};
 
 static const Property sun4m_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtype", FDCtrlSysBus, state.qdev_for_drives[0].type,
@@ -232,18 +227,13 @@ static void sun4m_fdc_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, sun4m_fdc_properties);
 }
 
-static const TypeInfo sun4m_fdc_typeinfo = {
-    .name          = "sun-fdtwo",
-    .parent        = TYPE_SYSBUS_FDC,
-    .class_init    = sun4m_fdc_class_init,
-};
-
-static void __attribute__((constructor)) register_sysbus_fdc_concretes(void)
-{
-    type_register_static(&sysbus_fdc_typeinfo);
-    type_register_static(&sun4m_fdc_typeinfo);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(FDCtrlSysBus, FDCtrlSysBusClass,
                                TYPE_SYSBUS_FDC, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sysbus_fdc, "sysbus-fdc", TYPE_SYSBUS_FDC,
+                                 sysbus_fdc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_fdc, "sun-fdtwo", TYPE_SYSBUS_FDC,
+                                 sun4m_fdc_class_init)

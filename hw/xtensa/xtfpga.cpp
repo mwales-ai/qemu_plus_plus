@@ -597,11 +597,6 @@ static void xtfpga_lx60_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 64 * MiB;
 }
 
-static const TypeInfo xtfpga_lx60_type = {
-    .name = MACHINE_TYPE_NAME("lx60"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_lx60_class_init,
-};
 
 static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, const void *data)
 {
@@ -614,11 +609,6 @@ static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 64 * MiB;
 }
 
-static const TypeInfo xtfpga_lx60_nommu_type = {
-    .name = MACHINE_TYPE_NAME("lx60-nommu"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_lx60_nommu_class_init,
-};
 
 static void xtfpga_lx200_class_init(ObjectClass *oc, const void *data)
 {
@@ -631,11 +621,6 @@ static void xtfpga_lx200_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 96 * MiB;
 }
 
-static const TypeInfo xtfpga_lx200_type = {
-    .name = MACHINE_TYPE_NAME("lx200"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_lx200_class_init,
-};
 
 static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, const void *data)
 {
@@ -648,11 +633,6 @@ static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 96 * MiB;
 }
 
-static const TypeInfo xtfpga_lx200_nommu_type = {
-    .name = MACHINE_TYPE_NAME("lx200-nommu"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_lx200_nommu_class_init,
-};
 
 static void xtfpga_ml605_class_init(ObjectClass *oc, const void *data)
 {
@@ -665,11 +645,6 @@ static void xtfpga_ml605_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 512 * MiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 
-static const TypeInfo xtfpga_ml605_type = {
-    .name = MACHINE_TYPE_NAME("ml605"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_ml605_class_init,
-};
 
 static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, const void *data)
 {
@@ -682,11 +657,6 @@ static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 256 * MiB;
 }
 
-static const TypeInfo xtfpga_ml605_nommu_type = {
-    .name = MACHINE_TYPE_NAME("ml605-nommu"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_ml605_nommu_class_init,
-};
 
 static void xtfpga_kc705_class_init(ObjectClass *oc, const void *data)
 {
@@ -699,11 +669,6 @@ static void xtfpga_kc705_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1 * GiB - XTFPGA_MMU_RESERVED_MEMORY_SIZE;
 }
 
-static const TypeInfo xtfpga_kc705_type = {
-    .name = MACHINE_TYPE_NAME("kc705"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_kc705_class_init,
-};
 
 static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, const void *data)
 {
@@ -716,20 +681,32 @@ static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 256 * MiB;
 }
 
-static const TypeInfo xtfpga_kc705_nommu_type = {
-    .name = MACHINE_TYPE_NAME("kc705-nommu"),
-    .parent = TYPE_MACHINE,
-    .class_init = xtfpga_kc705_nommu_class_init,
-};
+#include "qom/cpp/object.h"
 
-static void __attribute__((constructor)) xtfpga_machines_init(void)
-{
-    type_register_static(&xtfpga_lx60_type);
-    type_register_static(&xtfpga_lx200_type);
-    type_register_static(&xtfpga_ml605_type);
-    type_register_static(&xtfpga_kc705_type);
-    type_register_static(&xtfpga_lx60_nommu_type);
-    type_register_static(&xtfpga_lx200_nommu_type);
-    type_register_static(&xtfpga_ml605_nommu_type);
-    type_register_static(&xtfpga_kc705_nommu_type);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_lx60, MACHINE_TYPE_NAME("lx60"),
+                                 TYPE_MACHINE, xtfpga_lx60_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_lx200, MACHINE_TYPE_NAME("lx200"),
+                                 TYPE_MACHINE, xtfpga_lx200_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_ml605, MACHINE_TYPE_NAME("ml605"),
+                                 TYPE_MACHINE, xtfpga_ml605_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_kc705, MACHINE_TYPE_NAME("kc705"),
+                                 TYPE_MACHINE, xtfpga_kc705_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_lx60_nommu,
+                                 MACHINE_TYPE_NAME("lx60-nommu"),
+                                 TYPE_MACHINE, xtfpga_lx60_nommu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_lx200_nommu,
+                                 MACHINE_TYPE_NAME("lx200-nommu"),
+                                 TYPE_MACHINE, xtfpga_lx200_nommu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_ml605_nommu,
+                                 MACHINE_TYPE_NAME("ml605-nommu"),
+                                 TYPE_MACHINE, xtfpga_ml605_nommu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(xtfpga_kc705_nommu,
+                                 MACHINE_TYPE_NAME("kc705-nommu"),
+                                 TYPE_MACHINE, xtfpga_kc705_nommu_class_init)

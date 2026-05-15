@@ -1479,27 +1479,17 @@ static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, const void *data)
     xsc->tx_fifo_size = TXFF_A_Q;
 }
 
-static const TypeInfo xilinx_qspips_info = {
-    .name  = TYPE_XILINX_QSPIPS,
-    .parent = TYPE_XILINX_SPIPS,
-    .instance_size  = sizeof(XilinxQSPIPS),
-    .class_init = xilinx_qspips_class_init,
-};
-
-static const TypeInfo xlnx_zynqmp_qspips_info = {
-    .name  = TYPE_XLNX_ZYNQMP_QSPIPS,
-    .parent = TYPE_XILINX_QSPIPS,
-    .instance_size  = sizeof(XlnxZynqMPQSPIPS),
-    .instance_init  = xlnx_zynqmp_qspips_init,
-    .class_init = xlnx_zynqmp_qspips_class_init,
-};
-
-static void __attribute__((constructor)) xilinx_spips_subtypes_register(void)
-{
-    type_register_static(&xilinx_qspips_info);
-    type_register_static(&xlnx_zynqmp_qspips_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_CLASS_SIZE(XilinxSPIPS, XilinxSPIPSClass,
                                 TYPE_XILINX_SPIPS, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(xilinx_qspips, XilinxQSPIPS,
+                                       TYPE_XILINX_QSPIPS, TYPE_XILINX_SPIPS,
+                                       xilinx_qspips_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(xlnx_zynqmp_qspips, XlnxZynqMPQSPIPS,
+                                            TYPE_XLNX_ZYNQMP_QSPIPS,
+                                            TYPE_XILINX_QSPIPS,
+                                            xlnx_zynqmp_qspips_init,
+                                            xlnx_zynqmp_qspips_class_init)

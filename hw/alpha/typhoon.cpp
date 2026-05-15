@@ -940,16 +940,10 @@ void TyphoonState::iommuMemoryRegionClassInit(ObjectClass *klass,
     imrc->translate = typhoon_translate_iommu;
 }
 
-static const TypeInfo typhoon_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .name = TYPE_TYPHOON_IOMMU_MEMORY_REGION,
-    .class_init = TyphoonState::iommuMemoryRegionClassInit,
-};
-
-static void __attribute__((constructor)) typhoon_register_iommu_type(void)
-{
-    type_register_static(&typhoon_iommu_memory_region_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(typhoon_iommu_memory_region,
+                                 TYPE_TYPHOON_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 TyphoonState::iommuMemoryRegionClassInit)
 
 REGISTER_QEMU_DEVICE(TyphoonState, TYPE_TYPHOON_PCI_HOST_BRIDGE,
                      TYPE_PCI_HOST_BRIDGE)

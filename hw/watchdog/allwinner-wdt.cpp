@@ -395,24 +395,13 @@ static void allwinner_wdt_sun6i_class_init(ObjectClass *klass, const void *data)
     awc->get_intv_value = allwinner_wdt_sun6i_get_intv_value;
 }
 
-static const TypeInfo allwinner_wdt_sun4i_info = {
-    .name          = TYPE_AW_WDT_SUN4I,
-    .parent        = TYPE_AW_WDT,
-    .class_init    = allwinner_wdt_sun4i_class_init,
-};
-
-static const TypeInfo allwinner_wdt_sun6i_info = {
-    .name          = TYPE_AW_WDT_SUN6I,
-    .parent        = TYPE_AW_WDT,
-    .class_init    = allwinner_wdt_sun6i_class_init,
-};
-
-static void __attribute__((constructor)) allwinner_wdt_subtypes_register(void)
-{
-    type_register_static(&allwinner_wdt_sun4i_info);
-    type_register_static(&allwinner_wdt_sun6i_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AwWdtState, AwWdtClass, TYPE_AW_WDT,
                               TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_wdt_sun4i, TYPE_AW_WDT_SUN4I,
+                                 TYPE_AW_WDT, allwinner_wdt_sun4i_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_wdt_sun6i, TYPE_AW_WDT_SUN6I,
+                                 TYPE_AW_WDT, allwinner_wdt_sun6i_class_init)

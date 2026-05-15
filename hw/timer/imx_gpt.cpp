@@ -568,40 +568,21 @@ static void imx8mp_gpt_init(Object *obj)
     s->clocks = imx8mp_gpt_clocks;
 }
 
-static void imx_gpt_subtypes_register(void) __attribute__((constructor));
-static void imx_gpt_subtypes_register(void)
-{
-    static TypeInfo imx31_gpt_info = {
-        .name = TYPE_IMX31_GPT,
-        .parent = TYPE_IMX25_GPT,
-        .instance_init = imx31_gpt_init,
-    };
-    static TypeInfo imx6_gpt_info = {
-        .name = TYPE_IMX6_GPT,
-        .parent = TYPE_IMX25_GPT,
-        .instance_init = imx6_gpt_init,
-    };
-    static TypeInfo imx6ul_gpt_info = {
-        .name = TYPE_IMX6UL_GPT,
-        .parent = TYPE_IMX25_GPT,
-        .instance_init = imx6ul_gpt_init,
-    };
-    static TypeInfo imx7_gpt_info = {
-        .name = TYPE_IMX7_GPT,
-        .parent = TYPE_IMX25_GPT,
-        .instance_init = imx7_gpt_init,
-    };
-    static TypeInfo imx8mp_gpt_info = {
-        .name = TYPE_IMX8MP_GPT,
-        .parent = TYPE_IMX25_GPT,
-        .instance_init = imx8mp_gpt_init,
-    };
-    type_register_static(&imx31_gpt_info);
-    type_register_static(&imx6_gpt_info);
-    type_register_static(&imx6ul_gpt_info);
-    type_register_static(&imx7_gpt_info);
-    type_register_static(&imx8mp_gpt_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx31_gpt, TYPE_IMX31_GPT, TYPE_IMX25_GPT,
+                                imx31_gpt_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx6_gpt, TYPE_IMX6_GPT, TYPE_IMX25_GPT,
+                                imx6_gpt_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx6ul_gpt, TYPE_IMX6UL_GPT, TYPE_IMX25_GPT,
+                                imx6ul_gpt_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx7_gpt, TYPE_IMX7_GPT, TYPE_IMX25_GPT,
+                                imx7_gpt_init)
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(imx8mp_gpt, TYPE_IMX8MP_GPT, TYPE_IMX25_GPT,
+                                imx8mp_gpt_init)
+
 REGISTER_QEMU_DEVICE(IMXGPTState, TYPE_IMX25_GPT, TYPE_SYS_BUS_DEVICE)

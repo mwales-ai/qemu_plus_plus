@@ -1046,26 +1046,20 @@ static const InterfaceInfo xilinx_enet_control_stream_if[] = {
     { }
 };
 
-static void xilinx_enet_streams_register(void) __attribute__((constructor));
-static void xilinx_enet_streams_register(void)
-{
-    static TypeInfo data_stream_info = {
-        .name          = TYPE_XILINX_AXI_ENET_DATA_STREAM,
-        .parent        = TYPE_OBJECT,
-        .instance_size = sizeof(XilinxAXIEnetStreamSink),
-        .class_init    = xilinx_enet_data_stream_class_init,
-        .interfaces    = xilinx_enet_data_stream_if,
-    };
-    static TypeInfo control_stream_info = {
-        .name          = TYPE_XILINX_AXI_ENET_CONTROL_STREAM,
-        .parent        = TYPE_OBJECT,
-        .instance_size = sizeof(XilinxAXIEnetStreamSink),
-        .class_init    = xilinx_enet_control_stream_class_init,
-        .interfaces    = xilinx_enet_control_stream_if,
-    };
-    type_register_static(&data_stream_info);
-    type_register_static(&control_stream_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(xilinx_enet_data_stream,
+                                              XilinxAXIEnetStreamSink,
+                                              TYPE_XILINX_AXI_ENET_DATA_STREAM,
+                                              TYPE_OBJECT,
+                                              xilinx_enet_data_stream_class_init,
+                                              xilinx_enet_data_stream_if)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(xilinx_enet_control_stream,
+                                              XilinxAXIEnetStreamSink,
+                                              TYPE_XILINX_AXI_ENET_CONTROL_STREAM,
+                                              TYPE_OBJECT,
+                                              xilinx_enet_control_stream_class_init,
+                                              xilinx_enet_control_stream_if)
+
 REGISTER_QEMU_DEVICE(XilinxAXIEnet, TYPE_XILINX_AXI_ENET, TYPE_SYS_BUS_DEVICE)

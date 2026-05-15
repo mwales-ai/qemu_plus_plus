@@ -455,15 +455,9 @@ static void allwinner_i2c_sun6i_instance_init(Object *obj)
     s->irq_clear_inverted = true;
 }
 
-static void __attribute__((constructor)) register_allwinner_i2c_sun6i(void)
-{
-    static const TypeInfo sun6i_info = {
-        .name          = TYPE_AW_I2C_SUN6I,
-        .parent        = TYPE_AW_I2C,
-        .instance_init = allwinner_i2c_sun6i_instance_init,
-    };
-    type_register_static(&sun6i_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_ONLY(allwinner_i2c_sun6i, TYPE_AW_I2C_SUN6I,
+                                TYPE_AW_I2C, allwinner_i2c_sun6i_instance_init)
+
 REGISTER_QEMU_DEVICE(AWI2CState, TYPE_AW_I2C, TYPE_SYS_BUS_DEVICE)
