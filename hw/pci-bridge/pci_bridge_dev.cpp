@@ -295,14 +295,7 @@ static void pci_bridge_dev_seat_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Standard PCI Bridge (multiseat)";
 }
 
-static void pci_bridge_dev_seat_register(void) __attribute__((constructor));
-static void pci_bridge_dev_seat_register(void)
-{
-    static TypeInfo info = {
-        .name              = TYPE_PCI_BRIDGE_SEAT_DEV,
-        .parent            = TYPE_PCI_BRIDGE_DEV,
-        .instance_size     = sizeof(PCIBridgeDev),
-        .class_init        = pci_bridge_dev_seat_class_init,
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pci_bridge_dev_seat, PCIBridgeDev,
+                                       TYPE_PCI_BRIDGE_SEAT_DEV,
+                                       TYPE_PCI_BRIDGE_DEV,
+                                       pci_bridge_dev_seat_class_init)

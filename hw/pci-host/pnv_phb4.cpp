@@ -1746,29 +1746,6 @@ static void pnv_phb4_root_bus_class_init(ObjectClass *klass, const void *data)
     k->max_dev = 1;
 }
 
-static void __attribute__((constructor)) pnv_phb4_register_siblings(void)
-{
-    static const TypeInfo pnv_phb4_root_bus_info = {
-        .name = TYPE_PNV_PHB4_ROOT_BUS,
-        .parent = TYPE_PCIE_BUS,
-        .instance_size = sizeof(PnvPHB4RootBus),
-        .class_init = pnv_phb4_root_bus_class_init,
-    };
-    static const TypeInfo pnv_phb5_type_info = {
-        .name          = TYPE_PNV_PHB5,
-        .parent        = TYPE_PNV_PHB4,
-        .instance_size = sizeof(PnvPHB4),
-    };
-    static const TypeInfo pnv_phb4_iommu_mr_info = {
-        .name = TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .class_init = pnv_phb4_iommu_memory_region_class_init,
-    };
-    type_register_static(&pnv_phb4_root_bus_info);
-    type_register_static(&pnv_phb5_type_info);
-    type_register_static(&pnv_phb4_iommu_mr_info);
-}
-
 static const InterfaceInfo pnv_phb4_ifaces[] = {
     { TYPE_XIVE_NOTIFIER },
     { },
@@ -1777,6 +1754,17 @@ static const InterfaceInfo pnv_phb4_ifaces[] = {
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE_IFACES(PnvPHB4, TYPE_PNV_PHB4, TYPE_DEVICE,
                              pnv_phb4_ifaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_phb4_root_bus, PnvPHB4RootBus,
+                                       TYPE_PNV_PHB4_ROOT_BUS, TYPE_PCIE_BUS,
+                                       pnv_phb4_root_bus_class_init)
+
+REGISTER_QEMU_OBJECT_SIZED_TAG(pnv_phb5, PnvPHB4, TYPE_PNV_PHB5, TYPE_PNV_PHB4)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_phb4_iommu_mr,
+                                 TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 pnv_phb4_iommu_memory_region_class_init)
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, GString *buf)
 {

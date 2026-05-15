@@ -1616,58 +1616,37 @@ static void aspeed_gpio_2700_class_init(ObjectClass *klass, const void *data)
 }
 
 
-static const TypeInfo aspeed_gpio_ast2400_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2400",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_ast2400_class_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2500_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2500",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_2500_class_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2600_3_3v_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2600",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_ast2600_3_3v_class_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2600_1_8v_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2600-1_8v",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_ast2600_1_8v_class_init,
-};
-
-static const TypeInfo aspeed_gpio_ast1030_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast1030",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_1030_class_init,
-};
-
-static const TypeInfo aspeed_gpio_ast2700_info = {
-    .name           = TYPE_ASPEED_GPIO "-ast2700",
-    .parent         = TYPE_ASPEED_GPIO,
-    .instance_init  = aspeed_gpio_init,
-    .class_init     = aspeed_gpio_2700_class_init,
-};
-
-static void __attribute__((constructor)) register_aspeed_gpio_concretes(void)
-{
-    type_register_static(&aspeed_gpio_ast2400_info);
-    type_register_static(&aspeed_gpio_ast2500_info);
-    type_register_static(&aspeed_gpio_ast2600_3_3v_info);
-    type_register_static(&aspeed_gpio_ast2600_1_8v_info);
-    type_register_static(&aspeed_gpio_ast1030_info);
-    type_register_static(&aspeed_gpio_ast2700_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedGPIOState, AspeedGPIOClass,
                                TYPE_ASPEED_GPIO, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast2400,
+                                 TYPE_ASPEED_GPIO "-ast2400",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_ast2400_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast2500,
+                                 TYPE_ASPEED_GPIO "-ast2500",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_2500_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast2600_3_3v,
+                                 TYPE_ASPEED_GPIO "-ast2600",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_ast2600_3_3v_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast2600_1_8v,
+                                 TYPE_ASPEED_GPIO "-ast2600-1_8v",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_ast2600_1_8v_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast1030,
+                                 TYPE_ASPEED_GPIO "-ast1030",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_1030_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_gpio_ast2700,
+                                 TYPE_ASPEED_GPIO "-ast2700",
+                                 TYPE_ASPEED_GPIO, aspeed_gpio_init,
+                                 aspeed_gpio_2700_class_init)

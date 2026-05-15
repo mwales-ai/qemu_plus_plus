@@ -111,26 +111,6 @@ static void pxb_bus_class_init(ObjectClass *klass, const void *data)
         "ACPI Unique ID used to distinguish this PCI Host Bridge / ACPI00016");
 }
 
-static const TypeInfo pxb_bus_info = {
-    .name          = TYPE_PXB_BUS,
-    .parent        = TYPE_PCI_BUS,
-    .instance_size = sizeof(PXBBus),
-    .class_init    = pxb_bus_class_init,
-};
-
-static const TypeInfo pxb_pcie_bus_info = {
-    .name          = TYPE_PXB_PCIE_BUS,
-    .parent        = TYPE_PCIE_BUS,
-    .instance_size = sizeof(PXBBus),
-    .class_init    = pxb_bus_class_init,
-};
-
-static const TypeInfo pxb_cxl_bus_info = {
-    .name          = TYPE_PXB_CXL_BUS,
-    .parent        = TYPE_CXL_BUS,
-    .instance_size = sizeof(PXBBus),
-    .class_init    = pxb_bus_class_init,
-};
 
 static const char *pxb_host_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
@@ -188,11 +168,6 @@ static void pxb_host_class_init(ObjectClass *klass, const void *data)
     hc->root_bus_path = pxb_host_root_bus_path;
 }
 
-static const TypeInfo pxb_host_info = {
-    .name          = TYPE_PXB_HOST,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .class_init    = pxb_host_class_init,
-};
 
 static void pxb_cxl_realize(DeviceState *dev, Error **errp)
 {
@@ -246,12 +221,6 @@ static void pxb_cxl_host_class_init(ObjectClass *klass, const void *data)
  * This is a device to handle the MMIO for a CXL host bridge. It does nothing
  * else.
  */
-static const TypeInfo cxl_host_info = {
-    .name          = TYPE_PXB_CXL_HOST,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(CXLHost),
-    .class_init    = pxb_cxl_host_class_init,
-};
 
 /*
  * Registers the PXB bus as a child of pci host root bus.
@@ -489,13 +458,6 @@ static const InterfaceInfo pxb_pcie_dev_interfaces[] = {
     { },
 };
 
-static const TypeInfo pxb_pcie_dev_info = {
-    .name          = TYPE_PXB_PCIE_DEV,
-    .parent        = TYPE_PXB_DEV,
-    .instance_size = sizeof(PXBPCIEDev),
-    .class_init    = pxb_pcie_dev_class_init,
-    .interfaces    = pxb_pcie_dev_interfaces,
-};
 
 static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
 {
@@ -541,25 +503,35 @@ static const InterfaceInfo pxb_cxl_dev_interfaces[] = {
     {},
 };
 
-static const TypeInfo pxb_cxl_dev_info = {
-    .name          = TYPE_PXB_CXL_DEV,
-    .parent        = TYPE_PXB_PCIE_DEV,
-    .instance_size = sizeof(PXBCXLDev),
-    .class_init    = pxb_cxl_dev_class_init,
-    .interfaces    = pxb_cxl_dev_interfaces,
-};
-
 REGISTER_QEMU_DEVICE_IFACES(PXBDev, TYPE_PXB_DEV, TYPE_PCI_DEVICE,
                             pxb_dev_interfaces)
 
-static void pxb_secondary_register_types(void) __attribute__((constructor));
-static void pxb_secondary_register_types(void)
-{
-    type_register_static(&pxb_bus_info);
-    type_register_static(&pxb_pcie_bus_info);
-    type_register_static(&pxb_cxl_bus_info);
-    type_register_static(&pxb_host_info);
-    type_register_static(&cxl_host_info);
-    type_register_static(&pxb_pcie_dev_info);
-    type_register_static(&pxb_cxl_dev_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pxb_bus, PXBBus,
+                                       TYPE_PXB_BUS, TYPE_PCI_BUS,
+                                       pxb_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pxb_pcie_bus, PXBBus,
+                                       TYPE_PXB_PCIE_BUS, TYPE_PCIE_BUS,
+                                       pxb_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pxb_cxl_bus, PXBBus,
+                                       TYPE_PXB_CXL_BUS, TYPE_CXL_BUS,
+                                       pxb_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pxb_host, TYPE_PXB_HOST, TYPE_PCI_HOST_BRIDGE,
+                                 pxb_host_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(cxl_host, CXLHost,
+                                       TYPE_PXB_CXL_HOST, TYPE_PCI_HOST_BRIDGE,
+                                       pxb_cxl_host_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(pxb_pcie_dev, PXBPCIEDev,
+                                              TYPE_PXB_PCIE_DEV, TYPE_PXB_DEV,
+                                              pxb_pcie_dev_class_init,
+                                              pxb_pcie_dev_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(pxb_cxl_dev, PXBCXLDev,
+                                              TYPE_PXB_CXL_DEV,
+                                              TYPE_PXB_PCIE_DEV,
+                                              pxb_cxl_dev_class_init,
+                                              pxb_cxl_dev_interfaces)

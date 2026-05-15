@@ -380,34 +380,19 @@ static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, const void *data)
     allwinner_rtc_sun4i_class_init(klass, arc);
 }
 
-static const TypeInfo allwinner_rtc_sun4i_info = {
-    .name          = TYPE_AW_RTC_SUN4I,
-    .parent        = TYPE_AW_RTC,
-    .instance_init = allwinner_rtc_sun4i_init,
-    .class_init    = allwinner_rtc_sun4i_class_init,
-};
-
-static const TypeInfo allwinner_rtc_sun6i_info = {
-    .name          = TYPE_AW_RTC_SUN6I,
-    .parent        = TYPE_AW_RTC,
-    .instance_init = allwinner_rtc_sun6i_init,
-    .class_init    = allwinner_rtc_sun6i_class_init,
-};
-
-static const TypeInfo allwinner_rtc_sun7i_info = {
-    .name          = TYPE_AW_RTC_SUN7I,
-    .parent        = TYPE_AW_RTC,
-    .instance_init = allwinner_rtc_sun7i_init,
-    .class_init    = allwinner_rtc_sun7i_class_init,
-};
-
-static void __attribute__((constructor)) allwinner_rtc_subtypes_register(void)
-{
-    type_register_static(&allwinner_rtc_sun4i_info);
-    type_register_static(&allwinner_rtc_sun6i_info);
-    type_register_static(&allwinner_rtc_sun7i_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(allwinner_rtc_sun4i, TYPE_AW_RTC_SUN4I,
+                                 TYPE_AW_RTC, allwinner_rtc_sun4i_init,
+                                 allwinner_rtc_sun4i_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(allwinner_rtc_sun6i, TYPE_AW_RTC_SUN6I,
+                                 TYPE_AW_RTC, allwinner_rtc_sun6i_init,
+                                 allwinner_rtc_sun6i_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(allwinner_rtc_sun7i, TYPE_AW_RTC_SUN7I,
+                                 TYPE_AW_RTC, allwinner_rtc_sun7i_init,
+                                 allwinner_rtc_sun7i_class_init)
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AwRtcState, AwRtcClass,
                                TYPE_AW_RTC, TYPE_SYS_BUS_DEVICE)

@@ -1000,6 +1000,25 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_SIZED_TAG: like REGISTER_QEMU_OBJECT_SIZED but with
+ * a unique tag separate from the ClassName (used for sized subtypes that
+ * share a state struct with the parent).
+ */
+#define REGISTER_QEMU_OBJECT_SIZED_TAG(unique_tag, ClassName, type_name_str, \
+                                        parent_type_str)                     \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_SIZED: register an abstract object type
  * with its own state struct (instance_size = sizeof(ClassName)) but no
  * class_init, no instance_init, no class_size. Used for intermediate
@@ -2103,6 +2122,26 @@ static void unique_tag##_cpp_register_types(void)                            \
     static const TypeInfo info = {                                           \
         .name          = type_name_str,                                      \
         .parent        = parent_type_str,                                    \
+        .instance_init = instance_init_fn,                                   \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED: like REGISTER_QEMU_OBJECT_INIT_ONLY
+ * but also sets instance_size = sizeof(ClassName).
+ */
+#define REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(unique_tag, ClassName,           \
+                                              type_name_str, parent_type_str, \
+                                              instance_init_fn)               \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
         .instance_init = instance_init_fn,                                   \
     };                                                                       \
     type_register_static(&info);                                             \

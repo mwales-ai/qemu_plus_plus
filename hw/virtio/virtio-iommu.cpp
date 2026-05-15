@@ -1713,12 +1713,7 @@ static void virtio_iommu_memory_region_class_init(ObjectClass *klass,
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(VirtIOIOMMU, TYPE_VIRTIO_IOMMU, TYPE_VIRTIO_DEVICE)
 
-static void __attribute__((constructor)) register_virtio_iommu_memory_region(void)
-{
-    static const TypeInfo virtio_iommu_memory_region_info = {
-        .name = TYPE_VIRTIO_IOMMU_MEMORY_REGION,
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .class_init = virtio_iommu_memory_region_class_init,
-    };
-    type_register_static(&virtio_iommu_memory_region_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(virtio_iommu_memory_region,
+                                 TYPE_VIRTIO_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 virtio_iommu_memory_region_class_init)

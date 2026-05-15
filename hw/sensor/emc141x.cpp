@@ -318,24 +318,13 @@ void EMC141XClass::emc1414ClassInit(ObjectClass *klass, const void *data)
     ec->sensors_count = 4;
 }
 
-static const TypeInfo emc1413_info = {
-    .name          = "emc1413",
-    .parent        = TYPE_EMC141X,
-    .class_init    = EMC141XClass::emc1413ClassInit,
-};
-
-static const TypeInfo emc1414_info = {
-    .name          = "emc1414",
-    .parent        = TYPE_EMC141X,
-    .class_init    = EMC141XClass::emc1414ClassInit,
-};
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(EMC141XState, EMC141XClass, TYPE_EMC141X,
                               TYPE_I2C_SLAVE)
 
-static void __attribute__((constructor)) register_emc141x_concretes(void)
-{
-    type_register_static(&emc1413_info);
-    type_register_static(&emc1414_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(emc1413, "emc1413", TYPE_EMC141X,
+                                 EMC141XClass::emc1413ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(emc1414, "emc1414", TYPE_EMC141X,
+                                 EMC141XClass::emc1414ClassInit)

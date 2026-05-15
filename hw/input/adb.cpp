@@ -303,19 +303,10 @@ static void adb_device_class_init(ObjectClass *oc, const void *data)
     dc->bus_type = TYPE_ADB_BUS;
 }
 
-static const TypeInfo adb_device_type_info = {
-    .name = TYPE_ADB_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(ADBDevice),
-    .is_abstract = true,
-    .class_size = sizeof(ADBDeviceClass),
-    .class_init = adb_device_class_init,
-};
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_BUS_CI(ADBBusState, TYPE_ADB_BUS, adb_bus_class_init)
 
-static void __attribute__((constructor)) adb_register_types(void)
-{
-    type_register_static(&adb_device_type_info);
-}
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(adb_device, ADBDevice, ADBDeviceClass,
+                                           TYPE_ADB_DEVICE, TYPE_DEVICE,
+                                           adb_device_class_init)

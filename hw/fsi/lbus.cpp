@@ -22,19 +22,6 @@ static void fsi_lbus_init(Object *o)
     memory_region_init(&lbus->mr, OBJECT(lbus), TYPE_FSI_LBUS, 1 * MiB);
 }
 
-static const TypeInfo fsi_lbus_info = {
-    .name = TYPE_FSI_LBUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(FSILBus),
-    .instance_init = fsi_lbus_init,
-};
-
-static const TypeInfo fsi_lbus_device_type_info = {
-    .name = TYPE_FSI_LBUS_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FSILBusDevice),
-    .is_abstract = true,
-};
 
 static uint64_t fsi_scratchpad_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -102,10 +89,11 @@ void FSIScratchPad::classInit(DeviceClass *dc)
     device_class_set_legacy_reset(dc, fsi_scratchpad_reset);
 }
 
-static void __attribute__((constructor)) fsi_lbus_register_base_types(void)
-{
-    type_register_static(&fsi_lbus_info);
-    type_register_static(&fsi_lbus_device_type_info);
-}
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(fsi_lbus, FSILBus,
+                                      TYPE_FSI_LBUS, TYPE_BUS,
+                                      fsi_lbus_init)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(FSILBusDevice, TYPE_FSI_LBUS_DEVICE,
+                                     TYPE_DEVICE)
 
 REGISTER_QEMU_DEVICE(FSIScratchPad, TYPE_FSI_SCRATCHPAD, TYPE_FSI_LBUS_DEVICE)

@@ -2046,17 +2046,11 @@ static void smmuv3_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->notify_flag_changed = smmuv3_notify_flag_changed;
 }
 
-static const TypeInfo smmuv3_iommu_memory_region_info = {
-    .name = TYPE_SMMUV3_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = smmuv3_iommu_memory_region_class_init,
-};
-
-static void __attribute__((constructor)) smmuv3_iommu_region_register(void)
-{
-    type_register_static(&smmuv3_iommu_memory_region_info);
-}
-
 REGISTER_QEMU_DEVICE_CUSTOM_CI(SMMUv3State, SMMUv3Class, TYPE_ARM_SMMUV3,
                                TYPE_ARM_SMMU, smmuv3_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(smmuv3_iommu_memory_region,
+                                 TYPE_SMMUV3_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 smmuv3_iommu_memory_region_class_init)
 

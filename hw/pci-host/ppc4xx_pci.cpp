@@ -303,14 +303,6 @@ static const InterfaceInfo ppc4xx_host_bridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo ppc4xx_host_bridge_info = {
-    .name          = TYPE_PPC4xx_HOST_BRIDGE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = PPC4xxPCIState::hostBridgeClassInit,
-    .interfaces = ppc4xx_host_bridge_interfaces,
-};
-
 void PPC4xxPCIState::classInit(DeviceClass *dc)
 {
     dc->realize = PPC4xxPCIState::realizeWrapper;
@@ -320,8 +312,8 @@ void PPC4xxPCIState::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE(PPC4xxPCIState, TYPE_PPC4xx_PCI_HOST,
                      TYPE_PCI_HOST_BRIDGE)
 
-static void ppc4xx_secondary_register_types(void) __attribute__((constructor));
-static void ppc4xx_secondary_register_types(void)
-{
-    type_register_static(&ppc4xx_host_bridge_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(ppc4xx_host_bridge, PCIDevice,
+                                              TYPE_PPC4xx_HOST_BRIDGE,
+                                              TYPE_PCI_DEVICE,
+                                              PPC4xxPCIState::hostBridgeClassInit,
+                                              ppc4xx_host_bridge_interfaces)

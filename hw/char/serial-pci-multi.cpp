@@ -209,15 +209,9 @@ static void multi_4x_instance_init(Object *o)
     s->init();
 }
 
-static void __attribute__((constructor)) register_multi_4x_serial_pci(void)
-{
-    static const TypeInfo multi_4x_serial_pci_info = {
-        .name          = "pci-serial-4x",
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIMultiSerialState),
-        .instance_init = multi_4x_instance_init,
-        .class_init    = multi_4x_serial_pci_class_initfn,
-        .interfaces = multi_serial_pci_interfaces,
-    };
-    type_register_static(&multi_4x_serial_pci_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(multi_4x_serial_pci,
+                                              PCIMultiSerialState,
+                                              "pci-serial-4x", TYPE_PCI_DEVICE,
+                                              multi_4x_instance_init,
+                                              multi_4x_serial_pci_class_initfn,
+                                              multi_serial_pci_interfaces)

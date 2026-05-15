@@ -478,13 +478,6 @@ static const InterfaceInfo sabre_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo sabre_pci_info = {
-    .name          = TYPE_SABRE_PCI_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(SabrePCIState),
-    .class_init    = sabre_pci_class_init,
-    .interfaces    = sabre_pci_interfaces,
-};
 
 static char *sabre_ofw_unit_address(const SysBusDevice *dev)
 {
@@ -515,8 +508,8 @@ void SabreState::classInit(DeviceClass *dc)
 
 REGISTER_QEMU_DEVICE(SabreState, TYPE_SABRE, TYPE_PCI_HOST_BRIDGE)
 
-static void sabre_secondary_register_types(void) __attribute__((constructor));
-static void sabre_secondary_register_types(void)
-{
-    type_register_static(&sabre_pci_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(sabre_pci, SabrePCIState,
+                                              TYPE_SABRE_PCI_DEVICE,
+                                              TYPE_PCI_DEVICE,
+                                              sabre_pci_class_init,
+                                              sabre_pci_interfaces)

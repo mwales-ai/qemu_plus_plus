@@ -1937,14 +1937,6 @@ REGISTER_QEMU_DEVICE_CUSTOM_CI_IFACES(UfsHc, PCIDeviceClass, TYPE_UFS,
                                        TYPE_PCI_DEVICE, ufs_class_init,
                                        ufs_interfaces)
 
-static void __attribute__((constructor)) register_ufs_bus(void)
-{
-    static const TypeInfo ufs_bus_info = {
-        .name = TYPE_UFS_BUS,
-        .parent = TYPE_BUS,
-        .instance_size = sizeof(UfsBus),
-        .class_size = sizeof(UfsBusClass),
-        .class_init = ufs_bus_class_init,
-    };
-    type_register_static(&ufs_bus_info);
-}
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(ufs_bus, UfsBus, UfsBusClass,
+                                  TYPE_UFS_BUS, TYPE_BUS,
+                                  ufs_bus_class_init)

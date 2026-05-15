@@ -1148,22 +1148,15 @@ static void pnv_phb3_root_bus_class_init(ObjectClass *klass, const void *data)
     k->max_dev = 1;
 }
 
-static void __attribute__((constructor)) pnv_phb3_register_siblings(void)
-{
-    static const TypeInfo pnv_phb3_root_bus_info = {
-        .name = TYPE_PNV_PHB3_ROOT_BUS,
-        .parent = TYPE_PCIE_BUS,
-        .instance_size = sizeof(PnvPHB3RootBus),
-        .class_init = pnv_phb3_root_bus_class_init,
-    };
-    static const TypeInfo pnv_phb3_iommu_mr_info = {
-        .name = TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .class_init = pnv_phb3_iommu_memory_region_class_init,
-    };
-    type_register_static(&pnv_phb3_root_bus_info);
-    type_register_static(&pnv_phb3_iommu_mr_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_phb3_root_bus, PnvPHB3RootBus,
+                                       TYPE_PNV_PHB3_ROOT_BUS, TYPE_PCIE_BUS,
+                                       pnv_phb3_root_bus_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_phb3_iommu_mr,
+                                 TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 pnv_phb3_iommu_memory_region_class_init)
+
 REGISTER_QEMU_DEVICE(PnvPHB3, TYPE_PNV_PHB3, TYPE_DEVICE)

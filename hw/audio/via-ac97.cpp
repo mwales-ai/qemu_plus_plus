@@ -519,15 +519,7 @@ static const InterfaceInfo via_mc97_interfaces[] = {
     { },
 };
 
-static const TypeInfo via_mc97_info = {
-    .name          = TYPE_VIA_MC97,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = via_mc97_class_init,
-    .interfaces = via_mc97_interfaces,
-};
-
-static void __attribute__((constructor)) register_via_mc97(void)
-{
-    type_register_static(&via_mc97_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(via_mc97, PCIDevice,
+                                              TYPE_VIA_MC97, TYPE_PCI_DEVICE,
+                                              via_mc97_class_init,
+                                              via_mc97_interfaces)

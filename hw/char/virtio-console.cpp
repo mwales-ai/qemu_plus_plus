@@ -274,11 +274,6 @@ static void virtconsole_class_init(ObjectClass *klass, const void *data)
     k->is_console = true;
 }
 
-static const TypeInfo virtconsole_info = {
-    .name          = "virtconsole",
-    .parent        = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
-    .class_init    = virtconsole_class_init,
-};
 
 static const Property virtserialport_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtConsole, chr),
@@ -302,7 +297,6 @@ void VirtConsole::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE(VirtConsole, TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
                       TYPE_VIRTIO_SERIAL_PORT)
 
-__attribute__((constructor)) static void virtconsole_register_subtype(void)
-{
-    type_register_static(&virtconsole_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(virtconsole, "virtconsole",
+                                 TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
+                                 virtconsole_class_init)

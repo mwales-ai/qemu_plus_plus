@@ -1217,12 +1217,6 @@ static void fw_cfg_io_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, fw_cfg_io_properties);
 }
 
-static const TypeInfo fw_cfg_io_info = {
-    .name          = TYPE_FW_CFG_IO,
-    .parent        = TYPE_FW_CFG,
-    .instance_size = sizeof(FWCfgIoState),
-    .class_init    = fw_cfg_io_class_init,
-};
 
 
 static const Property fw_cfg_mem_properties[] = {
@@ -1278,18 +1272,14 @@ static void fw_cfg_mem_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, fw_cfg_mem_properties);
 }
 
-static const TypeInfo fw_cfg_mem_info = {
-    .name          = TYPE_FW_CFG_MEM,
-    .parent        = TYPE_FW_CFG,
-    .instance_size = sizeof(FWCfgMemState),
-    .class_init    = fw_cfg_mem_class_init,
-};
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(FWCfgState, TYPE_FW_CFG, TYPE_SYS_BUS_DEVICE)
 
-static void __attribute__((constructor)) register_fw_cfg_concretes(void)
-{
-    type_register_static(&fw_cfg_io_info);
-    type_register_static(&fw_cfg_mem_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(fw_cfg_io, FWCfgIoState,
+                                       TYPE_FW_CFG_IO, TYPE_FW_CFG,
+                                       fw_cfg_io_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(fw_cfg_mem, FWCfgMemState,
+                                       TYPE_FW_CFG_MEM, TYPE_FW_CFG,
+                                       fw_cfg_mem_class_init)

@@ -334,13 +334,6 @@ static const InterfaceInfo unin_main_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo unin_main_pci_host_info = {
-    .name = "uni-north-pci",
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = unin_main_pci_host_class_init,
-    .interfaces = unin_main_pci_host_interfaces,
-};
 
 static void u3_agp_pci_host_class_init(ObjectClass *klass, const void *data)
 {
@@ -364,13 +357,6 @@ static const InterfaceInfo u3_agp_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo u3_agp_pci_host_info = {
-    .name = "u3-agp",
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = u3_agp_pci_host_class_init,
-    .interfaces = u3_agp_pci_host_interfaces,
-};
 
 static void unin_agp_pci_host_class_init(ObjectClass *klass, const void *data)
 {
@@ -394,13 +380,6 @@ static const InterfaceInfo unin_agp_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo unin_agp_pci_host_info = {
-    .name = "uni-north-agp",
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = unin_agp_pci_host_class_init,
-    .interfaces = unin_agp_pci_host_interfaces,
-};
 
 static void unin_internal_pci_host_class_init(ObjectClass *klass,
                                               const void *data)
@@ -425,13 +404,6 @@ static const InterfaceInfo unin_internal_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo unin_internal_pci_host_info = {
-    .name = "uni-north-internal-pci",
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init = unin_internal_pci_host_class_init,
-    .interfaces = unin_internal_pci_host_interfaces,
-};
 
 static const Property pci_unin_main_pci_host_props[] = {
     DEFINE_PROP_UINT32("ofw-addr", UNINHostState, ofw_addr, -1),
@@ -459,13 +431,6 @@ static void pci_u3_agp_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo pci_u3_agp_info = {
-    .name          = TYPE_U3_AGP_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINHostState),
-    .instance_init = pci_u3_agp_init,
-    .class_init    = pci_u3_agp_class_init,
-};
 
 static void pci_unin_agp_class_init(ObjectClass *klass, const void *data)
 {
@@ -475,13 +440,6 @@ static void pci_unin_agp_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo pci_unin_agp_info = {
-    .name          = TYPE_UNI_NORTH_AGP_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINHostState),
-    .instance_init = pci_unin_agp_init,
-    .class_init    = pci_unin_agp_class_init,
-};
 
 static void pci_unin_internal_class_init(ObjectClass *klass, const void *data)
 {
@@ -491,13 +449,6 @@ static void pci_unin_internal_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo pci_unin_internal_info = {
-    .name          = TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(UNINHostState),
-    .instance_init = pci_unin_internal_init,
-    .class_init    = pci_unin_internal_class_init,
-};
 
 /* UniN device */
 static void unin_write(void *opaque, hwaddr addr, uint64_t value,
@@ -548,15 +499,41 @@ REGISTER_QEMU_DEVICE(UNINHostState, TYPE_UNI_NORTH_PCI_HOST_BRIDGE,
 
 REGISTER_QEMU_DEVICE(UNINState, TYPE_UNI_NORTH, TYPE_SYS_BUS_DEVICE)
 
-static void unin_secondary_register_types(void) __attribute__((constructor));
-static void unin_secondary_register_types(void)
-{
-    type_register_static(&unin_main_pci_host_info);
-    type_register_static(&u3_agp_pci_host_info);
-    type_register_static(&unin_agp_pci_host_info);
-    type_register_static(&unin_internal_pci_host_info);
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(unin_main_pci_host, PCIDevice,
+                                              "uni-north-pci", TYPE_PCI_DEVICE,
+                                              unin_main_pci_host_class_init,
+                                              unin_main_pci_host_interfaces)
 
-    type_register_static(&pci_u3_agp_info);
-    type_register_static(&pci_unin_agp_info);
-    type_register_static(&pci_unin_internal_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(u3_agp_pci_host, PCIDevice,
+                                              "u3-agp", TYPE_PCI_DEVICE,
+                                              u3_agp_pci_host_class_init,
+                                              u3_agp_pci_host_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(unin_agp_pci_host, PCIDevice,
+                                              "uni-north-agp", TYPE_PCI_DEVICE,
+                                              unin_agp_pci_host_class_init,
+                                              unin_agp_pci_host_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(unin_internal_pci_host, PCIDevice,
+                                              "uni-north-internal-pci",
+                                              TYPE_PCI_DEVICE,
+                                              unin_internal_pci_host_class_init,
+                                              unin_internal_pci_host_interfaces)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pci_u3_agp, UNINHostState,
+                                            TYPE_U3_AGP_HOST_BRIDGE,
+                                            TYPE_PCI_HOST_BRIDGE,
+                                            pci_u3_agp_init,
+                                            pci_u3_agp_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pci_unin_agp, UNINHostState,
+                                            TYPE_UNI_NORTH_AGP_HOST_BRIDGE,
+                                            TYPE_PCI_HOST_BRIDGE,
+                                            pci_unin_agp_init,
+                                            pci_unin_agp_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pci_unin_internal, UNINHostState,
+                                            TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE,
+                                            TYPE_PCI_HOST_BRIDGE,
+                                            pci_unin_internal_init,
+                                            pci_unin_internal_class_init)
