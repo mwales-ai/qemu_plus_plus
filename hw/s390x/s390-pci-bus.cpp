@@ -1400,21 +1400,9 @@ static void s390_pcihost_class_init(ObjectClass *klass, const void *data)
     msi_nonbroken = true;
 }
 
-static const TypeInfo s390_pcihost_info = {
-    .name          = TYPE_S390_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(S390pciState),
-    .class_init    = s390_pcihost_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
-};
-
-static const TypeInfo s390_pcibus_info = {
-    .name = TYPE_S390_PCI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(S390PCIBus),
+static const InterfaceInfo s390_pcihost_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
 static uint16_t s390_pci_generate_uid(S390pciState *s)
@@ -1582,19 +1570,6 @@ static void s390_pci_device_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &s390_pci_device_vmstate;
 }
 
-static const TypeInfo s390_pci_device_info = {
-    .name = TYPE_S390_PCI_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(S390PCIBusDevice),
-    .class_init = s390_pci_device_class_init,
-};
-
-static const TypeInfo s390_pci_iommu_info = {
-    .name = TYPE_S390_PCI_IOMMU,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(S390PCIIOMMU),
-};
-
 static void s390_iommu_memory_region_class_init(ObjectClass *klass,
                                                 const void *data)
 {
@@ -1604,15 +1579,28 @@ static void s390_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->replay = s390_pci_iommu_replay;
 }
 
-static void s390_pci_register_types(void)
-{
-    type_register_static(&s390_pcihost_info);
-    type_register_static(&s390_pcibus_info);
-    type_register_static(&s390_pci_device_info);
-    type_register_static(&s390_pci_iommu_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(s390_pci_register_types)
+static void S390pciState_cpp_register_types(void)
+{
+    static const TypeInfo info = {
+        .name          = TYPE_S390_PCI_HOST_BRIDGE,
+        .parent        = TYPE_PCI_HOST_BRIDGE,
+        .instance_size = sizeof(S390pciState),
+        .class_init    = s390_pcihost_class_init,
+        .interfaces    = s390_pcihost_interfaces,
+    };
+    type_register_static(&info);
+}
+type_init(S390pciState_cpp_register_types)
+
+REGISTER_QEMU_OBJECT_SIZED(S390PCIBus, TYPE_S390_PCI_BUS, TYPE_BUS)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(s390_pci_device, S390PCIBusDevice,
+                                       TYPE_S390_PCI_DEVICE, TYPE_DEVICE,
+                                       s390_pci_device_class_init)
+
+REGISTER_QEMU_OBJECT_SIZED(S390PCIIOMMU, TYPE_S390_PCI_IOMMU, TYPE_OBJECT)
 
 #include "qom/cpp/object.h"
 

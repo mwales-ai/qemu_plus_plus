@@ -980,6 +980,26 @@ type_init(ClassName##_cpp_register_types)
  * entries that subclasses fill in).
  */
 /*
+ * REGISTER_QEMU_OBJECT_SIZED: register a concrete object type with its
+ * own state struct (instance_size = sizeof(ClassName)) but no class_init,
+ * no instance_init, no class_size. Used for types that just add storage
+ * and are instantiated via object_new/qbus_new (not abstract).
+ */
+#define REGISTER_QEMU_OBJECT_SIZED(ClassName, type_name_str,                 \
+                                    parent_type_str)                         \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_SIZED: register an abstract object type
  * with its own state struct (instance_size = sizeof(ClassName)) but no
  * class_init, no instance_init, no class_size. Used for intermediate
