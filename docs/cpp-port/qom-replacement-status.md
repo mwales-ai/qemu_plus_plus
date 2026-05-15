@@ -8,11 +8,14 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-10
+**As of:** 2026-05-15
 
-**Conversion progress:** 955 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 1082 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
-block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/.
+block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. Only 4
+DEFINE_TYPES patterns remain (target-info-qom.cpp interfaces, hw/ppc/pnv.cpp
+chip generators, hw/ppc/spapr_cpu_core.cpp CPU generators, hw/core/sysbus.cpp
+foundational types).
 
 **New macro variants added in this session:**
 - `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
