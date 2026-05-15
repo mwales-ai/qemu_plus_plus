@@ -41,15 +41,6 @@ static void char_console_class_init(ObjectClass *oc, const void *data)
     cc->open = qemu_chr_open_win_con;
 }
 
-static const TypeInfo char_console_type_info = {
-    .name = TYPE_CHARDEV_CONSOLE,
-    .parent = TYPE_CHARDEV_WIN,
-    .class_init = char_console_class_init,
-};
-
-static void register_types(void)
-{
-    type_register_static(&char_console_type_info);
-}
-
-type_init(register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_OBJECT_CLASS_ONLY(char_console, TYPE_CHARDEV_CONSOLE,
+                                 TYPE_CHARDEV_WIN, char_console_class_init)

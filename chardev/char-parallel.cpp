@@ -305,20 +305,8 @@ static void char_parallel_finalize(Object *obj)
 #ifdef HAVE_CHARDEV_PARALLEL
 #include "qom/cpp/object.h"
 
-/*
- * ParallelChardev: typedef-only struct in C-style (no init() member),
- * with free instance_finalize and free class_init.
- */
-static void ParallelChardev_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name              = TYPE_CHARDEV_PARALLEL,
-        .parent            = TYPE_CHARDEV,
-        .instance_size     = sizeof(ParallelChardev),
-        .instance_finalize = char_parallel_finalize,
-        .class_init        = char_parallel_class_init,
-    };
-    type_register_static(&info);
-}
-type_init(ParallelChardev_cpp_register_types)
+REGISTER_QEMU_OBJECT_CLASS_FINI_SIZED(ParallelChardev, ParallelChardev,
+                                       TYPE_CHARDEV_PARALLEL, TYPE_CHARDEV,
+                                       char_parallel_class_init,
+                                       char_parallel_finalize)
 #endif

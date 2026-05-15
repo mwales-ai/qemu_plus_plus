@@ -241,22 +241,10 @@ static void char_ringbuf_class_init(ObjectClass *oc, const void *data)
 
 #include "qom/cpp/object.h"
 
-/*
- * RingBufChardev: concrete subtype with own state struct, free
- * instance_finalize, free class_init.
- */
-static void RingBufChardev_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name              = TYPE_CHARDEV_RINGBUF,
-        .parent            = TYPE_CHARDEV,
-        .instance_size     = sizeof(RingBufChardev),
-        .instance_finalize = char_ringbuf_finalize,
-        .class_init        = char_ringbuf_class_init,
-    };
-    type_register_static(&info);
-}
-type_init(RingBufChardev_cpp_register_types)
+REGISTER_QEMU_OBJECT_CLASS_FINI_SIZED(RingBufChardev, RingBufChardev,
+                                       TYPE_CHARDEV_RINGBUF, TYPE_CHARDEV,
+                                       char_ringbuf_class_init,
+                                       char_ringbuf_finalize)
 
 /* Bug-compatibility: TYPE_CHARDEV_MEMORY is an alias for TYPE_CHARDEV_RINGBUF. */
 REGISTER_QEMU_OBJECT_ALIAS(char_memory, TYPE_CHARDEV_MEMORY,

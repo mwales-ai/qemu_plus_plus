@@ -247,39 +247,17 @@ static const InterfaceInfo via_pm_interfaces[] = {
     { },
 };
 
-static const TypeInfo via_pm_info = {
-    .name          = TYPE_VIA_PM,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ViaPMState),
-    .is_abstract      = true,
-    .interfaces = via_pm_interfaces,
-};
-
 static const ViaPMInitInfo vt82c686b_pm_init_info = {
     .device_id = PCI_DEVICE_ID_VIA_82C686B_PM,
 };
 
 #define TYPE_VT82C686B_PM "vt82c686b-pm"
 
-static const TypeInfo vt82c686b_pm_info = {
-    .name          = TYPE_VT82C686B_PM,
-    .parent        = TYPE_VIA_PM,
-    .class_init    = ViaPMState::classInit,
-    .class_data    = &vt82c686b_pm_init_info,
-};
-
 static const ViaPMInitInfo vt8231_pm_init_info = {
     .device_id = PCI_DEVICE_ID_VIA_8231_PM,
 };
 
 #define TYPE_VT8231_PM "vt8231-pm"
-
-static const TypeInfo vt8231_pm_info = {
-    .name          = TYPE_VT8231_PM,
-    .parent        = TYPE_VIA_PM,
-    .class_init    = ViaPMState::classInit,
-    .class_data    = &vt8231_pm_init_info,
-};
 
 
 #define TYPE_VIA_SUPERIO "via-superio"
@@ -355,15 +333,6 @@ void ViaSuperIOState::baseClassInit(ObjectClass *klass, const void *data)
     device_class_set_parent_realize(dc, via_superio_realize,
                                     &sc->parent_realize);
 }
-
-static const TypeInfo via_superio_info = {
-    .name          = TYPE_VIA_SUPERIO,
-    .parent        = TYPE_ISA_SUPERIO,
-    .instance_size = sizeof(ViaSuperIOState),
-    .is_abstract      = true,
-    .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = ViaSuperIOState::baseClassInit,
-};
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
 
@@ -478,16 +447,6 @@ void ViaSuperIOState::vt82c686bClassInit(ObjectClass *klass, const void *data)
     sc->floppy.count = 1;
 }
 
-static const TypeInfo vt82c686b_superio_info = {
-    .name          = TYPE_VT82C686B_SUPERIO,
-    .parent        = TYPE_VIA_SUPERIO,
-    .instance_size = sizeof(ViaSuperIOState),
-    .instance_init = vt82c686b_superio_init,
-    .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = ViaSuperIOState::vt82c686bClassInit,
-};
-
-
 #define TYPE_VT8231_SUPERIO "vt8231-superio"
 
 static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
@@ -587,16 +546,6 @@ void ViaSuperIOState::vt8231ClassInit(ObjectClass *klass, const void *data)
     sc->floppy.count = 1;
 }
 
-static const TypeInfo vt8231_superio_info = {
-    .name          = TYPE_VT8231_SUPERIO,
-    .parent        = TYPE_VIA_SUPERIO,
-    .instance_size = sizeof(ViaSuperIOState),
-    .instance_init = vt8231_superio_init,
-    .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = ViaSuperIOState::vt8231ClassInit,
-};
-
-
 #define TYPE_VIA_ISA "via-isa"
 OBJECT_DECLARE_SIMPLE_TYPE(ViaISAState, VIA_ISA)
 
@@ -647,14 +596,6 @@ static const InterfaceInfo via_isa_interfaces[] = {
     { },
 };
 
-static const TypeInfo via_isa_info = {
-    .name          = TYPE_VIA_ISA,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(ViaISAState),
-    .instance_init = via_isa_init,
-    .is_abstract      = true,
-    .interfaces    = via_isa_interfaces,
-};
 
 static int via_isa_get_pci_irq(const ViaISAState *s, int pin)
 {
@@ -867,13 +808,6 @@ void ViaISAState::vt82c686bClassInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo vt82c686b_isa_info = {
-    .name          = TYPE_VT82C686B_ISA,
-    .parent        = TYPE_VIA_ISA,
-    .instance_size = sizeof(ViaISAState),
-    .instance_init = vt82c686b_init,
-    .class_init    = ViaISAState::vt82c686bClassInit,
-};
 
 /* TYPE_VT8231_ISA */
 
@@ -932,26 +866,50 @@ void ViaISAState::vt8231ClassInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo vt8231_isa_info = {
-    .name          = TYPE_VT8231_ISA,
-    .parent        = TYPE_VIA_ISA,
-    .instance_size = sizeof(ViaISAState),
-    .instance_init = vt8231_init,
-    .class_init    = ViaISAState::vt8231ClassInit,
-};
+#include "qom/cpp/object.h"
 
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_IFACES(via_pm, ViaPMState, TYPE_VIA_PM,
+                                            TYPE_PCI_DEVICE,
+                                            via_pm_interfaces)
 
-static void vt82c686b_register_types(void)
-{
-    type_register_static(&via_pm_info);
-    type_register_static(&vt82c686b_pm_info);
-    type_register_static(&vt8231_pm_info);
-    type_register_static(&via_superio_info);
-    type_register_static(&vt82c686b_superio_info);
-    type_register_static(&vt8231_superio_info);
-    type_register_static(&via_isa_info);
-    type_register_static(&vt82c686b_isa_info);
-    type_register_static(&vt8231_isa_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_DATA(vt82c686b_pm, TYPE_VT82C686B_PM, TYPE_VIA_PM,
+                                 ViaPMState::classInit,
+                                 &vt82c686b_pm_init_info)
 
-type_init(vt82c686b_register_types)
+REGISTER_QEMU_OBJECT_CLASS_DATA(vt8231_pm, TYPE_VT8231_PM, TYPE_VIA_PM,
+                                 ViaPMState::classInit,
+                                 &vt8231_pm_init_info)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(via_superio, ViaSuperIOState,
+                                           ISASuperIOClass,
+                                           TYPE_VIA_SUPERIO, TYPE_ISA_SUPERIO,
+                                           ViaSuperIOState::baseClassInit)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(vt82c686b_superio, ViaSuperIOState,
+                                          ISASuperIOClass,
+                                          TYPE_VT82C686B_SUPERIO,
+                                          TYPE_VIA_SUPERIO,
+                                          vt82c686b_superio_init,
+                                          ViaSuperIOState::vt82c686bClassInit)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(vt8231_superio, ViaSuperIOState,
+                                          ISASuperIOClass,
+                                          TYPE_VT8231_SUPERIO,
+                                          TYPE_VIA_SUPERIO,
+                                          vt8231_superio_init,
+                                          ViaSuperIOState::vt8231ClassInit)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_SIZED_IFACES(via_isa, ViaISAState,
+                                                 TYPE_VIA_ISA, TYPE_PCI_DEVICE,
+                                                 via_isa_init,
+                                                 via_isa_interfaces)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(vt82c686b_isa, ViaISAState,
+                                            TYPE_VT82C686B_ISA, TYPE_VIA_ISA,
+                                            vt82c686b_init,
+                                            ViaISAState::vt82c686bClassInit)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(vt8231_isa, ViaISAState,
+                                            TYPE_VT8231_ISA, TYPE_VIA_ISA,
+                                            vt8231_init,
+                                            ViaISAState::vt8231ClassInit)

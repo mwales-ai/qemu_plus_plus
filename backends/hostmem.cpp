@@ -583,26 +583,21 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
         host_memory_backend_set_use_canonical_path);
 }
 
-static const TypeInfo host_memory_backend_info = {
-    .name = TYPE_MEMORY_BACKEND,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(HostMemoryBackend),
-    .instance_init = host_memory_backend_init,
-    .instance_post_init = host_memory_backend_post_init,
-    .is_abstract = true,
-    .class_size = sizeof(HostMemoryBackendClass),
-    .class_init = host_memory_backend_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+static const InterfaceInfo host_memory_backend_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
 };
 
-static void register_types(void)
-{
-    type_register_static(&host_memory_backend_info);
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_FULL_POST_INIT(host_memory_backend,
+                                              HostMemoryBackend,
+                                              HostMemoryBackendClass,
+                                              TYPE_MEMORY_BACKEND,
+                                              TYPE_OBJECT,
+                                              host_memory_backend_init,
+                                              host_memory_backend_post_init,
+                                              host_memory_backend_class_init,
+                                              host_memory_backend_interfaces)
