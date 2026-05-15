@@ -429,12 +429,4 @@ REGISTER_QEMU_DEVICE(PL080State, TYPE_PL080, TYPE_SYS_BUS_DEVICE)
 
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
-static void __attribute__((constructor)) register_pl081(void)
-{
-    static const TypeInfo pl081_info = {
-        .name          = TYPE_PL081,
-        .parent        = TYPE_PL080,
-        .instance_init = pl081_init,
-    };
-    type_register_static(&pl081_info);
-}
+REGISTER_QEMU_OBJECT_INIT_ONLY(pl081, TYPE_PL081, TYPE_PL080, pl081_init)

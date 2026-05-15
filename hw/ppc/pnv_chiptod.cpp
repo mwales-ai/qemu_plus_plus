@@ -499,13 +499,6 @@ static const InterfaceInfo pnv_chiptod_power9_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_chiptod_power9_type_info = {
-    .name          = TYPE_PNV9_CHIPTOD,
-    .parent        = TYPE_PNV_CHIPTOD,
-    .instance_size = sizeof(PnvChipTOD),
-    .class_init    = pnv_chiptod_power9_class_init,
-    .interfaces    = pnv_chiptod_power9_interfaces,
-};
 
 static int pnv_chiptod_power10_dt_xscom(PnvXScomInterface *dev, void *fdt,
                              int xscom_offset)
@@ -537,13 +530,6 @@ static const InterfaceInfo pnv_chiptod_power10_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_chiptod_power10_type_info = {
-    .name          = TYPE_PNV10_CHIPTOD,
-    .parent        = TYPE_PNV_CHIPTOD,
-    .instance_size = sizeof(PnvChipTOD),
-    .class_init    = pnv_chiptod_power10_class_init,
-    .interfaces    = pnv_chiptod_power10_interfaces,
-};
 
 static int pnv_chiptod_power11_dt_xscom(PnvXScomInterface *dev, void *fdt,
                              int xscom_offset)
@@ -575,13 +561,6 @@ static const InterfaceInfo pnv_chiptod_power11_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_chiptod_power11_type_info = {
-    .name          = TYPE_PNV11_CHIPTOD,
-    .parent        = TYPE_PNV_CHIPTOD,
-    .instance_size = sizeof(PnvChipTOD),
-    .class_init    = pnv_chiptod_power11_class_init,
-    .interfaces    = pnv_chiptod_power11_interfaces,
-};
 
 static void pnv_chiptod_reset(void *dev)
 {
@@ -632,10 +611,20 @@ void PnvChipTODClass::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_ABSTRACT(PnvChipTOD, PnvChipTODClass,
                                TYPE_PNV_CHIPTOD, TYPE_DEVICE)
 
-__attribute__((constructor))
-static void pnv_chiptod_register_concrete_types(void)
-{
-    type_register_static(&pnv_chiptod_power9_type_info);
-    type_register_static(&pnv_chiptod_power10_type_info);
-    type_register_static(&pnv_chiptod_power11_type_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(pnv_chiptod_power9, PnvChipTOD,
+                                              TYPE_PNV9_CHIPTOD,
+                                              TYPE_PNV_CHIPTOD,
+                                              pnv_chiptod_power9_class_init,
+                                              pnv_chiptod_power9_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(pnv_chiptod_power10, PnvChipTOD,
+                                              TYPE_PNV10_CHIPTOD,
+                                              TYPE_PNV_CHIPTOD,
+                                              pnv_chiptod_power10_class_init,
+                                              pnv_chiptod_power10_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(pnv_chiptod_power11, PnvChipTOD,
+                                              TYPE_PNV11_CHIPTOD,
+                                              TYPE_PNV_CHIPTOD,
+                                              pnv_chiptod_power11_class_init,
+                                              pnv_chiptod_power11_interfaces)

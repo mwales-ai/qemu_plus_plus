@@ -98,12 +98,6 @@ static void pnv_homer_power8_class_init(ObjectClass *klass, const void *data)
     homer->pba_ops = &pnv_homer_power8_pba_ops;
 }
 
-static const TypeInfo pnv_homer_power8_type_info = {
-    .name          = TYPE_PNV8_HOMER,
-    .parent        = TYPE_PNV_HOMER,
-    .instance_size = sizeof(PnvHomer),
-    .class_init    = pnv_homer_power8_class_init,
-};
 
 static uint64_t pnv_homer_power9_pba_read(void *opaque, hwaddr addr,
                                           unsigned size)
@@ -163,12 +157,6 @@ static void pnv_homer_power9_class_init(ObjectClass *klass, const void *data)
     homer->pba_ops = &pnv_homer_power9_pba_ops;
 }
 
-static const TypeInfo pnv_homer_power9_type_info = {
-    .name          = TYPE_PNV9_HOMER,
-    .parent        = TYPE_PNV_HOMER,
-    .instance_size = sizeof(PnvHomer),
-    .class_init    = pnv_homer_power9_class_init,
-};
 
 static uint64_t pnv_homer_power10_pba_read(void *opaque, hwaddr addr,
                                           unsigned size)
@@ -228,12 +216,6 @@ static void pnv_homer_power10_class_init(ObjectClass *klass, const void *data)
     homer->pba_ops = &pnv_homer_power10_pba_ops;
 }
 
-static const TypeInfo pnv_homer_power10_type_info = {
-    .name          = TYPE_PNV10_HOMER,
-    .parent        = TYPE_PNV_HOMER,
-    .instance_size = sizeof(PnvHomer),
-    .class_init    = pnv_homer_power10_class_init,
-};
 
 static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
@@ -275,10 +257,14 @@ void PnvHomerClass::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_ABSTRACT(PnvHomer, PnvHomerClass,
                                TYPE_PNV_HOMER, TYPE_DEVICE)
 
-__attribute__((constructor))
-static void pnv_homer_register_concrete_types(void)
-{
-    type_register_static(&pnv_homer_power8_type_info);
-    type_register_static(&pnv_homer_power9_type_info);
-    type_register_static(&pnv_homer_power10_type_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_homer_power8, PnvHomer,
+                                       TYPE_PNV8_HOMER, TYPE_PNV_HOMER,
+                                       pnv_homer_power8_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_homer_power9, PnvHomer,
+                                       TYPE_PNV9_HOMER, TYPE_PNV_HOMER,
+                                       pnv_homer_power9_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_homer_power10, PnvHomer,
+                                       TYPE_PNV10_HOMER, TYPE_PNV_HOMER,
+                                       pnv_homer_power10_class_init)

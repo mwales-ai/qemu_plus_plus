@@ -827,17 +827,9 @@ static void mos6522_pmu_class_init(ObjectClass *oc, const void *data)
                                        NULL, &mdc->parent_phases);
 }
 
-static const TypeInfo mos6522_pmu_type_info = {
-    .name = TYPE_MOS6522_PMU,
-    .parent = TYPE_MOS6522,
-    .instance_size = sizeof(MOS6522PMUState),
-    .class_size = sizeof(MOS6522PMUDeviceClass),
-    .class_init = mos6522_pmu_class_init,
-};
-
-static void __attribute__((constructor)) pmu_register_mos6522_pmu(void)
-{
-    type_register_static(&mos6522_pmu_type_info);
-}
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(mos6522_pmu, MOS6522PMUState,
+                                  MOS6522PMUDeviceClass,
+                                  TYPE_MOS6522_PMU, TYPE_MOS6522,
+                                  mos6522_pmu_class_init)
 
 REGISTER_QEMU_DEVICE(PMUState, TYPE_VIA_PMU, TYPE_SYS_BUS_DEVICE)

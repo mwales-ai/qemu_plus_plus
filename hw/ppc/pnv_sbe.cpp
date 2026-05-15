@@ -340,12 +340,6 @@ static void pnv_sbe_power9_class_init(ObjectClass *klass, const void *data)
     psc->xscom_mbox_ops = &pnv_sbe_power9_xscom_mbox_ops;
 }
 
-static const TypeInfo pnv_sbe_power9_type_info = {
-    .name          = TYPE_PNV9_SBE,
-    .parent        = TYPE_PNV_SBE,
-    .instance_size = sizeof(PnvSBE),
-    .class_init    = pnv_sbe_power9_class_init,
-};
 
 static void pnv_sbe_power10_class_init(ObjectClass *klass, const void *data)
 {
@@ -359,11 +353,6 @@ static void pnv_sbe_power10_class_init(ObjectClass *klass, const void *data)
     psc->xscom_mbox_ops = &pnv_sbe_power9_xscom_mbox_ops;
 }
 
-static const TypeInfo pnv_sbe_power10_type_info = {
-    .name          = TYPE_PNV10_SBE,
-    .parent        = TYPE_PNV9_SBE,
-    .class_init    = pnv_sbe_power10_class_init,
-};
 
 static void pnv_sbe_realize(DeviceState *dev, Error **errp)
 {
@@ -396,9 +385,9 @@ void PnvSBEClass::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_ABSTRACT(PnvSBE, PnvSBEClass,
                                TYPE_PNV_SBE, TYPE_DEVICE)
 
-__attribute__((constructor))
-static void pnv_sbe_register_concrete_types(void)
-{
-    type_register_static(&pnv_sbe_power9_type_info);
-    type_register_static(&pnv_sbe_power10_type_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_sbe_power9, PnvSBE,
+                                       TYPE_PNV9_SBE, TYPE_PNV_SBE,
+                                       pnv_sbe_power9_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_sbe_power10, TYPE_PNV10_SBE, TYPE_PNV9_SBE,
+                                 pnv_sbe_power10_class_init)

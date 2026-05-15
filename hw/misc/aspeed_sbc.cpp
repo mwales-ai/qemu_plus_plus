@@ -337,11 +337,6 @@ static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)
     sc->has_otp = true;
 }
 
-static const TypeInfo aspeed_ast2600_sbc_info = {
-    .name = TYPE_ASPEED_AST2600_SBC,
-    .parent = TYPE_ASPEED_SBC,
-    .class_init = aspeed_ast2600_sbc_class_init,
-};
 
 static void aspeed_ast10x0_sbc_class_init(ObjectClass *klass, const void *data)
 {
@@ -352,18 +347,15 @@ static void aspeed_ast10x0_sbc_class_init(ObjectClass *klass, const void *data)
     sc->has_otp = true;
 }
 
-static const TypeInfo aspeed_ast10x0_sbc_info = {
-    .name = TYPE_ASPEED_AST10X0_SBC,
-    .parent = TYPE_ASPEED_SBC,
-    .class_init = aspeed_ast10x0_sbc_class_init,
-};
-
-static void __attribute__((constructor)) aspeed_sbc_subtypes_register(void)
-{
-    type_register_static(&aspeed_ast2600_sbc_info);
-    type_register_static(&aspeed_ast10x0_sbc_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_CLASS_SIZE(AspeedSBCState, AspeedSBCClass,
                                  TYPE_ASPEED_SBC, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast2600_sbc, TYPE_ASPEED_AST2600_SBC,
+                                 TYPE_ASPEED_SBC,
+                                 aspeed_ast2600_sbc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast10x0_sbc, TYPE_ASPEED_AST10X0_SBC,
+                                 TYPE_ASPEED_SBC,
+                                 aspeed_ast10x0_sbc_class_init)

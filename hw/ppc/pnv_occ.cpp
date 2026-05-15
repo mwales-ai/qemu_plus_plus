@@ -181,12 +181,6 @@ static void pnv_occ_power8_class_init(ObjectClass *klass, const void *data)
     poc->xscom_ops = &pnv_occ_power8_xscom_ops;
 }
 
-static const TypeInfo pnv_occ_power8_type_info = {
-    .name          = TYPE_PNV8_OCC,
-    .parent        = TYPE_PNV_OCC,
-    .instance_size = sizeof(PnvOCC),
-    .class_init    = pnv_occ_power8_class_init,
-};
 
 #define P9_OCB_OCI_OCCMISC              0x6080
 #define P9_OCB_OCI_OCCMISC_CLEAR        0x6081
@@ -254,12 +248,6 @@ static void pnv_occ_power9_class_init(ObjectClass *klass, const void *data)
     assert(!dc->user_creatable);
 }
 
-static const TypeInfo pnv_occ_power9_type_info = {
-    .name          = TYPE_PNV9_OCC,
-    .parent        = TYPE_PNV_OCC,
-    .instance_size = sizeof(PnvOCC),
-    .class_init    = pnv_occ_power9_class_init,
-};
 
 static void pnv_occ_power10_class_init(ObjectClass *klass, const void *data)
 {
@@ -274,11 +262,6 @@ static void pnv_occ_power10_class_init(ObjectClass *klass, const void *data)
     assert(!dc->user_creatable);
 }
 
-static const TypeInfo pnv_occ_power10_type_info = {
-    .name          = TYPE_PNV10_OCC,
-    .parent        = TYPE_PNV_OCC,
-    .class_init    = pnv_occ_power10_class_init,
-};
 
 static bool occ_init_homer_memory(PnvOCC *occ, Error **errp);
 static bool occ_model_tick(PnvOCC *occ);
@@ -343,13 +326,16 @@ void PnvOCCClass::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_ABSTRACT(PnvOCC, PnvOCCClass,
                                TYPE_PNV_OCC, TYPE_DEVICE)
 
-__attribute__((constructor))
-static void pnv_occ_register_concrete_types(void)
-{
-    type_register_static(&pnv_occ_power8_type_info);
-    type_register_static(&pnv_occ_power9_type_info);
-    type_register_static(&pnv_occ_power10_type_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_occ_power8, PnvOCC,
+                                       TYPE_PNV8_OCC, TYPE_PNV_OCC,
+                                       pnv_occ_power8_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(pnv_occ_power9, PnvOCC,
+                                       TYPE_PNV9_OCC, TYPE_PNV_OCC,
+                                       pnv_occ_power9_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_occ_power10, TYPE_PNV10_OCC, TYPE_PNV_OCC,
+                                 pnv_occ_power10_class_init)
 
 /*
  * From skiboot/hw/occ.c with following changes:

@@ -249,11 +249,6 @@ static void axp209_class_init(ObjectClass *oc, const void *data)
     sc->reset_enter = axp209_reset_enter;
 }
 
-static const TypeInfo axp209_info = {
-    .name = TYPE_AXP209_PMU,
-    .parent = TYPE_AXP2XX,
-    .class_init = axp209_class_init
-};
 
 static void axp221_class_init(ObjectClass *oc, const void *data)
 {
@@ -262,18 +257,13 @@ static void axp221_class_init(ObjectClass *oc, const void *data)
     sc->reset_enter = axp221_reset_enter;
 }
 
-static const TypeInfo axp221_info = {
-    .name = TYPE_AXP221_PMU,
-    .parent = TYPE_AXP2XX,
-    .class_init = axp221_class_init,
-};
-
-static void __attribute__((constructor)) register_axp2xx_concretes(void)
-{
-    type_register_static(&axp209_info);
-    type_register_static(&axp221_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AXP2xxI2CState, AXP2xxClass, TYPE_AXP2XX,
                                TYPE_I2C_SLAVE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(axp209, TYPE_AXP209_PMU, TYPE_AXP2XX,
+                                 axp209_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(axp221, TYPE_AXP221_PMU, TYPE_AXP2XX,
+                                 axp221_class_init)

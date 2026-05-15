@@ -608,12 +608,7 @@ static void tz_mpc_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->num_indexes = tz_mpc_num_indexes;
 }
 
-static void __attribute__((constructor)) register_tz_mpc_iommu(void)
-{
-    static const TypeInfo tz_mpc_iommu_memory_region_info = {
-        .name = TYPE_TZ_MPC_IOMMU_MEMORY_REGION,
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .class_init = tz_mpc_iommu_memory_region_class_init,
-    };
-    type_register_static(&tz_mpc_iommu_memory_region_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY(tz_mpc_iommu_memory_region,
+                                 TYPE_TZ_MPC_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 tz_mpc_iommu_memory_region_class_init)

@@ -387,20 +387,14 @@ void SPARC32DMAState::init()
                             TYPE_SPARC32_LEDMA_DEVICE);
 }
 
-static void __attribute__((constructor)) register_sparc32_dma_device_abstract(void)
-{
-    static const TypeInfo sparc32_dma_device_info = {
-        .name          = TYPE_SPARC32_DMA_DEVICE,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(DMADeviceState),
-        .instance_init = sparc32_dma_device_init,
-        .is_abstract   = true,
-        .class_init    = sparc32_dma_device_class_init,
-    };
-    type_register_static(&sparc32_dma_device_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED(sparc32_dma_device,
+                                                DMADeviceState,
+                                                TYPE_SPARC32_DMA_DEVICE,
+                                                TYPE_SYS_BUS_DEVICE,
+                                                sparc32_dma_device_init,
+                                                sparc32_dma_device_class_init)
 REGISTER_QEMU_DEVICE(ESPDMADeviceState, TYPE_SPARC32_ESPDMA_DEVICE,
                      TYPE_SPARC32_DMA_DEVICE)
 REGISTER_QEMU_DEVICE(LEDMADeviceState, TYPE_SPARC32_LEDMA_DEVICE,

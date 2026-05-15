@@ -1428,18 +1428,11 @@ static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)
     dc->vmsd = &vmstate_q800_via2;
 }
 
-static const TypeInfo mos6522_q800_via2_type_info = {
-    .name = TYPE_MOS6522_Q800_VIA2,
-    .parent = TYPE_MOS6522,
-    .instance_size = sizeof(MOS6522Q800VIA2State),
-    .instance_init = mos6522_q800_via2_init,
-    .class_size = sizeof(MOS6522Q800VIA2DeviceClass),
-    .class_init = mos6522_q800_via2_class_init,
-};
-
-static void __attribute__((constructor)) mac_via_register_via2(void)
-{
-    type_register_static(&mos6522_q800_via2_type_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(mos6522_q800_via2,
+                                          MOS6522Q800VIA2State,
+                                          MOS6522Q800VIA2DeviceClass,
+                                          TYPE_MOS6522_Q800_VIA2, TYPE_MOS6522,
+                                          mos6522_q800_via2_init,
+                                          mos6522_q800_via2_class_init)
 
 REGISTER_QEMU_DEVICE(MOS6522Q800VIA1State, TYPE_MOS6522_Q800_VIA1, TYPE_MOS6522)

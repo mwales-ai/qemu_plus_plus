@@ -382,11 +382,6 @@ static void aspeed_2400_sdmc_class_init(ObjectClass *klass, const void *data)
     asc->valid_ram_sizes = aspeed_2400_ram_sizes;
 }
 
-static const TypeInfo aspeed_2400_sdmc_info = {
-    .name = TYPE_ASPEED_2400_SDMC,
-    .parent = TYPE_ASPEED_SDMC,
-    .class_init = aspeed_2400_sdmc_class_init,
-};
 
 static uint32_t aspeed_2500_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
@@ -450,11 +445,6 @@ static void aspeed_2500_sdmc_class_init(ObjectClass *klass, const void *data)
     asc->valid_ram_sizes = aspeed_2500_ram_sizes;
 }
 
-static const TypeInfo aspeed_2500_sdmc_info = {
-    .name = TYPE_ASPEED_2500_SDMC,
-    .parent = TYPE_ASPEED_SDMC,
-    .class_init = aspeed_2500_sdmc_class_init,
-};
 
 static uint32_t aspeed_2600_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
@@ -544,11 +534,6 @@ static void aspeed_2600_sdmc_class_init(ObjectClass *klass, const void *data)
     asc->valid_ram_sizes = aspeed_2600_ram_sizes;
 }
 
-static const TypeInfo aspeed_2600_sdmc_info = {
-    .name = TYPE_ASPEED_2600_SDMC,
-    .parent = TYPE_ASPEED_SDMC,
-    .class_init = aspeed_2600_sdmc_class_init,
-};
 
 static void aspeed_2700_sdmc_reset(DeviceState *dev)
 {
@@ -678,20 +663,19 @@ static void aspeed_2700_sdmc_class_init(ObjectClass *klass, const void *data)
     asc->valid_ram_sizes = aspeed_2700_ram_sizes;
 }
 
-static const TypeInfo aspeed_2700_sdmc_info = {
-    .name = TYPE_ASPEED_2700_SDMC,
-    .parent = TYPE_ASPEED_SDMC,
-    .class_init = aspeed_2700_sdmc_class_init,
-};
-
-static void __attribute__((constructor)) aspeed_sdmc_subtypes_register(void)
-{
-    type_register_static(&aspeed_2400_sdmc_info);
-    type_register_static(&aspeed_2500_sdmc_info);
-    type_register_static(&aspeed_2600_sdmc_info);
-    type_register_static(&aspeed_2700_sdmc_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedSDMCState, AspeedSDMCClass,
                                TYPE_ASPEED_SDMC, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2400_sdmc, TYPE_ASPEED_2400_SDMC,
+                                 TYPE_ASPEED_SDMC, aspeed_2400_sdmc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2500_sdmc, TYPE_ASPEED_2500_SDMC,
+                                 TYPE_ASPEED_SDMC, aspeed_2500_sdmc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_sdmc, TYPE_ASPEED_2600_SDMC,
+                                 TYPE_ASPEED_SDMC, aspeed_2600_sdmc_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_sdmc, TYPE_ASPEED_2700_SDMC,
+                                 TYPE_ASPEED_SDMC, aspeed_2700_sdmc_class_init)

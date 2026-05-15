@@ -1091,6 +1091,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_SIZED_CS_CI: concrete object with instance_size +
+ * class_size + free class_init. No instance_init / interfaces. Concrete
+ * counterpart of REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI.
+ */
+#define REGISTER_QEMU_OBJECT_SIZED_CS_CI(unique_tag, ClassName, ClassStruct, \
+                                          type_name_str, parent_type_str,    \
+                                          class_init_fn)                     \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS: concrete object with
  * instance_size + free instance_init + class_size + free class_init.
  */
@@ -1131,6 +1153,31 @@ static void unique_tag##_cpp_register_types(void)                            \
         .parent        = parent_type_str,                                    \
         .instance_size = sizeof(ClassName),                                  \
         .instance_init = instance_init_fn,                                   \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED: abstract object with
+ * instance_size + free instance_init + free class_init. No class_size,
+ * no interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED(unique_tag, ClassName, \
+                                                        type_name_str,        \
+                                                        parent_type_str,      \
+                                                        instance_init_fn,     \
+                                                        class_init_fn)        \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .is_abstract   = true,                                               \
         .class_init    = class_init_fn,                                      \
     };                                                                       \
     type_register_static(&info);                                             \
@@ -1673,6 +1720,33 @@ type_init(unique_tag##_cpp_register_types)
  * but also with an interfaces array (per-instance, often coming from the
  * same struct as class_data).
  */
+/*
+ * REGISTER_QEMU_OBJECT_CLASS_DATA_SIZED_IFACES: like CLASS_DATA_IFACES but
+ * also sets instance_size = sizeof(ClassName). Used for class_data-driven
+ * sibling types that share the same instance struct but get class_init data
+ * via the .class_data field, with interfaces.
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_DATA_SIZED_IFACES(unique_tag, ClassName,   \
+                                                      type_name_str,          \
+                                                      parent_type_str,        \
+                                                      class_init_fn,          \
+                                                      class_data_ptr,         \
+                                                      ifaces_array)           \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .class_init    = class_init_fn,                                      \
+        .class_data    = class_data_ptr,                                     \
+        .interfaces    = ifaces_array,                                       \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
 #define REGISTER_QEMU_OBJECT_CLASS_DATA_IFACES(unique_tag, type_name_str,    \
                                                 parent_type_str,             \
                                                 class_init_fn,               \

@@ -657,11 +657,6 @@ static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
-static const TypeInfo aspeed_ast2400_hace_info = {
-    .name = TYPE_ASPEED_AST2400_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2400_hace_class_init,
-};
 
 static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -677,11 +672,6 @@ static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
-static const TypeInfo aspeed_ast2500_hace_info = {
-    .name = TYPE_ASPEED_AST2500_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2500_hace_class_init,
-};
 
 static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -697,11 +687,6 @@ static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x00147FFF;
 }
 
-static const TypeInfo aspeed_ast2600_hace_info = {
-    .name = TYPE_ASPEED_AST2600_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2600_hace_class_init,
-};
 
 static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -717,11 +702,6 @@ static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
     ahc->hash_mask = 0x00147FFF;
 }
 
-static const TypeInfo aspeed_ast1030_hace_info = {
-    .name = TYPE_ASPEED_AST1030_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast1030_hace_class_init,
-};
 
 static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 {
@@ -762,21 +742,27 @@ static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
     ahc->has_dma64 = true;
 }
 
-static const TypeInfo aspeed_ast2700_hace_info = {
-    .name = TYPE_ASPEED_AST2700_HACE,
-    .parent = TYPE_ASPEED_HACE,
-    .class_init = aspeed_ast2700_hace_class_init,
-};
-
-static void __attribute__((constructor)) aspeed_hace_subtypes_register(void)
-{
-    type_register_static(&aspeed_ast2400_hace_info);
-    type_register_static(&aspeed_ast2500_hace_info);
-    type_register_static(&aspeed_ast2600_hace_info);
-    type_register_static(&aspeed_ast1030_hace_info);
-    type_register_static(&aspeed_ast2700_hace_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_CLASS_SIZE(AspeedHACEState, AspeedHACEClass,
                                  TYPE_ASPEED_HACE, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast2400_hace, TYPE_ASPEED_AST2400_HACE,
+                                 TYPE_ASPEED_HACE,
+                                 aspeed_ast2400_hace_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast2500_hace, TYPE_ASPEED_AST2500_HACE,
+                                 TYPE_ASPEED_HACE,
+                                 aspeed_ast2500_hace_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast2600_hace, TYPE_ASPEED_AST2600_HACE,
+                                 TYPE_ASPEED_HACE,
+                                 aspeed_ast2600_hace_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast1030_hace, TYPE_ASPEED_AST1030_HACE,
+                                 TYPE_ASPEED_HACE,
+                                 aspeed_ast1030_hace_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_ast2700_hace, TYPE_ASPEED_AST2700_HACE,
+                                 TYPE_ASPEED_HACE,
+                                 aspeed_ast2700_hace_class_init)

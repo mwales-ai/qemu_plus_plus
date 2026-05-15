@@ -645,17 +645,9 @@ static void mos6522_cuda_class_init(ObjectClass *oc, const void *data)
                                        NULL, &mdc->parent_phases);
 }
 
-static const TypeInfo mos6522_cuda_type_info = {
-    .name = TYPE_MOS6522_CUDA,
-    .parent = TYPE_MOS6522,
-    .instance_size = sizeof(MOS6522CUDAState),
-    .class_size = sizeof(MOS6522CudaDeviceClass),
-    .class_init = mos6522_cuda_class_init,
-};
-
-static void __attribute__((constructor)) cuda_register_mos6522_cuda(void)
-{
-    type_register_static(&mos6522_cuda_type_info);
-}
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(mos6522_cuda, MOS6522CUDAState,
+                                  MOS6522CudaDeviceClass,
+                                  TYPE_MOS6522_CUDA, TYPE_MOS6522,
+                                  mos6522_cuda_class_init)
 
 REGISTER_QEMU_DEVICE(CUDAState, TYPE_CUDA, TYPE_SYS_BUS_DEVICE)

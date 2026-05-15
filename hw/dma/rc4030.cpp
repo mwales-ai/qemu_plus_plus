@@ -738,18 +738,13 @@ void rc4030State::iommuClassInit(ObjectClass *klass, const void *data)
     imrc->translate = rc4030State::dmaTranslate;
 }
 
-static const TypeInfo rc4030_iommu_memory_region_info = {
-    .name = TYPE_RC4030_IOMMU_MEMORY_REGION,
-    .parent = TYPE_IOMMU_MEMORY_REGION,
-    .class_init = rc4030State::iommuClassInit,
-};
-
-static void __attribute__((constructor)) rc4030_register_iommu_type(void)
-{
-    type_register_static(&rc4030_iommu_memory_region_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(rc4030_iommu_memory_region,
+                                 TYPE_RC4030_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 rc4030State::iommuClassInit)
+
 REGISTER_QEMU_DEVICE(rc4030State, TYPE_RC4030, TYPE_SYS_BUS_DEVICE)
 
 DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)

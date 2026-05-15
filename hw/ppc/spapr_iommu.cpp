@@ -701,15 +701,10 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->get_attr = spapr_tce_get_attr;
 }
 
-static void __attribute__((constructor)) register_spapr_iommu_memory_region(void)
-{
-    static const TypeInfo spapr_iommu_memory_region_info = {
-        .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
-        .parent = TYPE_IOMMU_MEMORY_REGION,
-        .class_init = spapr_iommu_memory_region_class_init,
-    };
-    type_register_static(&spapr_iommu_memory_region_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(spapr_iommu_memory_region,
+                                 TYPE_SPAPR_IOMMU_MEMORY_REGION,
+                                 TYPE_IOMMU_MEMORY_REGION,
+                                 spapr_iommu_memory_region_class_init)
 REGISTER_QEMU_DEVICE(SpaprTceTable, TYPE_SPAPR_TCE_TABLE, TYPE_DEVICE)

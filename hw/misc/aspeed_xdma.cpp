@@ -168,11 +168,6 @@ static void aspeed_2600_xdma_class_init(ObjectClass *klass, const void *data)
         XDMA_AST2600_IRQ_STATUS_DS_COMP;
 }
 
-static const TypeInfo aspeed_2600_xdma_info = {
-    .name = TYPE_ASPEED_2600_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2600_xdma_class_init,
-};
 
 static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
 {
@@ -190,11 +185,6 @@ static void aspeed_2500_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
 };
 
-static const TypeInfo aspeed_2500_xdma_info = {
-    .name = TYPE_ASPEED_2500_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2500_xdma_class_init,
-};
 
 static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
 {
@@ -212,11 +202,6 @@ static void aspeed_2400_xdma_class_init(ObjectClass *klass, const void *data)
     axc->intr_complete = XDMA_IRQ_ENG_STAT_US_COMP | XDMA_IRQ_ENG_STAT_DS_COMP;
 };
 
-static const TypeInfo aspeed_2400_xdma_info = {
-    .name = TYPE_ASPEED_2400_XDMA,
-    .parent = TYPE_ASPEED_XDMA,
-    .class_init = aspeed_2400_xdma_class_init,
-};
 
 void AspeedXDMAState::classInit(DeviceClass *dc)
 {
@@ -225,13 +210,16 @@ void AspeedXDMAState::classInit(DeviceClass *dc)
     dc->vmsd = &aspeed_xdma_vmstate;
 }
 
-static void __attribute__((constructor)) aspeed_xdma_subtypes_register(void)
-{
-    type_register_static(&aspeed_2400_xdma_info);
-    type_register_static(&aspeed_2500_xdma_info);
-    type_register_static(&aspeed_2600_xdma_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedXDMAState, AspeedXDMAClass,
                                TYPE_ASPEED_XDMA, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2400_xdma, TYPE_ASPEED_2400_XDMA,
+                                 TYPE_ASPEED_XDMA, aspeed_2400_xdma_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2500_xdma, TYPE_ASPEED_2500_XDMA,
+                                 TYPE_ASPEED_XDMA, aspeed_2500_xdma_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_xdma, TYPE_ASPEED_2600_XDMA,
+                                 TYPE_ASPEED_XDMA, aspeed_2600_xdma_class_init)

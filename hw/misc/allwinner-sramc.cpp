@@ -158,17 +158,10 @@ static void allwinner_r40_sramc_class_init(ObjectClass *klass, const void *data)
     sc->sram_version_code = SRAM_VERSION_SUN8I_R40;
 }
 
-static const TypeInfo allwinner_r40_sramc_info = {
-    .name          = TYPE_AW_SRAMC_SUN8I_R40,
-    .parent        = TYPE_AW_SRAMC,
-    .class_init    = allwinner_r40_sramc_class_init,
-};
-
-static void __attribute__((constructor)) allwinner_sramc_subtypes_register(void)
-{
-    type_register_static(&allwinner_r40_sramc_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(allwinner_r40_sramc, TYPE_AW_SRAMC_SUN8I_R40,
+                                 TYPE_AW_SRAMC, allwinner_r40_sramc_class_init)
+
 REGISTER_QEMU_DEVICE_CLASS_SIZE(AwSRAMCState, AwSRAMCClass,
                                  TYPE_AW_SRAMC, TYPE_SYS_BUS_DEVICE)

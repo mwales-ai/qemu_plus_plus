@@ -732,12 +732,6 @@ static const InterfaceInfo pnv_lpc_power8_interfaces[] = {
     { }
 };
 
-static const TypeInfo pnv_lpc_power8_info = {
-    .name          = TYPE_PNV8_LPC,
-    .parent        = TYPE_PNV_LPC,
-    .class_init    = pnv_lpc_power8_class_init,
-    .interfaces    = pnv_lpc_power8_interfaces,
-};
 
 static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
 {
@@ -772,11 +766,6 @@ static void pnv_lpc_power9_class_init(ObjectClass *klass, const void *data)
                                     &plc->parent_realize);
 }
 
-static const TypeInfo pnv_lpc_power9_info = {
-    .name          = TYPE_PNV9_LPC,
-    .parent        = TYPE_PNV_LPC,
-    .class_init    = pnv_lpc_power9_class_init,
-};
 
 static void pnv_lpc_power10_class_init(ObjectClass *klass, const void *data)
 {
@@ -785,11 +774,6 @@ static void pnv_lpc_power10_class_init(ObjectClass *klass, const void *data)
     dc->desc = "PowerNV LPC Controller POWER10";
 }
 
-static const TypeInfo pnv_lpc_power10_info = {
-    .name          = TYPE_PNV10_LPC,
-    .parent        = TYPE_PNV9_LPC,
-    .class_init    = pnv_lpc_power10_class_init,
-};
 
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
@@ -858,13 +842,16 @@ void PnvLpcClass::classInit(DeviceClass *dc)
 REGISTER_QEMU_DEVICE_ABSTRACT(PnvLpcController, PnvLpcClass,
                                TYPE_PNV_LPC, TYPE_DEVICE)
 
-__attribute__((constructor))
-static void pnv_lpc_register_concrete_types(void)
-{
-    type_register_static(&pnv_lpc_power8_info);
-    type_register_static(&pnv_lpc_power9_info);
-    type_register_static(&pnv_lpc_power10_info);
-}
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(pnv_lpc_power8, TYPE_PNV8_LPC,
+                                        TYPE_PNV_LPC,
+                                        pnv_lpc_power8_class_init,
+                                        pnv_lpc_power8_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_lpc_power9, TYPE_PNV9_LPC,
+                                 TYPE_PNV_LPC, pnv_lpc_power9_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_lpc_power10, TYPE_PNV10_LPC,
+                                 TYPE_PNV9_LPC, pnv_lpc_power10_class_init)
 
 /* If we don't use the built-in LPC interrupt deserializer, we need
  * to provide a set of qirqs for the ISA bus or things will go bad.

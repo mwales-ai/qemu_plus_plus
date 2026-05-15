@@ -659,27 +659,22 @@ static const InterfaceInfo xilinx_axidma_stream_interfaces[] = {
     { }
 };
 
-static void __attribute__((constructor)) register_xilinx_axidma_streams(void)
-{
-    static const TypeInfo data_stream_info = {
-        .name          = TYPE_XILINX_AXI_DMA_DATA_STREAM,
-        .parent        = TYPE_OBJECT,
-        .instance_size = sizeof(XilinxAXIDMAStreamSink),
-        .class_init    = xilinx_axidma_stream_class_init,
-        .class_data    = &xilinx_axidma_data_stream_class,
-        .interfaces    = xilinx_axidma_stream_interfaces,
-    };
-    static const TypeInfo control_stream_info = {
-        .name          = TYPE_XILINX_AXI_DMA_CONTROL_STREAM,
-        .parent        = TYPE_OBJECT,
-        .instance_size = sizeof(XilinxAXIDMAStreamSink),
-        .class_init    = xilinx_axidma_stream_class_init,
-        .class_data    = &xilinx_axidma_control_stream_class,
-        .interfaces    = xilinx_axidma_stream_interfaces,
-    };
-    type_register_static(&data_stream_info);
-    type_register_static(&control_stream_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_DATA_SIZED_IFACES(xilinx_axidma_data_stream,
+                                              XilinxAXIDMAStreamSink,
+                                              TYPE_XILINX_AXI_DMA_DATA_STREAM,
+                                              TYPE_OBJECT,
+                                              xilinx_axidma_stream_class_init,
+                                              &xilinx_axidma_data_stream_class,
+                                              xilinx_axidma_stream_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_DATA_SIZED_IFACES(xilinx_axidma_control_stream,
+                                              XilinxAXIDMAStreamSink,
+                                              TYPE_XILINX_AXI_DMA_CONTROL_STREAM,
+                                              TYPE_OBJECT,
+                                              xilinx_axidma_stream_class_init,
+                                              &xilinx_axidma_control_stream_class,
+                                              xilinx_axidma_stream_interfaces)
+
 REGISTER_QEMU_DEVICE(XilinxAXIDMA, TYPE_XILINX_AXI_DMA, TYPE_SYS_BUS_DEVICE)

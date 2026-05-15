@@ -645,12 +645,6 @@ static void aspeed_2400_scu_class_init(ObjectClass *klass, const void *data)
     asc->ops = &aspeed_ast2400_scu_ops;
 }
 
-static const TypeInfo aspeed_2400_scu_info = {
-    .name = TYPE_ASPEED_2400_SCU,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_2400_scu_class_init,
-};
 
 static void aspeed_2500_scu_class_init(ObjectClass *klass, const void *data)
 {
@@ -667,12 +661,6 @@ static void aspeed_2500_scu_class_init(ObjectClass *klass, const void *data)
     asc->ops = &aspeed_ast2500_scu_ops;
 }
 
-static const TypeInfo aspeed_2500_scu_info = {
-    .name = TYPE_ASPEED_2500_SCU,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_2500_scu_class_init,
-};
 
 static uint64_t aspeed_ast2600_scu_read(void *opaque, hwaddr offset,
                                         unsigned size)
@@ -855,12 +843,6 @@ static void aspeed_2600_scu_class_init(ObjectClass *klass, const void *data)
     asc->ops = &aspeed_ast2600_scu_ops;
 }
 
-static const TypeInfo aspeed_2600_scu_info = {
-    .name = TYPE_ASPEED_2600_SCU,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_2600_scu_class_init,
-};
 
 static uint64_t aspeed_ast2700_scu_read(void *opaque, hwaddr offset,
                                         unsigned size)
@@ -1093,19 +1075,6 @@ static void aspeed_2700_scuio_class_init(ObjectClass *klass, const void *data)
     asc->ops = &aspeed_ast2700_scuio_ops;
 }
 
-static const TypeInfo aspeed_2700_scu_info = {
-    .name = TYPE_ASPEED_2700_SCU,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_2700_scu_class_init,
-};
-
-static const TypeInfo aspeed_2700_scuio_info = {
-    .name = TYPE_ASPEED_2700_SCUIO,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_2700_scuio_class_init,
-};
 
 static uint32_t ast1030_a1_resets[ASPEED_AST2600_SCU_NR_REGS];
 
@@ -1154,23 +1123,31 @@ static void aspeed_1030_scu_class_init(ObjectClass *klass, const void *data)
     asc->ops = &aspeed_ast2600_scu_ops;
 }
 
-static const TypeInfo aspeed_1030_scu_info = {
-    .name = TYPE_ASPEED_1030_SCU,
-    .parent = TYPE_ASPEED_SCU,
-    .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_1030_scu_class_init,
-};
-
-static void __attribute__((constructor)) aspeed_scu_subtypes_register(void)
-{
-    type_register_static(&aspeed_2400_scu_info);
-    type_register_static(&aspeed_2500_scu_info);
-    type_register_static(&aspeed_2600_scu_info);
-    type_register_static(&aspeed_1030_scu_info);
-    type_register_static(&aspeed_2700_scu_info);
-    type_register_static(&aspeed_2700_scuio_info);
-}
-
 #include "qom/cpp/object.h"
+
 REGISTER_QEMU_DEVICE_ABSTRACT(AspeedSCUState, AspeedSCUClass,
                                TYPE_ASPEED_SCU, TYPE_SYS_BUS_DEVICE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2400_scu, AspeedSCUState,
+                                       TYPE_ASPEED_2400_SCU, TYPE_ASPEED_SCU,
+                                       aspeed_2400_scu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2500_scu, AspeedSCUState,
+                                       TYPE_ASPEED_2500_SCU, TYPE_ASPEED_SCU,
+                                       aspeed_2500_scu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2600_scu, AspeedSCUState,
+                                       TYPE_ASPEED_2600_SCU, TYPE_ASPEED_SCU,
+                                       aspeed_2600_scu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_1030_scu, AspeedSCUState,
+                                       TYPE_ASPEED_1030_SCU, TYPE_ASPEED_SCU,
+                                       aspeed_1030_scu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2700_scu, AspeedSCUState,
+                                       TYPE_ASPEED_2700_SCU, TYPE_ASPEED_SCU,
+                                       aspeed_2700_scu_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(aspeed_2700_scuio, AspeedSCUState,
+                                       TYPE_ASPEED_2700_SCUIO, TYPE_ASPEED_SCU,
+                                       aspeed_2700_scuio_class_init)

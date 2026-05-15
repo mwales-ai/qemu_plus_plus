@@ -562,13 +562,6 @@ static void pnv_psi_power8_class_init(ObjectClass *klass, const void *data)
     ppc->compat_size = sizeof(compat);
 }
 
-static const TypeInfo pnv_psi_power8_info = {
-    .name          = TYPE_PNV8_PSI,
-    .parent        = TYPE_PNV_PSI,
-    .instance_size = sizeof(Pnv8Psi),
-    .instance_init = pnv_psi_power8_instance_init,
-    .class_init    = pnv_psi_power8_class_init,
-};
 
 
 /* Common registers */
@@ -889,14 +882,6 @@ static const InterfaceInfo pnv_psi_power9_interfaces[] = {
     { },
 };
 
-static const TypeInfo pnv_psi_power9_info = {
-    .name          = TYPE_PNV9_PSI,
-    .parent        = TYPE_PNV_PSI,
-    .instance_size = sizeof(Pnv9Psi),
-    .instance_init = pnv_psi_power9_instance_init,
-    .class_init    = pnv_psi_power9_class_init,
-    .interfaces    = pnv_psi_power9_interfaces,
-};
 
 static void pnv_psi_power10_class_init(ObjectClass *klass, const void *data)
 {
@@ -912,11 +897,6 @@ static void pnv_psi_power10_class_init(ObjectClass *klass, const void *data)
     ppc->compat_size = sizeof(compat);
 }
 
-static const TypeInfo pnv_psi_power10_info = {
-    .name          = TYPE_PNV10_PSI,
-    .parent        = TYPE_PNV9_PSI,
-    .class_init    = pnv_psi_power10_class_init,
-};
 
 void PnvPsiClass::classInit(DeviceClass *dc)
 {
@@ -940,13 +920,19 @@ REGISTER_QEMU_DEVICE_ABSTRACT_IFACES(PnvPsi, PnvPsiClass,
                                       TYPE_PNV_PSI, TYPE_DEVICE,
                                       pnv_psi_interfaces)
 
-__attribute__((constructor))
-static void pnv_psi_register_concrete_types(void)
-{
-    type_register_static(&pnv_psi_power8_info);
-    type_register_static(&pnv_psi_power9_info);
-    type_register_static(&pnv_psi_power10_info);
-}
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(pnv_psi_power8, Pnv8Psi,
+                                            TYPE_PNV8_PSI, TYPE_PNV_PSI,
+                                            pnv_psi_power8_instance_init,
+                                            pnv_psi_power8_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_IFACES(pnv_psi_power9, Pnv9Psi,
+                                              TYPE_PNV9_PSI, TYPE_PNV_PSI,
+                                              pnv_psi_power9_instance_init,
+                                              pnv_psi_power9_class_init,
+                                              pnv_psi_power9_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_psi_power10, TYPE_PNV10_PSI, TYPE_PNV9_PSI,
+                                 pnv_psi_power10_class_init)
 
 void pnv_psi_pic_print_info(Pnv9Psi *psi9, GString *buf)
 {

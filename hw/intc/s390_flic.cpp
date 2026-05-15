@@ -486,17 +486,10 @@ static void s390_flic_class_init(ObjectClass *oc, const void *data)
 #include "qom/cpp/object.h"
 REGISTER_QEMU_DEVICE(QEMUS390FLICState, TYPE_QEMU_S390_FLIC, TYPE_S390_FLIC_COMMON)
 
-static void __attribute__((constructor)) register_s390_flic_common(void)
-{
-    static const TypeInfo s390_flic_common_info = {
-        .name          = TYPE_S390_FLIC_COMMON,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(S390FLICState),
-        .class_init    = s390_flic_class_init,
-        .class_size    = sizeof(S390FLICStateClass),
-    };
-    type_register_static(&s390_flic_common_info);
-}
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(s390_flic_common, S390FLICState,
+                                  S390FLICStateClass,
+                                  TYPE_S390_FLIC_COMMON, TYPE_SYS_BUS_DEVICE,
+                                  s390_flic_class_init)
 
 const VMStateDescription vmstate_adapter_info_so = {
     .name = "s390_adapter_info/summary_offset",
