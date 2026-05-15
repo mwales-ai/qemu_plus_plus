@@ -433,19 +433,13 @@ static void bcm2835_sdhost_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_bcm2835_sdhost;
 }
 
-static const TypeInfo bcm2835_sdhost_types[] = {
-    {
-        .name           = TYPE_BCM2835_SDHOST,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(BCM2835SDHostState),
-        .instance_init  = bcm2835_sdhost_init,
-        .class_init     = bcm2835_sdhost_class_init,
-    },
-    {
-        .name           = TYPE_BCM2835_SDHOST_BUS,
-        .parent         = TYPE_SD_BUS,
-        .instance_size  = sizeof(SDBus),
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(bcm2835_sdhost_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(bcm2835_sdhost, BCM2835SDHostState,
+                                            TYPE_BCM2835_SDHOST,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            bcm2835_sdhost_init,
+                                            bcm2835_sdhost_class_init)
+
+REGISTER_QEMU_OBJECT_SIZED_TAG(bcm2835_sdhost_bus, SDBus,
+                                TYPE_BCM2835_SDHOST_BUS, TYPE_SD_BUS)

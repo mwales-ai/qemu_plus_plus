@@ -174,14 +174,10 @@ static void npcm7xx_sdhci_instance_init(Object *obj)
                             TYPE_SYSBUS_SDHCI);
 }
 
-static const TypeInfo npcm7xx_sdhci_types[] = {
-    {
-        .name           = TYPE_NPCM7XX_SDHCI,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(NPCM7xxSDHCIState),
-        .instance_init  = npcm7xx_sdhci_instance_init,
-        .class_init     = npcm7xx_sdhci_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(npcm7xx_sdhci_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(npcm7xx_sdhci, NPCM7xxSDHCIState,
+                                            TYPE_NPCM7XX_SDHCI,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            npcm7xx_sdhci_instance_init,
+                                            npcm7xx_sdhci_class_init)

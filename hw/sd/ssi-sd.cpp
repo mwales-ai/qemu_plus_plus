@@ -341,13 +341,8 @@ static void ssi_sd_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo ssi_sd_types[] = {
-    {
-        .name           = TYPE_SSI_SD,
-        .parent         = TYPE_SSI_PERIPHERAL,
-        .instance_size  = sizeof(ssi_sd_state),
-        .class_init     = ssi_sd_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(ssi_sd_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(ssi_sd, ssi_sd_state, TYPE_SSI_SD,
+                                       TYPE_SSI_PERIPHERAL,
+                                       ssi_sd_class_init)

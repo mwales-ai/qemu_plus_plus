@@ -253,35 +253,26 @@ static void aspeed_2700_sdhci_class_init(ObjectClass *klass, const void *data)
     asc->capareg = 0x0000000719f80080;
 }
 
-static const TypeInfo aspeed_sdhci_types[] = {
-    {
-        .name           = TYPE_ASPEED_SDHCI,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(AspeedSDHCIState),
-        .is_abstract    = true,
-        .class_size     = sizeof(AspeedSDHCIClass),
-        .class_init     = aspeed_sdhci_class_init,
-    },
-    {
-        .name = TYPE_ASPEED_2400_SDHCI,
-        .parent = TYPE_ASPEED_SDHCI,
-        .class_init = aspeed_2400_sdhci_class_init,
-    },
-    {
-        .name = TYPE_ASPEED_2500_SDHCI,
-        .parent = TYPE_ASPEED_SDHCI,
-        .class_init = aspeed_2500_sdhci_class_init,
-    },
-    {
-        .name = TYPE_ASPEED_2600_SDHCI,
-        .parent = TYPE_ASPEED_SDHCI,
-        .class_init = aspeed_2600_sdhci_class_init,
-    },
-    {
-        .name = TYPE_ASPEED_2700_SDHCI,
-        .parent = TYPE_ASPEED_SDHCI,
-        .class_init = aspeed_2700_sdhci_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_sdhci_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(aspeed_sdhci, AspeedSDHCIState,
+                                           AspeedSDHCIClass,
+                                           TYPE_ASPEED_SDHCI,
+                                           TYPE_SYS_BUS_DEVICE,
+                                           aspeed_sdhci_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2400_sdhci, TYPE_ASPEED_2400_SDHCI,
+                                 TYPE_ASPEED_SDHCI,
+                                 aspeed_2400_sdhci_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2500_sdhci, TYPE_ASPEED_2500_SDHCI,
+                                 TYPE_ASPEED_SDHCI,
+                                 aspeed_2500_sdhci_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2600_sdhci, TYPE_ASPEED_2600_SDHCI,
+                                 TYPE_ASPEED_SDHCI,
+                                 aspeed_2600_sdhci_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(aspeed_2700_sdhci, TYPE_ASPEED_2700_SDHCI,
+                                 TYPE_ASPEED_SDHCI,
+                                 aspeed_2700_sdhci_class_init)
