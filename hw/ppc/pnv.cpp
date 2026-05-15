@@ -3530,34 +3530,6 @@ static void pnv_machine_class_init(ObjectClass *oc, const void *data)
                               "Use a hostboot like boot loader");
 }
 
-#define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
-    {                                             \
-        .name          = type,                    \
-        .parent        = TYPE_PNV8_CHIP,          \
-        .class_init    = class_initfn,            \
-    }
-
-#define DEFINE_PNV9_CHIP_TYPE(type, class_initfn) \
-    {                                             \
-        .name          = type,                    \
-        .parent        = TYPE_PNV9_CHIP,          \
-        .class_init    = class_initfn,            \
-    }
-
-#define DEFINE_PNV10_CHIP_TYPE(type, class_initfn) \
-    {                                              \
-        .name          = type,                     \
-        .parent        = TYPE_PNV10_CHIP,          \
-        .class_init    = class_initfn,             \
-    }
-
-#define DEFINE_PNV11_CHIP_TYPE(type, class_initfn) \
-    {                                              \
-        .name          = type,                     \
-        .parent        = TYPE_PNV11_CHIP,          \
-        .class_init    = class_initfn,             \
-    }
-
 static const InterfaceInfo pnv_machine_p11_interfaces[] = {
     { TYPE_XIVE_FABRIC },
     { },
@@ -3584,100 +3556,84 @@ static const InterfaceInfo pnv_machine_interfaces[] = {
     { },
 };
 
-static const TypeInfo types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("powernv11"),
-        .parent        = TYPE_PNV_MACHINE,
-        .class_init    = pnv_machine_power11_class_init,
-        .interfaces    = pnv_machine_p11_interfaces,
-    },
-    {
-        .name          = MACHINE_TYPE_NAME("powernv10-rainier"),
-        .parent        = MACHINE_TYPE_NAME("powernv10"),
-        .class_init    = pnv_machine_p10_rainier_class_init,
-    },
-    {
-        .name          = MACHINE_TYPE_NAME("powernv10"),
-        .parent        = TYPE_PNV_MACHINE,
-        .class_init    = pnv_machine_power10_class_init,
-        .interfaces    = pnv_machine_p10_interfaces,
-    },
-    {
-        .name          = MACHINE_TYPE_NAME("powernv9"),
-        .parent        = TYPE_PNV_MACHINE,
-        .class_init    = pnv_machine_power9_class_init,
-        .interfaces    = pnv_machine_p9_interfaces,
-    },
-    {
-        .name          = MACHINE_TYPE_NAME("powernv8"),
-        .parent        = TYPE_PNV_MACHINE,
-        .class_init    = pnv_machine_power8_class_init,
-        .interfaces    = pnv_machine_p8_interfaces,
-    },
-    {
-        .name          = TYPE_PNV_MACHINE,
-        .parent        = TYPE_MACHINE,
-        .instance_size = sizeof(PnvMachineState),
-        .is_abstract   = true,
-        .class_size    = sizeof(PnvMachineClass),
-        .class_init    = pnv_machine_class_init,
-        .interfaces    = pnv_machine_interfaces,
-    },
-    {
-        .name          = TYPE_PNV_CHIP,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(PnvChip),
-        .is_abstract   = true,
-        .class_size    = sizeof(PnvChipClass),
-        .class_init    = pnv_chip_class_init,
-    },
+#include "qom/cpp/object.h"
 
-    /*
-     * P11 chip and variants
-     */
-    {
-        .name          = TYPE_PNV11_CHIP,
-        .parent        = TYPE_PNV_CHIP,
-        .instance_size = sizeof(Pnv11Chip),
-        .instance_init = pnv_chip_power11_instance_init,
-    },
-    DEFINE_PNV11_CHIP_TYPE(TYPE_PNV_CHIP_POWER11, pnv_chip_power11_class_init),
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI_IFACES(pnv_machine, PnvMachineState,
+                                                  PnvMachineClass,
+                                                  TYPE_PNV_MACHINE,
+                                                  TYPE_MACHINE,
+                                                  pnv_machine_class_init,
+                                                  pnv_machine_interfaces)
 
-    /*
-     * P10 chip and variants
-     */
-    {
-        .name          = TYPE_PNV10_CHIP,
-        .parent        = TYPE_PNV_CHIP,
-        .instance_size = sizeof(Pnv10Chip),
-        .instance_init = pnv_chip_power10_instance_init,
-    },
-    DEFINE_PNV10_CHIP_TYPE(TYPE_PNV_CHIP_POWER10, pnv_chip_power10_class_init),
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(pnv_machine_powernv11,
+                                        MACHINE_TYPE_NAME("powernv11"),
+                                        TYPE_PNV_MACHINE,
+                                        pnv_machine_power11_class_init,
+                                        pnv_machine_p11_interfaces)
 
-    /*
-     * P9 chip and variants
-     */
-    {
-        .name          = TYPE_PNV9_CHIP,
-        .parent        = TYPE_PNV_CHIP,
-        .instance_size = sizeof(Pnv9Chip),
-        .instance_init = pnv_chip_power9_instance_init,
-    },
-    DEFINE_PNV9_CHIP_TYPE(TYPE_PNV_CHIP_POWER9, pnv_chip_power9_class_init),
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(pnv_machine_powernv10,
+                                        MACHINE_TYPE_NAME("powernv10"),
+                                        TYPE_PNV_MACHINE,
+                                        pnv_machine_power10_class_init,
+                                        pnv_machine_p10_interfaces)
 
-    /*
-     * P8 chip and variants
-     */
-    {
-        .name          = TYPE_PNV8_CHIP,
-        .parent        = TYPE_PNV_CHIP,
-        .instance_size = sizeof(Pnv8Chip),
-        .instance_init = pnv_chip_power8_instance_init,
-    },
-    DEFINE_PNV8_CHIP_TYPE(TYPE_PNV_CHIP_POWER8, pnv_chip_power8_class_init),
-    DEFINE_PNV8_CHIP_TYPE(TYPE_PNV_CHIP_POWER8E, pnv_chip_power8e_class_init),
-    DEFINE_PNV8_CHIP_TYPE(TYPE_PNV_CHIP_POWER8NVL,
-                          pnv_chip_power8nvl_class_init),
-};
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_machine_powernv10_rainier,
+                                 MACHINE_TYPE_NAME("powernv10-rainier"),
+                                 MACHINE_TYPE_NAME("powernv10"),
+                                 pnv_machine_p10_rainier_class_init)
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(pnv_machine_powernv9,
+                                        MACHINE_TYPE_NAME("powernv9"),
+                                        TYPE_PNV_MACHINE,
+                                        pnv_machine_power9_class_init,
+                                        pnv_machine_p9_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(pnv_machine_powernv8,
+                                        MACHINE_TYPE_NAME("powernv8"),
+                                        TYPE_PNV_MACHINE,
+                                        pnv_machine_power8_class_init,
+                                        pnv_machine_p8_interfaces)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(pnv_chip, PnvChip, PnvChipClass,
+                                           TYPE_PNV_CHIP, TYPE_SYS_BUS_DEVICE,
+                                           pnv_chip_class_init)
+
+/* P11 chip and variants */
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(pnv11_chip, Pnv11Chip, TYPE_PNV11_CHIP,
+                                      TYPE_PNV_CHIP, pnv_chip_power11_instance_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power11, TYPE_PNV_CHIP_POWER11,
+                                 TYPE_PNV11_CHIP,
+                                 pnv_chip_power11_class_init)
+
+/* P10 chip and variants */
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(pnv10_chip, Pnv10Chip, TYPE_PNV10_CHIP,
+                                      TYPE_PNV_CHIP, pnv_chip_power10_instance_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power10, TYPE_PNV_CHIP_POWER10,
+                                 TYPE_PNV10_CHIP,
+                                 pnv_chip_power10_class_init)
+
+/* P9 chip and variants */
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(pnv9_chip, Pnv9Chip, TYPE_PNV9_CHIP,
+                                      TYPE_PNV_CHIP, pnv_chip_power9_instance_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power9, TYPE_PNV_CHIP_POWER9,
+                                 TYPE_PNV9_CHIP,
+                                 pnv_chip_power9_class_init)
+
+/* P8 chip and variants */
+REGISTER_QEMU_OBJECT_INIT_ONLY_SIZED(pnv8_chip, Pnv8Chip, TYPE_PNV8_CHIP,
+                                      TYPE_PNV_CHIP, pnv_chip_power8_instance_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power8, TYPE_PNV_CHIP_POWER8,
+                                 TYPE_PNV8_CHIP,
+                                 pnv_chip_power8_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power8e, TYPE_PNV_CHIP_POWER8E,
+                                 TYPE_PNV8_CHIP,
+                                 pnv_chip_power8e_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(pnv_chip_power8nvl, TYPE_PNV_CHIP_POWER8NVL,
+                                 TYPE_PNV8_CHIP,
+                                 pnv_chip_power8nvl_class_init)
