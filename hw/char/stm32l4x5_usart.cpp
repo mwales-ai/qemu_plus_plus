@@ -629,28 +629,23 @@ static void stm32l4x5_lpuart_class_init(ObjectClass *oc, const void *data)
     subc->type = STM32L4x5_LPUART;
 }
 
-static const TypeInfo stm32l4x5_usart_types[] = {
-    {
-        .name           = TYPE_STM32L4X5_USART_BASE,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(Stm32l4x5UsartBaseState),
-        .instance_init  = stm32l4x5_usart_base_init,
-        .is_abstract    = true,
-        .class_size     = sizeof(Stm32l4x5UsartBaseClass),
-        .class_init     = stm32l4x5_usart_base_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5_USART,
-        .parent         = TYPE_STM32L4X5_USART_BASE,
-        .class_init     = stm32l4x5_usart_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5_UART,
-        .parent         = TYPE_STM32L4X5_USART_BASE,
-        .class_init     = stm32l4x5_uart_class_init,
-    }, {
-        .name           = TYPE_STM32L4X5_LPUART,
-        .parent         = TYPE_STM32L4X5_USART_BASE,
-        .class_init     = stm32l4x5_lpuart_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(stm32l4x5_usart_types)
+REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI(Stm32l4x5UsartBaseState,
+                                            Stm32l4x5UsartBaseClass,
+                                            TYPE_STM32L4X5_USART_BASE,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            stm32l4x5_usart_base_init,
+                                            stm32l4x5_usart_base_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5_usart, TYPE_STM32L4X5_USART,
+                                 TYPE_STM32L4X5_USART_BASE,
+                                 stm32l4x5_usart_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5_uart, TYPE_STM32L4X5_UART,
+                                 TYPE_STM32L4X5_USART_BASE,
+                                 stm32l4x5_uart_class_init)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(stm32l4x5_lpuart, TYPE_STM32L4X5_LPUART,
+                                 TYPE_STM32L4X5_USART_BASE,
+                                 stm32l4x5_lpuart_class_init)

@@ -219,14 +219,10 @@ static void lan9118_phy_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_lan9118_phy;
 }
 
-static const TypeInfo types[] = {
-    {
-        .name          = TYPE_LAN9118_PHY,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(Lan9118PhyState),
-        .instance_init = lan9118_phy_init,
-        .class_init    = lan9118_phy_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(lan9118_phy, Lan9118PhyState,
+                                            TYPE_LAN9118_PHY,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            lan9118_phy_init,
+                                            lan9118_phy_class_init)

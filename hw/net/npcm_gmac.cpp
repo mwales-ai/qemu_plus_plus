@@ -938,12 +938,8 @@ static void npcm_gmac_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, npcm_gmac_properties);
 }
 
-static const TypeInfo npcm_gmac_types[] = {
-    {
-        .name = TYPE_NPCM_GMAC,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCMGMACState),
-        .class_init = npcm_gmac_class_init,
-    },
-};
-DEFINE_TYPES(npcm_gmac_types)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(npcm_gmac, NPCMGMACState, TYPE_NPCM_GMAC,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       npcm_gmac_class_init)

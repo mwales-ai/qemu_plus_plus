@@ -716,14 +716,8 @@ static void asc_class_init(ObjectClass *oc, const void *data)
     rc->phases.hold = asc_reset_hold;
 }
 
-static const TypeInfo asc_info_types[] = {
-    {
-        .name = TYPE_ASC,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(ASCState),
-        .instance_init = asc_init,
-        .class_init = asc_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(asc_info_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(asc, ASCState, TYPE_ASC,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            asc_init, asc_class_init)
