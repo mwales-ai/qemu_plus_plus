@@ -787,18 +787,12 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, const void *data)
     sc->boot_from_emmc = aspeed_soc_ast2600_boot_from_emmc;
 }
 
-static const TypeInfo aspeed_soc_ast2600_types[] = {
-    {
-        .name           = TYPE_ASPEED2600_SOC,
-        .parent         = TYPE_ASPEED_SOC,
-        .instance_size  = sizeof(Aspeed2600SoCState),
-        .is_abstract       = true,
-    }, {
-        .name           = "ast2600-a3",
-        .parent         = TYPE_ASPEED2600_SOC,
-        .instance_init  = aspeed_soc_ast2600_init,
-        .class_init     = aspeed_soc_ast2600_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_soc_ast2600_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(Aspeed2600SoCState, TYPE_ASPEED2600_SOC,
+                                     TYPE_ASPEED_SOC)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(aspeed_soc_ast2600_a3, "ast2600-a3",
+                                 TYPE_ASPEED2600_SOC,
+                                 aspeed_soc_ast2600_init,
+                                 aspeed_soc_ast2600_class_init)
