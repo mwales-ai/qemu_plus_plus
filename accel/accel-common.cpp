@@ -136,16 +136,9 @@ int accel_supported_gdbstub_sstep_flags(void)
     return 0;
 }
 
-static const TypeInfo accel_types[] = {
-    {
-        .name           = TYPE_ACCEL,
-        .parent         = TYPE_OBJECT,
-        .instance_size  = sizeof(AccelState),
-        .is_abstract    = true,
-        .class_size     = sizeof(AccelClass),
-    },
-};
-
-DEFINE_TYPES(accel_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS(accel, AccelState, AccelClass,
+                                        TYPE_ACCEL, TYPE_OBJECT)

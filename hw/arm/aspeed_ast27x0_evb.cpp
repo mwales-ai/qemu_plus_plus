@@ -75,18 +75,16 @@ static void aspeed_machine_ast2700a1_evb_class_init(ObjectClass *oc,
     aspeed_machine_class_init_cpus_defaults(mc);
 }
 
-static const TypeInfo aspeed_ast27x0_evb_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("ast2700a0-evb"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_ast2700a0_evb_class_init,
-        .interfaces    = aarch64_machine_interfaces,
-    }, {
-        .name          = MACHINE_TYPE_NAME("ast2700a1-evb"),
-        .parent        = TYPE_ASPEED_MACHINE,
-        .class_init    = aspeed_machine_ast2700a1_evb_class_init,
-        .interfaces    = aarch64_machine_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(aspeed_ast27x0_evb_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_ast2700a0_evb,
+                                        MACHINE_TYPE_NAME("ast2700a0-evb"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_ast2700a0_evb_class_init,
+                                        aarch64_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(aspeed_ast2700a1_evb,
+                                        MACHINE_TYPE_NAME("ast2700a1-evb"),
+                                        TYPE_ASPEED_MACHINE,
+                                        aspeed_machine_ast2700a1_evb_class_init,
+                                        aarch64_machine_interfaces)
