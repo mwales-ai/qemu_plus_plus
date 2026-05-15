@@ -9553,13 +9553,4 @@ static const InterfaceInfo nvme_interfaces[] = {
 REGISTER_QEMU_DEVICE_IFACES(NvmeCtrl, TYPE_NVME,
                              TYPE_PCI_DEVICE, nvme_interfaces)
 
-static void nvme_bus_register(void) __attribute__((constructor));
-static void nvme_bus_register(void)
-{
-    static TypeInfo info = {
-        .name = TYPE_NVME_BUS,
-        .parent = TYPE_BUS,
-        .instance_size = sizeof(NvmeBus),
-    };
-    type_register_static(&info);
-}
+REGISTER_QEMU_OBJECT_SIZED(NvmeBus, TYPE_NVME_BUS, TYPE_BUS)

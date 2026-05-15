@@ -295,25 +295,18 @@ static const InterfaceInfo articia_pci_bridge_interfaces[] = {
     { },
 };
 
-static void __attribute__((constructor)) register_articia_extra_types(void)
-{
-    static TypeInfo articia_pci_host_info = {
-        .name          = TYPE_ARTICIA_PCI_HOST,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(ArticiaHostState),
-        .class_init    = ArticiaHostState::pciHostClassInit,
-        .interfaces    = articia_pci_host_interfaces,
-    };
-    static TypeInfo articia_pci_bridge_info = {
-        .name          = TYPE_ARTICIA_PCI_BRIDGE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PCIDevice),
-        .class_init    = ArticiaHostState::pciBridgeClassInit,
-        .interfaces    = articia_pci_bridge_interfaces,
-    };
-    type_register_static(&articia_pci_host_info);
-    type_register_static(&articia_pci_bridge_info);
-}
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(articia_pci_host, ArticiaHostState,
+                                              TYPE_ARTICIA_PCI_HOST,
+                                              TYPE_PCI_DEVICE,
+                                              ArticiaHostState::pciHostClassInit,
+                                              articia_pci_host_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(articia_pci_bridge, PCIDevice,
+                                              TYPE_ARTICIA_PCI_BRIDGE,
+                                              TYPE_PCI_DEVICE,
+                                              ArticiaHostState::pciBridgeClassInit,
+                                              articia_pci_bridge_interfaces)
+
 REGISTER_QEMU_DEVICE(ArticiaState, TYPE_ARTICIA, TYPE_PCI_HOST_BRIDGE)
