@@ -330,14 +330,10 @@ static void loongarch_pic_class_init(ObjectClass *klass, const void *data)
     lpcc->post_load = loongarch_pic_post_load;
 }
 
-static const TypeInfo loongarch_pic_types[] = {
-   {
-        .name               = TYPE_LOONGARCH_PIC,
-        .parent             = TYPE_LOONGARCH_PIC_COMMON,
-        .instance_size      = sizeof(LoongarchPICState),
-        .class_size         = sizeof(LoongarchPICClass),
-        .class_init         = loongarch_pic_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongarch_pic_types)
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(loongarch_pic, LoongarchPICState,
+                                  LoongarchPICClass,
+                                  TYPE_LOONGARCH_PIC,
+                                  TYPE_LOONGARCH_PIC_COMMON,
+                                  loongarch_pic_class_init)

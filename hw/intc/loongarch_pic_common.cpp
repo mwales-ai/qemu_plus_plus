@@ -121,15 +121,11 @@ static void loongarch_pic_common_class_init(ObjectClass *klass,
     dc->vmsd = &vmstate_loongarch_pic_common;
 }
 
-static const TypeInfo loongarch_pic_common_types[] = {
-    {
-        .name               = TYPE_LOONGARCH_PIC_COMMON,
-        .parent             = TYPE_SYS_BUS_DEVICE,
-        .instance_size      = sizeof(LoongArchPICCommonState),
-        .class_size         = sizeof(LoongArchPICCommonClass),
-        .class_init         = loongarch_pic_common_class_init,
-        .is_abstract           = true,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongarch_pic_common_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(loongarch_pic_common,
+                                           LoongArchPICCommonState,
+                                           LoongArchPICCommonClass,
+                                           TYPE_LOONGARCH_PIC_COMMON,
+                                           TYPE_SYS_BUS_DEVICE,
+                                           loongarch_pic_common_class_init)

@@ -278,14 +278,11 @@ static void stm32l4x5_syscfg_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = stm32l4x5_syscfg_hold_reset;
 }
 
-static const TypeInfo stm32l4x5_syscfg_info[] = {
-    {
-        .name          = TYPE_STM32L4X5_SYSCFG,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(Stm32l4x5SyscfgState),
-        .instance_init = stm32l4x5_syscfg_init,
-        .class_init    = stm32l4x5_syscfg_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(stm32l4x5_syscfg_info)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(stm32l4x5_syscfg,
+                                            Stm32l4x5SyscfgState,
+                                            TYPE_STM32L4X5_SYSCFG,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            stm32l4x5_syscfg_init,
+                                            stm32l4x5_syscfg_class_init)

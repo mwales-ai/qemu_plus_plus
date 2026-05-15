@@ -339,13 +339,7 @@ static void dm163_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo dm163_types[] = {
-    {
-        .name = TYPE_DM163,
-        .parent = TYPE_DEVICE,
-        .instance_size = sizeof(DM163State),
-        .class_init = dm163_class_init
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(dm163_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(dm163, DM163State, TYPE_DM163,
+                                       TYPE_DEVICE, dm163_class_init)

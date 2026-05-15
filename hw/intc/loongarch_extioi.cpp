@@ -431,14 +431,10 @@ static void loongarch_extioi_class_init(ObjectClass *klass, const void *data)
     lecc->post_load = vmstate_extioi_post_load;
 }
 
-static const TypeInfo loongarch_extioi_types[] = {
-    {
-        .name          = TYPE_LOONGARCH_EXTIOI,
-        .parent        = TYPE_LOONGARCH_EXTIOI_COMMON,
-        .instance_size = sizeof(LoongArchExtIOIState),
-        .class_size    = sizeof(LoongArchExtIOIClass),
-        .class_init    = loongarch_extioi_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongarch_extioi_types)
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(loongarch_extioi, LoongArchExtIOIState,
+                                  LoongArchExtIOIClass,
+                                  TYPE_LOONGARCH_EXTIOI,
+                                  TYPE_LOONGARCH_EXTIOI_COMMON,
+                                  loongarch_extioi_class_init)

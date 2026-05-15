@@ -290,14 +290,10 @@ static void stm32l4x5_exti_class_init(ObjectClass *klass, const void *data)
     rc->phases.hold = stm32l4x5_exti_reset_hold;
 }
 
-static const TypeInfo stm32l4x5_exti_types[] = {
-    {
-        .name          = TYPE_STM32L4X5_EXTI,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(Stm32l4x5ExtiState),
-        .instance_init = stm32l4x5_exti_init,
-        .class_init    = stm32l4x5_exti_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(stm32l4x5_exti_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(stm32l4x5_exti, Stm32l4x5ExtiState,
+                                            TYPE_STM32L4X5_EXTI,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            stm32l4x5_exti_init,
+                                            stm32l4x5_exti_class_init)

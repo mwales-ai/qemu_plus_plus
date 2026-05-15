@@ -218,15 +218,11 @@ static const InterfaceInfo loongarch_ipi_interfaces[] = {
     { }
 };
 
-static const TypeInfo loongarch_ipi_types[] = {
-    {
-        .name               = TYPE_LOONGARCH_IPI,
-        .parent             = TYPE_LOONGSON_IPI_COMMON,
-        .instance_size      = sizeof(LoongarchIPIState),
-        .class_size         = sizeof(LoongarchIPIClass),
-        .class_init         = loongarch_ipi_class_init,
-        .interfaces         = loongarch_ipi_interfaces,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongarch_ipi_types)
+REGISTER_QEMU_OBJECT_SIZED_CS_CI_IFACES(loongarch_ipi, LoongarchIPIState,
+                                         LoongarchIPIClass,
+                                         TYPE_LOONGARCH_IPI,
+                                         TYPE_LOONGSON_IPI_COMMON,
+                                         loongarch_ipi_class_init,
+                                         loongarch_ipi_interfaces)

@@ -368,15 +368,11 @@ static void loongson_ipi_common_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_loongson_ipi_common;
 }
 
-static const TypeInfo loongarch_ipi_common_types[] = {
-    {
-        .name               = TYPE_LOONGSON_IPI_COMMON,
-        .parent             = TYPE_SYS_BUS_DEVICE,
-        .instance_size      = sizeof(LoongsonIPICommonState),
-        .class_size         = sizeof(LoongsonIPICommonClass),
-        .class_init         = loongson_ipi_common_class_init,
-        .is_abstract           = true,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongarch_ipi_common_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(loongson_ipi_common,
+                                           LoongsonIPICommonState,
+                                           LoongsonIPICommonClass,
+                                           TYPE_LOONGSON_IPI_COMMON,
+                                           TYPE_SYS_BUS_DEVICE,
+                                           loongson_ipi_common_class_init)

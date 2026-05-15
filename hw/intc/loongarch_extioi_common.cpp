@@ -239,19 +239,17 @@ static void loongarch_extioi_common_class_init(ObjectClass *klass,
     hc->unplug = loongarch_extioi_cpu_unplug;
 }
 
-static const TypeInfo loongarch_extioi_common_types[] = {
-    {
-        .name               = TYPE_LOONGARCH_EXTIOI_COMMON,
-        .parent             = TYPE_SYS_BUS_DEVICE,
-        .instance_size      = sizeof(LoongArchExtIOICommonState),
-        .class_size         = sizeof(LoongArchExtIOICommonClass),
-        .class_init         = loongarch_extioi_common_class_init,
-        .interfaces         = (const InterfaceInfo[]) {
-            { TYPE_HOTPLUG_HANDLER },
-            { }
-        },
-        .is_abstract           = true,
-    }
+static const InterfaceInfo loongarch_extioi_common_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
 };
 
-DEFINE_TYPES(loongarch_extioi_common_types)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI_IFACES(loongarch_extioi_common,
+                                                  LoongArchExtIOICommonState,
+                                                  LoongArchExtIOICommonClass,
+                                                  TYPE_LOONGARCH_EXTIOI_COMMON,
+                                                  TYPE_SYS_BUS_DEVICE,
+                                                  loongarch_extioi_common_class_init,
+                                                  loongarch_extioi_common_interfaces)

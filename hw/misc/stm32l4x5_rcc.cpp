@@ -1461,26 +1461,18 @@ static void stm32l4x5_rcc_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_stm32l4x5_rcc;
 }
 
-static const TypeInfo stm32l4x5_rcc_types[] = {
-    {
-        .name           = TYPE_STM32L4X5_RCC,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(Stm32l4x5RccState),
-        .instance_init  = stm32l4x5_rcc_init,
-        .class_init     = stm32l4x5_rcc_class_init,
-    }, {
-        .name = TYPE_RCC_CLOCK_MUX,
-        .parent = TYPE_DEVICE,
-        .instance_size = sizeof(RccClockMuxState),
-        .instance_init = clock_mux_init,
-        .class_init = clock_mux_class_init,
-    }, {
-        .name = TYPE_RCC_PLL,
-        .parent = TYPE_DEVICE,
-        .instance_size = sizeof(RccPllState),
-        .instance_init = pll_init,
-        .class_init = pll_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(stm32l4x5_rcc_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(stm32l4x5_rcc, Stm32l4x5RccState,
+                                            TYPE_STM32L4X5_RCC,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            stm32l4x5_rcc_init,
+                                            stm32l4x5_rcc_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(rcc_clock_mux, RccClockMuxState,
+                                            TYPE_RCC_CLOCK_MUX, TYPE_DEVICE,
+                                            clock_mux_init, clock_mux_class_init)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(rcc_pll, RccPllState,
+                                            TYPE_RCC_PLL, TYPE_DEVICE,
+                                            pll_init, pll_class_init)

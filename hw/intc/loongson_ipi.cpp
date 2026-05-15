@@ -123,14 +123,10 @@ static void loongson_ipi_class_init(ObjectClass *klass, const void *data)
     licc->cpu_by_arch_id = loongson_cpu_by_arch_id;
 }
 
-static const TypeInfo loongson_ipi_types[] = {
-    {
-        .name               = TYPE_LOONGSON_IPI,
-        .parent             = TYPE_LOONGSON_IPI_COMMON,
-        .instance_size      = sizeof(LoongsonIPIState),
-        .class_size         = sizeof(LoongsonIPIClass),
-        .class_init         = loongson_ipi_class_init,
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(loongson_ipi_types)
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(loongson_ipi, LoongsonIPIState,
+                                  LoongsonIPIClass,
+                                  TYPE_LOONGSON_IPI,
+                                  TYPE_LOONGSON_IPI_COMMON,
+                                  loongson_ipi_class_init)
