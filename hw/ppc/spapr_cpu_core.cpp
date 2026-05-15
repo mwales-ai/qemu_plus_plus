@@ -385,38 +385,33 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, const void *data)
     scc->cpu_type = static_cast<const char *>(data);
 }
 
-#define DEFINE_SPAPR_CPU_CORE_TYPE(cpu_model) \
-    {                                                   \
-        .name = SPAPR_CPU_CORE_TYPE_NAME(cpu_model),    \
-        .parent = TYPE_SPAPR_CPU_CORE,                  \
-        .class_init = spapr_cpu_core_class_init,        \
-        .class_data = POWERPC_CPU_TYPE_NAME(cpu_model), \
-    }
+#include "qom/cpp/object.h"
 
-static const TypeInfo spapr_cpu_core_type_infos[] = {
-    {
-        .name = TYPE_SPAPR_CPU_CORE,
-        .parent = TYPE_CPU_CORE,
-        .instance_size = sizeof(SpaprCpuCore),
-        .is_abstract = true,
-        .class_size = sizeof(SpaprCpuCoreClass),
-    },
-    DEFINE_SPAPR_CPU_CORE_TYPE("970_v2.2"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.0"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.1"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power5p_v2.1"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power7_v2.3"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power7p_v2.1"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power8_v2.0"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power8e_v2.1"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power8nvl_v1.0"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.0"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power9_v2.2"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power10_v2.0"),
-    DEFINE_SPAPR_CPU_CORE_TYPE("power11_v2.0"),
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS(spapr_cpu_core, SpaprCpuCore,
+                                        SpaprCpuCoreClass,
+                                        TYPE_SPAPR_CPU_CORE, TYPE_CPU_CORE)
+
+#define REGISTER_SPAPR_CPU_CORE(tag, cpu_model) \
+    REGISTER_QEMU_OBJECT_CLASS_DATA(tag, SPAPR_CPU_CORE_TYPE_NAME(cpu_model), \
+                                     TYPE_SPAPR_CPU_CORE, \
+                                     spapr_cpu_core_class_init, \
+                                     POWERPC_CPU_TYPE_NAME(cpu_model))
+
+REGISTER_SPAPR_CPU_CORE(spapr_core_970_v22,        "970_v2.2")
+REGISTER_SPAPR_CPU_CORE(spapr_core_970mp_v10,      "970mp_v1.0")
+REGISTER_SPAPR_CPU_CORE(spapr_core_970mp_v11,      "970mp_v1.1")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power5p_v21,    "power5p_v2.1")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power7_v23,     "power7_v2.3")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power7p_v21,    "power7p_v2.1")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power8_v20,     "power8_v2.0")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power8e_v21,    "power8e_v2.1")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power8nvl_v10,  "power8nvl_v1.0")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power9_v20,     "power9_v2.0")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power9_v22,     "power9_v2.2")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power10_v20,    "power10_v2.0")
+REGISTER_SPAPR_CPU_CORE(spapr_core_power11_v20,    "power11_v2.0")
 #ifdef CONFIG_KVM
-    DEFINE_SPAPR_CPU_CORE_TYPE("host"),
+REGISTER_SPAPR_CPU_CORE(spapr_core_host,           "host")
 #endif
-};
 
-DEFINE_TYPES(spapr_cpu_core_type_infos)
+#undef REGISTER_SPAPR_CPU_CORE
