@@ -566,12 +566,8 @@ static void npcm7xx_fiu_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, npcm7xx_fiu_properties);
 }
 
-static const TypeInfo npcm7xx_fiu_types[] = {
-    {
-        .name = TYPE_NPCM7XX_FIU,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxFIUState),
-        .class_init = npcm7xx_fiu_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_fiu_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(npcm7xx_fiu, NPCM7xxFIUState,
+                                       TYPE_NPCM7XX_FIU, TYPE_SYS_BUS_DEVICE,
+                                       npcm7xx_fiu_class_init)

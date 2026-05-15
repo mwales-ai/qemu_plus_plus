@@ -438,12 +438,8 @@ static void npcm_pcs_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = npcm_pcs_enter_reset;
 }
 
-static const TypeInfo npcm_pcs_types[] = {
-    {
-        .name = TYPE_NPCM_PCS,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCMPCSState),
-        .class_init = npcm_pcs_class_init,
-    },
-};
-DEFINE_TYPES(npcm_pcs_types)
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(npcm_pcs, NPCMPCSState, TYPE_NPCM_PCS,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       npcm_pcs_class_init)

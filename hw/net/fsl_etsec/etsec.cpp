@@ -430,14 +430,10 @@ static void etsec_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static const TypeInfo etsec_types[] = {
-    {
-        .name          = TYPE_ETSEC_COMMON,
-        .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-        .instance_size = sizeof(eTSEC),
-        .instance_init = etsec_instance_init,
-        .class_init    = etsec_class_init,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(etsec_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(etsec_common, eTSEC,
+                                            TYPE_ETSEC_COMMON,
+                                            TYPE_DYNAMIC_SYS_BUS_DEVICE,
+                                            etsec_instance_init,
+                                            etsec_class_init)

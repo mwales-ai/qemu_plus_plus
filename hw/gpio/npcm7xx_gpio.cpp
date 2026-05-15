@@ -417,13 +417,10 @@ static void npcm7xx_gpio_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, npcm7xx_gpio_properties);
 }
 
-static const TypeInfo npcm7xx_gpio_types[] = {
-    {
-        .name = TYPE_NPCM7XX_GPIO,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxGPIOState),
-        .instance_init = npcm7xx_gpio_init,
-        .class_init = npcm7xx_gpio_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_gpio_types);
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS(npcm7xx_gpio, NPCM7xxGPIOState,
+                                            TYPE_NPCM7XX_GPIO,
+                                            TYPE_SYS_BUS_DEVICE,
+                                            npcm7xx_gpio_init,
+                                            npcm7xx_gpio_class_init)

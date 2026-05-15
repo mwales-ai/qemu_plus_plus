@@ -474,27 +474,16 @@ static void s390_skeys_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo s390_skeys_types[] = {
-    {
-        .name           = TYPE_DUMP_SKEYS_INTERFACE,
-        .parent         = TYPE_INTERFACE,
-        .class_size     = sizeof(DumpSKeysInterface),
-    },
-    {
-        .name           = TYPE_S390_SKEYS,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(S390SKeysState),
-        .class_init     = s390_skeys_class_init,
-        .class_size     = sizeof(S390SKeysClass),
-        .is_abstract       = true,
-    },
-    {
-        .name           = TYPE_QEMU_S390_SKEYS,
-        .parent         = TYPE_S390_SKEYS,
-        .instance_size  = sizeof(QEMUS390SKeysState),
-        .class_init     = qemu_s390_skeys_class_init,
-        .class_size     = sizeof(S390SKeysClass),
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(s390_skeys_types)
+REGISTER_QEMU_INTERFACE(DumpSKeysInterface, TYPE_DUMP_SKEYS_INTERFACE)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(s390_skeys, S390SKeysState,
+                                           S390SKeysClass,
+                                           TYPE_S390_SKEYS, TYPE_DEVICE,
+                                           s390_skeys_class_init)
+
+REGISTER_QEMU_OBJECT_SIZED_CS_CI(qemu_s390_skeys, QEMUS390SKeysState,
+                                  S390SKeysClass,
+                                  TYPE_QEMU_S390_SKEYS, TYPE_S390_SKEYS,
+                                  qemu_s390_skeys_class_init)
