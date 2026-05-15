@@ -399,46 +399,38 @@ void RaspiMachineState::raspi3bClassInit(ObjectClass *oc, const void *data)
 }
 #endif /* TARGET_AARCH64 */
 
-static const TypeInfo raspi_machine_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("raspi0"),
-        .parent         = TYPE_RASPI_MACHINE,
-        .class_init     = RaspiMachineState::raspi0ClassInit,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("raspi1ap"),
-        .parent         = TYPE_RASPI_MACHINE,
-        .class_init     = RaspiMachineState::raspi1apClassInit,
-        .interfaces     = arm_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("raspi2b"),
-        .parent         = TYPE_RASPI_MACHINE,
-        .class_init     = RaspiMachineState::raspi2bClassInit,
-        .interfaces     = arm_machine_interfaces,
-#ifdef TARGET_AARCH64
-    }, {
-        .name           = MACHINE_TYPE_NAME("raspi3ap"),
-        .parent         = TYPE_RASPI_MACHINE,
-        .class_init     = RaspiMachineState::raspi3apClassInit,
-        .interfaces     = aarch64_machine_interfaces,
-    }, {
-        .name           = MACHINE_TYPE_NAME("raspi3b"),
-        .parent         = TYPE_RASPI_MACHINE,
-        .class_init     = RaspiMachineState::raspi3bClassInit,
-        .interfaces     = aarch64_machine_interfaces,
-#endif
-    }, {
-        .name           = TYPE_RASPI_MACHINE,
-        .parent         = TYPE_RASPI_BASE_MACHINE,
-        .instance_size  = sizeof(RaspiMachineState),
-        .is_abstract       = true,
-    }, {
-        .name           = TYPE_RASPI_BASE_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .instance_size  = sizeof(RaspiBaseMachineState),
-        .is_abstract       = true,
-        .class_size     = sizeof(RaspiBaseMachineClass),
-    }
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(raspi_machine_types)
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS(raspi_base_machine, RaspiBaseMachineState,
+                                        RaspiBaseMachineClass,
+                                        TYPE_RASPI_BASE_MACHINE, TYPE_MACHINE)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED(RaspiMachineState, TYPE_RASPI_MACHINE,
+                                     TYPE_RASPI_BASE_MACHINE)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raspi0, MACHINE_TYPE_NAME("raspi0"),
+                                        TYPE_RASPI_MACHINE,
+                                        RaspiMachineState::raspi0ClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raspi1ap, MACHINE_TYPE_NAME("raspi1ap"),
+                                        TYPE_RASPI_MACHINE,
+                                        RaspiMachineState::raspi1apClassInit,
+                                        arm_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raspi2b, MACHINE_TYPE_NAME("raspi2b"),
+                                        TYPE_RASPI_MACHINE,
+                                        RaspiMachineState::raspi2bClassInit,
+                                        arm_machine_interfaces)
+
+#ifdef TARGET_AARCH64
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raspi3ap, MACHINE_TYPE_NAME("raspi3ap"),
+                                        TYPE_RASPI_MACHINE,
+                                        RaspiMachineState::raspi3apClassInit,
+                                        aarch64_machine_interfaces)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(raspi3b, MACHINE_TYPE_NAME("raspi3b"),
+                                        TYPE_RASPI_MACHINE,
+                                        RaspiMachineState::raspi3bClassInit,
+                                        aarch64_machine_interfaces)
+#endif

@@ -1426,55 +1426,48 @@ void Sun4mMachineClass::sbookClassInit(ObjectClass *oc, const void *data)
     smc->hwdef = &sbook_hwdef;
 }
 
-static const TypeInfo sun4m_machine_types[] = {
-    {
-        .name           = MACHINE_TYPE_NAME("SS-5"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ss5ClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SS-10"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ss10ClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SS-600MP"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ss600mpClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SS-20"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ss20ClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("Voyager"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::voyagerClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("LX"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ssLxClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SS-4"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::ss4ClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SPARCClassic"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::sclsClassInit,
-    }, {
-        .name           = MACHINE_TYPE_NAME("SPARCbook"),
-        .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = Sun4mMachineClass::sbookClassInit,
-    }, {
-        .name           = TYPE_SUN4M_MACHINE,
-        .parent         = TYPE_MACHINE,
-        .class_size     = sizeof(Sun4mMachineClass),
-        .class_init     = Sun4mMachineClass::classInit,
-        .is_abstract       = true,
-    }
-};
-
-DEFINE_TYPES(sun4m_machine_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CS_CI_BARE(sun4m_machine, Sun4mMachineClass,
+                                          TYPE_SUN4M_MACHINE, TYPE_MACHINE,
+                                          Sun4mMachineClass::classInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_ss5, MACHINE_TYPE_NAME("SS-5"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ss5ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_ss10, MACHINE_TYPE_NAME("SS-10"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ss10ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_ss600mp, MACHINE_TYPE_NAME("SS-600MP"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ss600mpClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_ss20, MACHINE_TYPE_NAME("SS-20"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ss20ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_voyager, MACHINE_TYPE_NAME("Voyager"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::voyagerClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_lx, MACHINE_TYPE_NAME("LX"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ssLxClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_ss4, MACHINE_TYPE_NAME("SS-4"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::ss4ClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_classic,
+                                 MACHINE_TYPE_NAME("SPARCClassic"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::sclsClassInit)
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY(sun4m_book, MACHINE_TYPE_NAME("SPARCbook"),
+                                 TYPE_SUN4M_MACHINE,
+                                 Sun4mMachineClass::sbookClassInit)
 REGISTER_QEMU_DEVICE(IDRegState, TYPE_MACIO_ID_REGISTER, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(AFXState, TYPE_TCX_AFX, TYPE_SYS_BUS_DEVICE)
 REGISTER_QEMU_DEVICE(PROMState, TYPE_OPENPROM, TYPE_SYS_BUS_DEVICE)

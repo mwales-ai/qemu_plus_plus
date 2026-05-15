@@ -798,22 +798,17 @@ DEFINE_MACHINE_EXTENDED("pegasos", MACHINE, PegasosMachineState,
                         { TYPE_PPC_VIRTUAL_HYPERVISOR },
                         { TYPE_VOF_MACHINE_IF }, { } })
 
-static const TypeInfo pegasos_machine_types[] = {
-    {
-        .name          = MACHINE_TYPE_NAME("pegasos1"),
-        .parent        = TYPE_PEGASOS_MACHINE,
-        .instance_init = PegasosMachineState::pegasos1InstanceInit,
-        .class_init    = PegasosMachineState::pegasos1ClassInit,
-    },
-    {
-        .name          = MACHINE_TYPE_NAME("pegasos2"),
-        .parent        = TYPE_PEGASOS_MACHINE,
-        .instance_init = PegasosMachineState::pegasos2InstanceInit,
-        .class_init    = PegasosMachineState::pegasos2ClassInit,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(pegasos_machine_types)
+REGISTER_QEMU_OBJECT_INIT_CLASS(pegasos1, MACHINE_TYPE_NAME("pegasos1"),
+                                 TYPE_PEGASOS_MACHINE,
+                                 PegasosMachineState::pegasos1InstanceInit,
+                                 PegasosMachineState::pegasos1ClassInit)
+
+REGISTER_QEMU_OBJECT_INIT_CLASS(pegasos2, MACHINE_TYPE_NAME("pegasos2"),
+                                 TYPE_PEGASOS_MACHINE,
+                                 PegasosMachineState::pegasos2InstanceInit,
+                                 PegasosMachineState::pegasos2ClassInit)
 
 /* FDT creation for passing to firmware */
 
