@@ -8,14 +8,18 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-15
+**As of:** 2026-05-18
 
-**Conversion progress:** 1082 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 1086 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
-block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. Only 4
-DEFINE_TYPES patterns remain (target-info-qom.cpp interfaces, hw/ppc/pnv.cpp
-chip generators, hw/ppc/spapr_cpu_core.cpp CPU generators, hw/core/sysbus.cpp
-foundational types).
+block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. Only 1
+DEFINE_TYPES pattern remains (hw/core/sysbus.cpp - foundational types).
+~12 files use type_register_static directly because they have foundational
+state (qom/object.cpp), runtime mutation before registration (vfio/pci.cpp),
+conditional registration (hostmem-memfd/epc), generator macros producing
+many machine versions (DEFINE_*_MACHINE in arm/virt, m68k/virt, ppc/spapr,
+s390x/s390-virtio-ccw), or class_base_init fields not exposed by REGISTER
+macros (hw/pci/pci.cpp, hw/core/qdev.cpp, hw/core/machine.cpp).
 
 **New macro variants added in this session:**
 - `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
