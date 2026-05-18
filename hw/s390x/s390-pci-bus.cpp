@@ -1581,18 +1581,12 @@ static void s390_iommu_memory_region_class_init(ObjectClass *klass,
 
 #include "qom/cpp/object.h"
 
-static void S390pciState_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_S390_PCI_HOST_BRIDGE,
-        .parent        = TYPE_PCI_HOST_BRIDGE,
-        .instance_size = sizeof(S390pciState),
-        .class_init    = s390_pcihost_class_init,
-        .interfaces    = s390_pcihost_interfaces,
-    };
-    type_register_static(&info);
-}
-type_init(S390pciState_cpp_register_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED_IFACES(s390_pci_host_bridge,
+                                              S390pciState,
+                                              TYPE_S390_PCI_HOST_BRIDGE,
+                                              TYPE_PCI_HOST_BRIDGE,
+                                              s390_pcihost_class_init,
+                                              s390_pcihost_interfaces)
 
 REGISTER_QEMU_OBJECT_SIZED(S390PCIBus, TYPE_S390_PCI_BUS, TYPE_BUS)
 

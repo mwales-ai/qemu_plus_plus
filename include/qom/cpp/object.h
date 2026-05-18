@@ -1132,6 +1132,28 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY_ZERO_SIZE: type with class_init and
+ * explicit instance_size = 0 (no own state struct). Used by bus types
+ * that share the parent's BusState without extending it.
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY_ZERO_SIZE(unique_tag,                \
+                                                   type_name_str,            \
+                                                   parent_type_str,          \
+                                                   class_init_fn)            \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = 0,                                                  \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE: abstract type with class_init
  * only. No instance_size, no class_size, no instance_init, no interfaces.
  */

@@ -77,15 +77,5 @@ REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES(ap_bridge, TYPE_AP_BRIDGE,
                                         ap_bridge_class_init,
                                         ap_bridge_interfaces)
 
-/* TYPE_AP_BUS: BUS_CI with explicit instance_size = 0 to avoid sizeof(StateStruct) */
-static void ap_bus_cpp_register_types(void)
-{
-    static const TypeInfo info = {
-        .name          = TYPE_AP_BUS,
-        .parent        = TYPE_BUS,
-        .instance_size = 0,
-        .class_init    = ap_bus_class_init,
-    };
-    type_register_static(&info);
-}
-type_init(ap_bus_cpp_register_types)
+REGISTER_QEMU_OBJECT_CLASS_ONLY_ZERO_SIZE(ap_bus, TYPE_AP_BUS, TYPE_BUS,
+                                           ap_bus_class_init)
