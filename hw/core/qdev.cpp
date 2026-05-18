@@ -907,25 +907,15 @@ static const InterfaceInfo device_interfaces[] = {
     { }
 };
 
-static const TypeInfo device_type_info = {
-    .name = TYPE_DEVICE,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(DeviceState),
-    .instance_init = device_initfn,
-    .instance_post_init = device_post_init,
-    .instance_finalize = device_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(DeviceClass),
-    .class_init = device_class_init,
-    .class_base_init = device_class_base_init,
-    .interfaces = device_interfaces,
-};
-
-static void qdev_register_types(void)
-{
-    type_register_static(&device_type_info);
-}
-
-type_init(qdev_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_DEVICE_BASE_FULL(qdev_device, DeviceState, DeviceClass,
+                                       TYPE_DEVICE, TYPE_OBJECT,
+                                       device_initfn,
+                                       device_post_init,
+                                       device_finalize,
+                                       device_class_init,
+                                       device_class_base_init,
+                                       device_interfaces)

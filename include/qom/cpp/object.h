@@ -1132,6 +1132,88 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_OBJECT_DEVICE_BASE_FULL: foundational TYPE_DEVICE-style
+ * abstract type with all the bells and whistles: sized + post_init +
+ * instance_init + instance_finalize + class_size + class_init +
+ * class_base_init + interfaces. Used by qdev's TYPE_DEVICE, machine.cpp's
+ * TYPE_MACHINE, and pci's TYPE_PCI_DEVICE.
+ */
+#define REGISTER_QEMU_OBJECT_DEVICE_BASE_FULL(                               \
+    unique_tag, ClassName, ClassStruct, type_name_str, parent_type_str,      \
+    instance_init_fn, instance_post_init_fn, instance_finalize_fn,           \
+    class_init_fn, class_base_init_fn, ifaces_array)                         \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name               = type_name_str,                                 \
+        .parent             = parent_type_str,                               \
+        .instance_size      = sizeof(ClassName),                             \
+        .instance_init      = instance_init_fn,                              \
+        .instance_post_init = instance_post_init_fn,                         \
+        .instance_finalize  = instance_finalize_fn,                          \
+        .is_abstract        = true,                                          \
+        .class_size         = sizeof(ClassStruct),                           \
+        .class_init         = class_init_fn,                                 \
+        .class_base_init    = class_base_init_fn,                            \
+        .interfaces         = ifaces_array,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_BASE_CBI: abstract base type with
+ * class_base_init + class_init + class_size + sized + free init + free fini.
+ * No interfaces. Used by hw/core/machine.cpp TYPE_MACHINE.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_BASE_CBI(                              \
+    unique_tag, ClassName, ClassStruct, type_name_str, parent_type_str,      \
+    instance_init_fn, instance_finalize_fn,                                  \
+    class_init_fn, class_base_init_fn)                                       \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .is_abstract       = true,                                           \
+        .class_size        = sizeof(ClassStruct),                            \
+        .class_init        = class_init_fn,                                  \
+        .class_base_init   = class_base_init_fn,                             \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_ABSTRACT_PCI_DEVICE_CBI: abstract type with
+ * sized + class_size + class_init + class_base_init only. No instance
+ * methods, no interfaces. Used by hw/pci/pci.cpp TYPE_PCI_DEVICE.
+ */
+#define REGISTER_QEMU_OBJECT_ABSTRACT_PCI_DEVICE_CBI(                        \
+    unique_tag, ClassName, ClassStruct, type_name_str, parent_type_str,      \
+    class_init_fn, class_base_init_fn)                                       \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name            = type_name_str,                                    \
+        .parent          = parent_type_str,                                  \
+        .instance_size   = sizeof(ClassName),                                \
+        .is_abstract     = true,                                             \
+        .class_size      = sizeof(ClassStruct),                              \
+        .class_init      = class_init_fn,                                    \
+        .class_base_init = class_base_init_fn,                               \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_INTERFACE_BARE: bare interface type with no class_size
  * (just name + parent = TYPE_INTERFACE). Used by marker interfaces with
  * no methods or extension struct.

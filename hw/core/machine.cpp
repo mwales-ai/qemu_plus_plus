@@ -1835,23 +1835,13 @@ void qdev_machine_creation_done(void)
     register_global_state();
 }
 
-static const TypeInfo machine_info = {
-    .name = TYPE_MACHINE,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(MachineState),
-    .instance_init = machine_initfn,
-    .instance_finalize = machine_finalize,
-    .is_abstract = true,
-    .class_size = sizeof(MachineClass),
-    .class_init    = machine_class_init,
-    .class_base_init = machine_class_base_init,
-};
-
-static void machine_register_types(void)
-{
-    type_register_static(&machine_info);
-}
-
-type_init(machine_register_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_BASE_CBI(machine, MachineState, MachineClass,
+                                        TYPE_MACHINE, TYPE_OBJECT,
+                                        machine_initfn,
+                                        machine_finalize,
+                                        machine_class_init,
+                                        machine_class_base_init)

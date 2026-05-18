@@ -3310,24 +3310,13 @@ void pci_set_enabled(PCIDevice *d, bool state)
     }
 }
 
-static const TypeInfo pci_device_type_info = {
-    .name = TYPE_PCI_DEVICE,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .is_abstract = true,
-    .class_size = sizeof(PCIDeviceClass),
-    .class_init = pci_device_class_init,
-    .class_base_init = pci_device_class_base_init,
-};
-
-static void pci_register_types(void)
-{
-    type_register_static(&pci_device_type_info);
-}
-
-type_init(pci_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_ABSTRACT_PCI_DEVICE_CBI(pci_device, PCIDevice,
+                                              PCIDeviceClass,
+                                              TYPE_PCI_DEVICE, TYPE_DEVICE,
+                                              pci_device_class_init,
+                                              pci_device_class_base_init)
 
 REGISTER_QEMU_OBJECT_SIZED_CS_CI_IFACES(pci_bus, PCIBus, PCIBusClass,
                                          TYPE_PCI_BUS, TYPE_BUS,
