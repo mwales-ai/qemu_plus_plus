@@ -345,29 +345,19 @@ static void dynamic_sysbus_device_class_init(ObjectClass *klass,
     k->hotpluggable = false;
 }
 
-static const TypeInfo sysbus_types[] = {
-    {
-        .name           = TYPE_SYSTEM_BUS,
-        .parent         = TYPE_BUS,
-        .instance_size  = sizeof(BusState),
-        .class_init     = system_bus_class_init,
-    },
-    {
-        .name           = TYPE_SYS_BUS_DEVICE,
-        .parent         = TYPE_DEVICE,
-        .instance_size  = sizeof(SysBusDevice),
-        .is_abstract       = true,
-        .class_size     = sizeof(SysBusDeviceClass),
-        .class_init     = sysbus_device_class_init,
-    },
-    {
-        .name           = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .is_abstract       = true,
-        .class_init     = dynamic_sysbus_device_class_init,
-    }
-};
-
-DEFINE_TYPES(sysbus_types)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(system_bus, BusState, TYPE_SYSTEM_BUS,
+                                       TYPE_BUS, system_bus_class_init)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CS_CI(sysbus_device, SysBusDevice,
+                                           SysBusDeviceClass,
+                                           TYPE_SYS_BUS_DEVICE, TYPE_DEVICE,
+                                           sysbus_device_class_init)
+
+REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE(dynamic_sysbus_device,
+                                       TYPE_DYNAMIC_SYS_BUS_DEVICE,
+                                       TYPE_SYS_BUS_DEVICE,
+                                       dynamic_sysbus_device_class_init)
