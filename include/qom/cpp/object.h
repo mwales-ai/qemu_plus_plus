@@ -1132,6 +1132,23 @@ static void unique_tag##_cpp_register_types(void)                            \
 type_init(unique_tag##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_INTERFACE_BARE: bare interface type with no class_size
+ * (just name + parent = TYPE_INTERFACE). Used by marker interfaces with
+ * no methods or extension struct.
+ */
+#define REGISTER_QEMU_INTERFACE_BARE(unique_tag, type_name_str)              \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name   = type_name_str,                                             \
+        .parent = TYPE_INTERFACE,                                            \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_OBJECT_CLASS_ONLY_ZERO_SIZE: type with class_init and
  * explicit instance_size = 0 (no own state struct). Used by bus types
  * that share the parent's BusState without extending it.

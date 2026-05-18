@@ -10,15 +10,7 @@
 #include "qom/object.h"
 #include "hw/arm/machines-qom.h"
 
-static const TypeInfo target_info_types[] = {
-    {
-        .name           = TYPE_TARGET_ARM_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
-    {
-        .name           = TYPE_TARGET_AARCH64_MACHINE,
-        .parent         = TYPE_INTERFACE,
-    },
-};
+#include "qom/cpp/object.h"
 
-DEFINE_TYPES(target_info_types)
+REGISTER_QEMU_INTERFACE_BARE(target_arm_machine, TYPE_TARGET_ARM_MACHINE)
+REGISTER_QEMU_INTERFACE_BARE(target_aarch64_machine, TYPE_TARGET_AARCH64_MACHINE)
