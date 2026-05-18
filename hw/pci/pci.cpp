@@ -290,14 +290,6 @@ static const InterfaceInfo pci_bus_interfaces[] = {
     { }
 };
 
-static const TypeInfo pci_bus_info = {
-    .name = TYPE_PCI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(PCIBus),
-    .class_size = sizeof(PCIBusClass),
-    .class_init = pci_bus_class_init,
-    .interfaces = pci_bus_interfaces,
-};
 
 static void pcie_bus_class_init(ObjectClass *klass, const void *data)
 {
@@ -3330,13 +3322,17 @@ static const TypeInfo pci_device_type_info = {
 
 static void pci_register_types(void)
 {
-    type_register_static(&pci_bus_info);
     type_register_static(&pci_device_type_info);
 }
 
 type_init(pci_register_types)
 
 #include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_SIZED_CS_CI_IFACES(pci_bus, PCIBus, PCIBusClass,
+                                         TYPE_PCI_BUS, TYPE_BUS,
+                                         pci_bus_class_init,
+                                         pci_bus_interfaces)
 
 REGISTER_QEMU_OBJECT_ALIAS(cxl_interface, INTERFACE_CXL_DEVICE,
                             TYPE_INTERFACE)
