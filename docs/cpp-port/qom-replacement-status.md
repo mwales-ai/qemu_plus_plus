@@ -10,16 +10,16 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
 **As of:** 2026-05-18
 
-**Conversion progress:** 1086 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 1089 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
-block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. Only 1
-DEFINE_TYPES pattern remains (hw/core/sysbus.cpp - foundational types).
-~12 files use type_register_static directly because they have foundational
-state (qom/object.cpp), runtime mutation before registration (vfio/pci.cpp),
-conditional registration (hostmem-memfd/epc), generator macros producing
-many machine versions (DEFINE_*_MACHINE in arm/virt, m68k/virt, ppc/spapr,
-s390x/s390-virtio-ccw), or class_base_init fields not exposed by REGISTER
-macros (hw/pci/pci.cpp, hw/core/qdev.cpp, hw/core/machine.cpp).
+block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. All
+DEFINE_TYPES patterns converted. Foundational types (TYPE_DEVICE/TYPE_MACHINE/
+TYPE_PCI_DEVICE/TYPE_SYS_BUS_DEVICE/TYPE_SYSTEM_BUS) now use macros that
+expose class_base_init. Only 8 files use type_register_static directly:
+qom/object.cpp (TYPE_OBJECT/TYPE_INTERFACE bootstrap), vfio/pci.cpp (runtime
+property mutation before registration), hostmem-memfd/epc (conditional
+registration), and 4 DEFINE_*_MACHINE generators producing many machine
+versions (arm/virt, m68k/virt, ppc/spapr, s390x/s390-virtio-ccw).
 
 **New macro variants added in this session:**
 - `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
