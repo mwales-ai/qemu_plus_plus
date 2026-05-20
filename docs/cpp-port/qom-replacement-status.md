@@ -8,18 +8,20 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-18
+**As of:** 2026-05-19
 
-**Conversion progress:** 1089 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 1096 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. All
 DEFINE_TYPES patterns converted. Foundational types (TYPE_DEVICE/TYPE_MACHINE/
 TYPE_PCI_DEVICE/TYPE_SYS_BUS_DEVICE/TYPE_SYSTEM_BUS) now use macros that
-expose class_base_init. Only 8 files use type_register_static directly:
-qom/object.cpp (TYPE_OBJECT/TYPE_INTERFACE bootstrap), vfio/pci.cpp (runtime
-property mutation before registration), hostmem-memfd/epc (conditional
-registration), and 4 DEFINE_*_MACHINE generators producing many machine
-versions (arm/virt, m68k/virt, ppc/spapr, s390x/s390-virtio-ccw).
+expose class_base_init. The remaining direct `type_register_static` calls
+are all structurally non-convertible: qom/object.cpp (TYPE_OBJECT/TYPE_INTERFACE
+bootstrap), hw/block/m25p80.cpp (parameter-driven loop over known_devices[]
+with per-variant class_data), and hw/virtio/virtio-pci.cpp
+(virtio_pci_types_register helper emits a family of derived TypeInfos from
+one descriptor). All conditional-registration and DEFINE_*_MACHINE generator
+blockers are now converted.
 
 **New macro variants added in this session:**
 - `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
@@ -375,20 +377,23 @@ TypeInfo fields not handled by any current macro variant.
 
 **Refactor path:** Add macro variants. Each is a low-impact 1-file fix.
 
-### E. Multi-machine generators (~5 files)
-Use `DEFINE_VIRT_MACHINE` / `DEFINE_CCW_MACHINE` macros that expand to
-multiple `type_init` calls per file.
+### E. Multi-machine generators — CONVERTED (2026-05-19)
+The DEFINE_*_MACHINE expansions in arm/virt, m68k/virt, ppc/spapr, and
+s390x/s390-virtio-ccw now expand to `REGISTER_QEMU_OBJECT_CLASS_ONLY_IF`
+or `REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES_IF`, with the `cond_expr` being
+`!MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)` to preserve the original
+runtime version-deletion behavior.
 
-| File | Pattern |
-|---|---|
-| `hw/arm/virt.cpp` | DEFINE_VIRT_MACHINE for each version |
-| `hw/m68k/virt.cpp` | similar |
-| `hw/s390x/s390-virtio-ccw.cpp` | DEFINE_CCW_MACHINE |
-| `hw/xtensa/xtfpga.cpp` | 8 boards, no interfaces |
-| `hw/arm/xlnx-versal-virt.cpp` | non-trivial init using class accessors |
+The new `_IF` macro variants put the `TypeInfo` at file scope (rather than
+inside the `_cpp_register_types` function) so that the `class_init` function
+reference survives `-Werror=unused-function` even when dead-code elimination
+removes the conditional path. The macros also use indirect token pasting
+(`_QEMU_CPP_PASTE` → `_QEMU_CPP_PASTE_`) so the `unique_tag` argument can be
+a complex `MACHINE_VER_SYM(...)` expression.
 
-**Refactor path:** Refactor the DEFINE_*_MACHINE expansions to use
-REGISTER_QEMU_MACHINE_IFACES underneath.
+`hw/xtensa/xtfpga.cpp` and `hw/arm/xlnx-versal-virt.cpp` remain in this
+category — they use machine-style multi-board patterns but lack the
+DEFINE_*_MACHINE generator wrapping.
 
 ### F. Remaining structural variety (~39 files)
 Each has its own combination of: complex class_init bodies that touch
