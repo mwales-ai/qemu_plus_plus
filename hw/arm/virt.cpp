@@ -125,19 +125,13 @@ static void arm_virt_compat_set(MachineClass *mc)
             mc->alias = "virt"; \
         } \
     } \
-    static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
-    { \
-        .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
-        .parent = TYPE_VIRT_MACHINE, \
-        .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
-        .interfaces = arm_aarch64_machine_interfaces, \
-    }; \
-    static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
-    { \
-        MACHINE_VER_DELETION(__VA_ARGS__); \
-        type_register_static(&MACHINE_VER_SYM(info, virt, __VA_ARGS__)); \
-    } \
-    type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
+    REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES_IF( \
+        MACHINE_VER_SYM(reg, virt, __VA_ARGS__), \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        TYPE_VIRT_MACHINE, \
+        MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
+        arm_aarch64_machine_interfaces, \
+        !MACHINE_VER_SHOULD_DELETE(__VA_ARGS__))
 
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
     DEFINE_VIRT_MACHINE_IMPL(true, major, minor)

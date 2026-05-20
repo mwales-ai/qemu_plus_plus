@@ -164,21 +164,14 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
                                           "Seal growing & shrinking");
 }
 
-static const TypeInfo memfd_backend_info = {
-    .name = TYPE_MEMORY_BACKEND_MEMFD,
-    .parent = TYPE_MEMORY_BACKEND,
-    .instance_size = sizeof(HostMemoryBackendMemfd),
-    .instance_init = memfd_backend_instance_init,
-    .class_init = memfd_backend_class_init,
-};
-
-static void register_types(void)
-{
-    if (qemu_memfd_check(MFD_ALLOW_SEALING)) {
-        type_register_static(&memfd_backend_info);
-    }
-}
-
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS_IF(memfd_backend,
+                                               HostMemoryBackendMemfd,
+                                               TYPE_MEMORY_BACKEND_MEMFD,
+                                               TYPE_MEMORY_BACKEND,
+                                               memfd_backend_instance_init,
+                                               memfd_backend_class_init,
+                                               qemu_memfd_check(MFD_ALLOW_SEALING))

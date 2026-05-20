@@ -342,18 +342,12 @@ REGISTER_QEMU_OBJECT_ABSTRACT_CI_BARE(m68k_virt_machine,
             mc->alias = "virt"; \
         } \
     } \
-    static const TypeInfo MACHINE_VER_SYM(info, virt, __VA_ARGS__) = \
-    { \
-        .name = MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
-        .parent = MACHINE_TYPE_NAME("virt"), \
-        .class_init = MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
-    }; \
-    static void MACHINE_VER_SYM(register, virt, __VA_ARGS__)(void) \
-    { \
-        MACHINE_VER_DELETION(__VA_ARGS__); \
-        type_register_static(&MACHINE_VER_SYM(info, virt, __VA_ARGS__)); \
-    } \
-    type_init(MACHINE_VER_SYM(register, virt, __VA_ARGS__));
+    REGISTER_QEMU_OBJECT_CLASS_ONLY_IF( \
+        MACHINE_VER_SYM(reg, virt, __VA_ARGS__), \
+        MACHINE_VER_TYPE_NAME("virt", __VA_ARGS__), \
+        MACHINE_TYPE_NAME("virt"), \
+        MACHINE_VER_SYM(class_init, virt, __VA_ARGS__), \
+        !MACHINE_VER_SHOULD_DELETE(__VA_ARGS__))
 
 #define DEFINE_VIRT_MACHINE_AS_LATEST(major, minor) \
     DEFINE_VIRT_MACHINE_IMPL(true, major, minor)

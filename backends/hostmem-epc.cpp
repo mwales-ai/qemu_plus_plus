@@ -62,24 +62,24 @@ static void sgx_epc_backend_class_init(ObjectClass *oc, const void *data)
     bc->alloc = sgx_epc_backend_memory_alloc;
 }
 
-static const TypeInfo sgx_epc_backed_info = {
-    .name = TYPE_MEMORY_BACKEND_EPC,
-    .parent = TYPE_MEMORY_BACKEND,
-    .instance_size = sizeof(HostMemoryBackendEpc),
-    .instance_init = sgx_epc_backend_instance_init,
-    .class_init = sgx_epc_backend_class_init,
-};
-
-static void register_types(void)
+static bool sgx_vepc_available(void)
 {
     int fd = qemu_open_old("/dev/sgx_vepc", O_RDWR);
-    if (fd >= 0) {
-        close(fd);
-
-        type_register_static(&sgx_epc_backed_info);
+    if (fd < 0) {
+        return false;
     }
+    close(fd);
+    return true;
 }
 
-type_init(register_types);
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+
+REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS_IF(sgx_epc_backend,
+                                               HostMemoryBackendEpc,
+                                               TYPE_MEMORY_BACKEND_EPC,
+                                               TYPE_MEMORY_BACKEND,
+                                               sgx_epc_backend_instance_init,
+                                               sgx_epc_backend_class_init,
+                                               sgx_vepc_available())

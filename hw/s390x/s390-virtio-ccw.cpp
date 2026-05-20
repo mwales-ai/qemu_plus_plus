@@ -841,6 +841,8 @@ static const InterfaceInfo s390_ccw_machine_interfaces[] = {
     { }
 };
 
+#include "qom/cpp/object.h"
+
 #define DEFINE_CCW_MACHINE_IMPL(latest, ...)                                  \
     static void MACHINE_VER_SYM(mach_init, ccw, __VA_ARGS__)(MachineState *mach) \
     {                                                                         \
@@ -861,18 +863,12 @@ static const InterfaceInfo s390_ccw_machine_interfaces[] = {
             mc->is_default = true;                                            \
         }                                                                     \
     }                                                                         \
-    static const TypeInfo MACHINE_VER_SYM(info, ccw, __VA_ARGS__) =           \
-    {                                                                         \
-        .name = MACHINE_VER_TYPE_NAME("s390-ccw-virtio", __VA_ARGS__),        \
-        .parent = TYPE_S390_CCW_MACHINE,                                      \
-        .class_init = MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__),          \
-    };                                                                        \
-    static void MACHINE_VER_SYM(register, ccw, __VA_ARGS__)(void)             \
-    {                                                                         \
-        MACHINE_VER_DELETION(__VA_ARGS__);                                    \
-        type_register_static(&MACHINE_VER_SYM(info, ccw, __VA_ARGS__));       \
-    }                                                                         \
-    type_init(MACHINE_VER_SYM(register, ccw, __VA_ARGS__))
+    REGISTER_QEMU_OBJECT_CLASS_ONLY_IF(                                       \
+        MACHINE_VER_SYM(reg, ccw, __VA_ARGS__),                               \
+        MACHINE_VER_TYPE_NAME("s390-ccw-virtio", __VA_ARGS__),                \
+        TYPE_S390_CCW_MACHINE,                                                \
+        MACHINE_VER_SYM(class_init, ccw, __VA_ARGS__),                        \
+        !MACHINE_VER_SHOULD_DELETE(__VA_ARGS__))
 
 #define DEFINE_CCW_MACHINE_AS_LATEST(major, minor) \
     DEFINE_CCW_MACHINE_IMPL(true, major, minor)
@@ -1135,8 +1131,6 @@ static void ccw_machine_5_0_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
 }
 DEFINE_CCW_MACHINE(5, 0);
-
-#include "qom/cpp/object.h"
 
 REGISTER_QEMU_DEVICE_ABSTRACT_FREE_INIT_CI_IFACES(S390CcwMachineState,
                                                     S390CcwMachineClass,

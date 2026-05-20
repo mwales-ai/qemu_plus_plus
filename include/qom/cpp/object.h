@@ -1483,6 +1483,87 @@ static void unique_tag##_cpp_register_types(void)                            \
                                                                              \
 type_init(unique_tag##_cpp_register_types)
 
+/* ============================================================
+ * Conditional registration variants (_IF)
+ *
+ * These wrap registration in a runtime condition - skipping the type
+ * registration if the condition evaluates false. Used for:
+ *   - Kernel-capability-gated backends (e.g., hostmem-memfd needs memfd)
+ *   - Compile-time-elided machine versions (DEFINE_*_MACHINE deletion)
+ * ============================================================ */
+
+/*
+ * REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS_IF: same as
+ * REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS but only registers if
+ * cond_expr evaluates true at type_init time.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_NOCS_IF(                       \
+    unique_tag, ClassName, type_name_str, parent_type_str,                   \
+    instance_init_fn, class_init_fn, cond_expr)                              \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    if (!(cond_expr)) {                                                      \
+        return;                                                              \
+    }                                                                        \
+    static const TypeInfo info = {                                           \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .instance_init = instance_init_fn,                                   \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY_IF: conditional CLASS_ONLY variant.
+ */
+#define _QEMU_CPP_PASTE_(a, b) a##b
+#define _QEMU_CPP_PASTE(a, b)  _QEMU_CPP_PASTE_(a, b)
+
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY_IF(unique_tag, type_name_str,        \
+                                            parent_type_str, class_init_fn,  \
+                                            cond_expr)                       \
+static const TypeInfo _QEMU_CPP_PASTE(unique_tag, _cpp_info) = {             \
+    .name       = type_name_str,                                             \
+    .parent     = parent_type_str,                                           \
+    .class_init = class_init_fn,                                             \
+};                                                                           \
+static void _QEMU_CPP_PASTE(unique_tag, _cpp_register_types)(void)           \
+{                                                                            \
+    if (!(cond_expr)) {                                                      \
+        return;                                                              \
+    }                                                                        \
+    type_register_static(&_QEMU_CPP_PASTE(unique_tag, _cpp_info));           \
+}                                                                            \
+                                                                             \
+type_init(_QEMU_CPP_PASTE(unique_tag, _cpp_register_types))
+
+/*
+ * REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES_IF: conditional CLASS_ONLY_IFACES.
+ * Used for machine-version generators that may elide retired versions.
+ */
+#define REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES_IF(                           \
+    unique_tag, type_name_str, parent_type_str, class_init_fn,               \
+    ifaces_array, cond_expr)                                                 \
+static const TypeInfo _QEMU_CPP_PASTE(unique_tag, _cpp_info) = {             \
+    .name       = type_name_str,                                             \
+    .parent     = parent_type_str,                                           \
+    .class_init = class_init_fn,                                             \
+    .interfaces = ifaces_array,                                              \
+};                                                                           \
+static void _QEMU_CPP_PASTE(unique_tag, _cpp_register_types)(void)           \
+{                                                                            \
+    if (!(cond_expr)) {                                                      \
+        return;                                                              \
+    }                                                                        \
+    type_register_static(&_QEMU_CPP_PASTE(unique_tag, _cpp_info));           \
+}                                                                            \
+                                                                             \
+type_init(_QEMU_CPP_PASTE(unique_tag, _cpp_register_types))
+
 /*
  * REGISTER_QEMU_OBJECT_ABSTRACT_INIT_CLASS_SIZED: abstract object with
  * instance_size + free instance_init + free class_init. No class_size,
@@ -1963,6 +2044,28 @@ static void unique_tag##_cpp_register_types(void)                            \
         .name              = type_name_str,                                  \
         .parent            = parent_type_str,                                \
         .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = instance_init_fn,                               \
+        .instance_finalize = instance_finalize_fn,                           \
+        .class_init        = class_init_fn,                                  \
+    };                                                                       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
+ * REGISTER_QEMU_OBJECT_INIT_FINI_CLASS: concrete object with free init +
+ * free finalize + free class_init. No size (inherits from parent), no
+ * interfaces. Used by types that share parent's state struct.
+ */
+#define REGISTER_QEMU_OBJECT_INIT_FINI_CLASS(                                \
+    unique_tag, type_name_str, parent_type_str,                              \
+    instance_init_fn, instance_finalize_fn, class_init_fn)                   \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static const TypeInfo info = {                                           \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
         .instance_init     = instance_init_fn,                               \
         .instance_finalize = instance_finalize_fn,                           \
         .class_init        = class_init_fn,                                  \

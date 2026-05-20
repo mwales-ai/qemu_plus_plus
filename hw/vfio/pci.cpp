@@ -3677,20 +3677,19 @@ static void vfio_pci_device_class_init(ObjectClass *klass, const void *data)
     pdc->config_write = vfio_pci_write_config;
 }
 
-static const TypeInfo vfio_pci_device_info = {
-    .name = TYPE_VFIO_PCI_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VFIOPCIDevice),
-    .is_abstract = true,
-    .class_init = vfio_pci_device_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    },
-};
-
-static PropertyInfo vfio_pci_migration_multifd_transfer_prop;
+/*
+ * Mutable variant of qdev_prop_on_off_auto: ordinary ON_OFF_AUTO isn't
+ * runtime-mutable, but the source VM may run a long time before migration.
+ * Initialized at static-init time so type_init can use REGISTER macros.
+ */
+static PropertyInfo make_vfio_pci_migration_multifd_transfer_prop(void)
+{
+    PropertyInfo p = qdev_prop_on_off_auto;
+    p.realized_set_allowed = true;
+    return p;
+}
+static PropertyInfo vfio_pci_migration_multifd_transfer_prop =
+    make_vfio_pci_migration_multifd_transfer_prop();
 
 static const Property vfio_pci_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
@@ -3920,13 +3919,6 @@ static void vfio_pci_class_init(ObjectClass *klass, const void *data)
                                           "multifd channels");
 }
 
-static const TypeInfo vfio_pci_info = {
-    .name = TYPE_VFIO_PCI,
-    .parent = TYPE_VFIO_PCI_DEVICE,
-    .instance_init = vfio_pci_init,
-    .instance_finalize = vfio_pci_finalize,
-    .class_init = vfio_pci_class_init,
-};
 
 static const Property vfio_pci_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
@@ -3957,26 +3949,30 @@ static void vfio_pci_nohotplug_class_init(ObjectClass *klass,
                                           "Controls loading of a legacy VGA BIOS ROM");
 }
 
-static void register_vfio_pci_dev_type(void)
-{
-    /*
-     * Ordinary ON_OFF_AUTO property isn't runtime-mutable, but source VM can
-     * run for a long time before being migrated so it is desirable to have a
-     * fallback mechanism to the old way of transferring VFIO device state if
-     * it turns to be necessary.
-     * The following makes this type of property have the same mutability level
-     * as ordinary migration parameters.
-     */
-    vfio_pci_migration_multifd_transfer_prop = qdev_prop_on_off_auto;
-    vfio_pci_migration_multifd_transfer_prop.realized_set_allowed = true;
-
-    type_register_static(&vfio_pci_device_info);
-    type_register_static(&vfio_pci_info);
-}
-
-type_init(register_vfio_pci_dev_type)
-
 #include "qom/cpp/object.h"
+
+/*
+ * TYPE_VFIO_PCI_DEVICE: abstract base with interfaces, sized + class_init.
+ * vfio_pci_device_info had instance_size + class_init + interfaces.
+ */
+static const InterfaceInfo vfio_pci_device_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
+REGISTER_QEMU_OBJECT_ABSTRACT_SIZED_CI_IFACES(vfio_pci_device_type,
+                                               VFIOPCIDevice,
+                                               TYPE_VFIO_PCI_DEVICE,
+                                               TYPE_PCI_DEVICE,
+                                               vfio_pci_device_class_init,
+                                               vfio_pci_device_interfaces)
+
+REGISTER_QEMU_OBJECT_INIT_FINI_CLASS(vfio_pci_concrete,
+                                      TYPE_VFIO_PCI, TYPE_VFIO_PCI_DEVICE,
+                                      vfio_pci_init,
+                                      vfio_pci_finalize,
+                                      vfio_pci_class_init)
 
 REGISTER_QEMU_OBJECT_CLASS_ONLY_SIZED(vfio_pci_nohotplug, VFIOPCIDevice,
                                        TYPE_VFIO_PCI_NOHOTPLUG, TYPE_VFIO_PCI,

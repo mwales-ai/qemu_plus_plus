@@ -4741,6 +4741,8 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     mc->is_default = true;
 }
 
+#include "qom/cpp/object.h"
+
 #define DEFINE_SPAPR_MACHINE_IMPL(latest, ...)                       \
     static void MACHINE_VER_SYM(class_init, spapr, __VA_ARGS__)(     \
         ObjectClass *oc,                                             \
@@ -4753,18 +4755,12 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
             spapr_machine_latest_class_options(mc);                  \
         }                                                            \
     }                                                                \
-    static const TypeInfo MACHINE_VER_SYM(info, spapr, __VA_ARGS__) = \
-    {                                                                \
-        .name = MACHINE_VER_TYPE_NAME("pseries", __VA_ARGS__),       \
-        .parent = TYPE_SPAPR_MACHINE,                                \
-        .class_init = MACHINE_VER_SYM(class_init, spapr, __VA_ARGS__), \
-    };                                                               \
-    static void MACHINE_VER_SYM(register, spapr, __VA_ARGS__)(void)  \
-    {                                                                \
-        MACHINE_VER_DELETION(__VA_ARGS__);                           \
-        type_register_static(&MACHINE_VER_SYM(info, spapr, __VA_ARGS__));   \
-    }                                                                \
-    type_init(MACHINE_VER_SYM(register, spapr, __VA_ARGS__))
+    REGISTER_QEMU_OBJECT_CLASS_ONLY_IF(                              \
+        MACHINE_VER_SYM(reg, spapr, __VA_ARGS__),                    \
+        MACHINE_VER_TYPE_NAME("pseries", __VA_ARGS__),               \
+        TYPE_SPAPR_MACHINE,                                          \
+        MACHINE_VER_SYM(class_init, spapr, __VA_ARGS__),             \
+        !MACHINE_VER_SHOULD_DELETE(__VA_ARGS__))
 
 #define DEFINE_SPAPR_MACHINE_AS_LATEST(major, minor) \
     DEFINE_SPAPR_MACHINE_IMPL(true, major, minor)
@@ -4990,7 +4986,6 @@ static void spapr_machine_5_0_class_options(MachineClass *mc)
 
 DEFINE_SPAPR_MACHINE(5, 0);
 
-#include "qom/cpp/object.h"
 REGISTER_QEMU_MACHINE_ABSTRACT_IFACES(SpaprMachineState, SpaprMachineClass,
                                        TYPE_SPAPR_MACHINE, TYPE_MACHINE,
                                        SpaprMachineState::classInit,
