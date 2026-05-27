@@ -38,13 +38,8 @@ static VirtioPCIDeviceTypeInfo virtio_vga_rutabaga_info = {
 module_obj(TYPE_VIRTIO_VGA_RUTABAGA);
 module_kconfig(VIRTIO_VGA);
 
-static void virtio_vga_register_types(void)
-{
-    if (have_vga) {
-        virtio_pci_types_register(&virtio_vga_rutabaga_info);
-    }
-}
+#include "qom/cpp/object.h"
 
-type_init(virtio_vga_register_types)
+REGISTER_VIRTIO_PCI_TYPES_IF(virtio_vga_rutabaga, virtio_vga_rutabaga_info, have_vga)
 
 module_dep("hw-display-virtio-vga");

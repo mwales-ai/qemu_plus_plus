@@ -12,41 +12,36 @@ virtual methods, and compile-time type checking. This document tracks progress.
 
 ## TL;DR — Phase 1 (Mechanical TypeInfo Conversion) Is Complete
 
-**1122** of **2212** total .cpp files use the `REGISTER_QEMU_*` macro family
-(including the new `REGISTER_VIRTIO_PCI_TYPES` wrapper added 2026-05-27;
-35 virtio-pci callers brought into the family in one batch).
+**1124** of **2212** total .cpp files use the `REGISTER_QEMU_*` macro family
+(including the new `REGISTER_VIRTIO_PCI_TYPES` and `REGISTER_VIRTIO_PCI_TYPES_IF`
+wrappers added 2026-05-27; 37 virtio-pci callers brought into the family).
 The remaining ~1100 .cpp files simply have no QOM TypeInfo to register —
 they are utility / glue / per-arch CPU emulation code, not device models.
 
-**Of files that *do* contain QOM TypeInfo registration, only 5 remain
-outside the macro family**, and every one is structurally blocked:
+**Of files that *do* contain QOM TypeInfo registration, only 3 remain
+outside the macro family**, and every one is structurally blocked by design:
 
-- **3 direct `type_register_static` callers** — all blocked by design:
-  - `qom/object.cpp` — TYPE_OBJECT/TYPE_INTERFACE bootstrap (can't use
-    a macro that depends on TYPE_OBJECT existing)
-  - `hw/block/m25p80.cpp` — parameter-driven loop over a
-    `known_devices[]` table with per-variant `class_data`
-  - `hw/virtio/virtio-pci.cpp` — defines the `virtio_pci_types_register`
-    helper itself, which emits 1–4 derived TypeInfos per descriptor
-- **2 conditionally-registering VirtioPCIDeviceTypeInfo users:**
-  - `hw/display/virtio-vga-gl.cpp`, `hw/display/virtio-vga-rutabaga.cpp` —
-    wrap the helper call in `if (have_vga) { ... }`, so the simple wrapper
-    macro doesn't apply
+- `qom/object.cpp` — TYPE_OBJECT/TYPE_INTERFACE bootstrap (can't use
+  a macro that depends on TYPE_OBJECT existing)
+- `hw/block/m25p80.cpp` — parameter-driven loop over a
+  `known_devices[]` table with per-variant `class_data`
+- `hw/virtio/virtio-pci.cpp` — defines the `virtio_pci_types_register`
+  helper that callers use via `REGISTER_VIRTIO_PCI_TYPES{,_IF}`
 
 **Phase 2 (replacing QOM's runtime dispatch with C++ virtual methods) is
 the next strategic step.** See `docs/cpp-port/virtual-methods-plan.md`.
 
 ## Phase 1 Detail
 
-**Conversion progress:** 1122 .cpp files converted to REGISTER_QEMU_* macros
+**Conversion progress:** 1124 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. All
 DEFINE_TYPES patterns converted. Foundational types (TYPE_DEVICE/TYPE_MACHINE/
 TYPE_PCI_DEVICE/TYPE_SYS_BUS_DEVICE/TYPE_SYSTEM_BUS) now use macros that
 expose class_base_init. All conditional-registration and DEFINE_*_MACHINE
 generator blockers are converted (arm/virt, m68k/virt, ppc/spapr, s390x).
-The new `REGISTER_VIRTIO_PCI_TYPES` family-naming wrapper (2026-05-27)
-brought 35 VirtioPCIDeviceTypeInfo callers into the macro family.
+The new `REGISTER_VIRTIO_PCI_TYPES` + `_IF` family-naming wrappers (2026-05-27)
+brought all 37 VirtioPCIDeviceTypeInfo callers into the macro family.
 
 **Conversion by directory (top hw/ subsystems):**
 
@@ -357,31 +352,18 @@ Files now converted: fsl-imx25/6/6ul/7, xlnx-zynqmp, xlnx-zcu102, raspi4b.
 | **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
 | **ppc64 (pseries)** | spapr machine, OpenPIC, VirtIO block/net/SCSI |
 
-## What's Left — 5 files, all structurally blocked
+## What's Left — 3 files, all structurally blocked
 
 The `REGISTER_QEMU_*` macro family covers every common QOM type pattern.
-Only 5 files now bypass it; every one is structurally blocked.
-
-### A. Direct `type_register_static` callers (3 files)
+Only 3 files now bypass it; every one is structurally blocked by design.
 
 | File | Why it can't use a macro |
 |---|---|
 | `qom/object.cpp` | Bootstraps TYPE_OBJECT and TYPE_INTERFACE — must run before any `REGISTER_QEMU_*` macro can work, and registers types that have no parent |
 | `hw/block/m25p80.cpp` | Walks a `known_devices[]` array at runtime, registering one TypeInfo per entry with a per-variant `class_data` pointer |
-| `hw/virtio/virtio-pci.cpp` | Defines the `virtio_pci_types_register` helper that callers use via `REGISTER_VIRTIO_PCI_TYPES` |
+| `hw/virtio/virtio-pci.cpp` | Defines the `virtio_pci_types_register` helper that callers use via `REGISTER_VIRTIO_PCI_TYPES{,_IF}` |
 
-### B. Conditional `VirtioPCIDeviceTypeInfo` helper users (2 files)
-
-| File | Notes |
-|---|---|
-| `hw/display/virtio-vga-gl.cpp` | Calls `virtio_pci_types_register` only when `have_vga` is true |
-| `hw/display/virtio-vga-rutabaga.cpp` | Same conditional `have_vga` gate |
-
-Both stay manual because the `REGISTER_VIRTIO_PCI_TYPES` wrapper is
-unconditional. A `REGISTER_VIRTIO_PCI_TYPES_IF` variant could be added
-for these two, but it isn't worth the macro for n=2.
-
-### Converted on 2026-05-27 (35 files)
+### Converted on 2026-05-27 (37 files)
 
 The new `REGISTER_VIRTIO_PCI_TYPES(tag, descriptor)` wrapper macro in
 `include/qom/cpp/object.h` replaces the
@@ -414,6 +396,9 @@ hw/virtio/{virtio-9p-pci, virtio-balloon-pci, virtio-blk-pci,
 hw/virtio/virtio-input-pci.cpp               (4 descriptors → 4 macro
                                               invocations)
 hw/vmapple/virtio-blk.cpp
+hw/display/virtio-vga-gl.cpp                 (REGISTER_VIRTIO_PCI_TYPES_IF
+                                              with `have_vga` gate)
+hw/display/virtio-vga-rutabaga.cpp           (same)
 ```
 
 ### Resolved categories (kept here for history)
@@ -437,12 +422,12 @@ hw/vmapple/virtio-blk.cpp
   the `unique_tag` argument can be a complex `MACHINE_VER_SYM(...)`
   expression. `cond_expr` is `!MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)`,
   preserving the original runtime version-deletion behavior.
-- **Category B — `VirtioPCIDeviceTypeInfo` helper users (35 of 37):**
-  use `REGISTER_VIRTIO_PCI_TYPES(tag, descriptor)`, a family-naming
-  wrapper over the unchanged runtime helper (the helper still emits
-  base + transitional + non_transitional + generic types per descriptor
-  with `g_strdup_printf` name generation). Only the two `have_vga`-gated
-  callers in `hw/display/virtio-vga-{gl,rutabaga}.cpp` remain manual.
+- **Category B — `VirtioPCIDeviceTypeInfo` helper users (37/37):**
+  35 use `REGISTER_VIRTIO_PCI_TYPES(tag, descriptor)` and 2 (the
+  `have_vga`-gated `virtio-vga-{gl,rutabaga}`) use the `_IF` variant.
+  Both wrappers are family-naming consolidation over the unchanged
+  runtime helper (it still emits base + transitional + non_transitional
+  + generic types per descriptor with `g_strdup_printf` name generation).
 
 ## Future Infrastructure Work — Phase 2
 

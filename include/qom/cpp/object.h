@@ -2717,4 +2717,19 @@ static void _QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci)(void)      \
 }                                                                            \
 type_init(_QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci))
 
+/*
+ * REGISTER_VIRTIO_PCI_TYPES_IF: conditional variant of the above. Used by
+ * the virtio-vga-{gl,rutabaga} modules that gate registration behind
+ * `have_vga` (set elsewhere when the base VGA module loads).
+ */
+#define REGISTER_VIRTIO_PCI_TYPES_IF(unique_tag, descriptor, cond_expr)      \
+static void _QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci)(void)      \
+{                                                                            \
+    if (!(cond_expr)) {                                                      \
+        return;                                                              \
+    }                                                                        \
+    virtio_pci_types_register(&descriptor);                                  \
+}                                                                            \
+type_init(_QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci))
+
 #endif /* QOM_CPP_OBJECT_H */
