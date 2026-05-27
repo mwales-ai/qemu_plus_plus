@@ -46,9 +46,6 @@ static const VirtioPCIDeviceTypeInfo vhost_user_gpu_pci_info = {
 module_obj(TYPE_VHOST_USER_GPU_PCI);
 module_kconfig(VHOST_USER_GPU);
 
-static void vhost_user_gpu_pci_register_types(void)
-{
-    virtio_pci_types_register(&vhost_user_gpu_pci_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(vhost_user_gpu_pci_register_types)
+REGISTER_VIRTIO_PCI_TYPES(vhost_user_gpu_pci, vhost_user_gpu_pci_info)

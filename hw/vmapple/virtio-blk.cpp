@@ -192,9 +192,4 @@ static const VirtioPCIDeviceTypeInfo vmapple_virtio_blk_pci_info = {
     .class_init    = vmapple_virtio_blk_pci_class_init,
 };
 
-static void vmapple_virtio_blk_register_pci_types(void)
-{
-    virtio_pci_types_register(&vmapple_virtio_blk_pci_info);
-}
-
-type_init(vmapple_virtio_blk_register_pci_types)
+REGISTER_VIRTIO_PCI_TYPES(vmapple_virtio_blk, vmapple_virtio_blk_pci_info)

@@ -49,11 +49,7 @@ static const VirtioPCIDeviceTypeInfo virtio_gpu_gl_pci_info = {
 module_obj(TYPE_VIRTIO_GPU_GL_PCI);
 module_kconfig(VIRTIO_PCI);
 
-static void virtio_gpu_gl_pci_register_types(void)
-{
-    virtio_pci_types_register(&virtio_gpu_gl_pci_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(virtio_gpu_gl_pci_register_types)
-
+REGISTER_VIRTIO_PCI_TYPES(virtio_gpu_gl_pci, virtio_gpu_gl_pci_info)
 module_dep("hw-display-virtio-gpu-pci");

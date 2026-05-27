@@ -116,8 +116,6 @@ static const VirtioPCIDeviceTypeInfo virtio_pmem_pci_info = {
     .class_init    = virtio_pmem_pci_class_init,
 };
 
-static void virtio_pmem_pci_register_types(void)
-{
-    virtio_pci_types_register(&virtio_pmem_pci_info);
-}
-type_init(virtio_pmem_pci_register_types)
+#include "qom/cpp/object.h"
+
+REGISTER_VIRTIO_PCI_TYPES(virtio_pmem_pci, virtio_pmem_pci_info)

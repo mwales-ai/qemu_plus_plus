@@ -2697,4 +2697,24 @@ static void unique_tag##_cpp_register_types(void)                            \
                                                                              \
 type_init(unique_tag##_cpp_register_types)
 
+/*
+ * REGISTER_VIRTIO_PCI_TYPES: family-naming wrapper for callers of
+ * virtio_pci_types_register(). The underlying helper generates 1-4
+ * derived TypeInfos per descriptor at runtime (base, generic,
+ * transitional, non-transitional) with names built via g_strdup_printf,
+ * so it cannot collapse into a single REGISTER_QEMU_* primitive. This
+ * macro just brings the boilerplate (static register fn + type_init)
+ * into the same naming family as the rest of the QOM macro set.
+ *
+ * Usage:
+ *     static const VirtioPCIDeviceTypeInfo virtio_blk_pci_info = {...};
+ *     REGISTER_VIRTIO_PCI_TYPES(virtio_blk_pci, virtio_blk_pci_info)
+ */
+#define REGISTER_VIRTIO_PCI_TYPES(unique_tag, descriptor)                    \
+static void _QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci)(void)      \
+{                                                                            \
+    virtio_pci_types_register(&descriptor);                                  \
+}                                                                            \
+type_init(_QEMU_CPP_PASTE(unique_tag, _cpp_register_virtio_pci))
+
 #endif /* QOM_CPP_OBJECT_H */

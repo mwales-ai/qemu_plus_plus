@@ -70,9 +70,6 @@ static const VirtioPCIDeviceTypeInfo vhost_user_rng_pci_info = {
     .class_init = vhost_user_rng_pci_class_init,
 };
 
-static void vhost_user_rng_pci_register(void)
-{
-    virtio_pci_types_register(&vhost_user_rng_pci_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(vhost_user_rng_pci_register);
+REGISTER_VIRTIO_PCI_TYPES(vhost_user_rng_pci, vhost_user_rng_pci_info)

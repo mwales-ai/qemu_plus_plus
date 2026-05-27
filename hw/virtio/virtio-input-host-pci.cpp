@@ -39,9 +39,6 @@ static const VirtioPCIDeviceTypeInfo virtio_input_host_pci_info = {
     .instance_init = virtio_host_initfn,
 };
 
-static void virtio_input_host_pci_register(void)
-{
-    virtio_pci_types_register(&virtio_input_host_pci_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(virtio_input_host_pci_register)
+REGISTER_VIRTIO_PCI_TYPES(virtio_input_host_pci, virtio_input_host_pci_info)

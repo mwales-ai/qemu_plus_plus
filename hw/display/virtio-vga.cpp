@@ -271,14 +271,9 @@ static VirtioPCIDeviceTypeInfo virtio_vga_info = {
 };
 module_obj(TYPE_VIRTIO_VGA);
 
-static void virtio_vga_register_types(void)
-{
-    virtio_pci_types_register(&virtio_vga_info);
-}
-
-type_init(virtio_vga_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_VIRTIO_PCI_TYPES(virtio_vga, virtio_vga_info)
 
 REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI(VirtIOVGABase, VirtIOVGABaseClass,
                                          TYPE_VIRTIO_VGA_BASE, TYPE_VIRTIO_PCI,

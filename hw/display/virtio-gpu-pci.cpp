@@ -103,14 +103,9 @@ static const VirtioPCIDeviceTypeInfo virtio_gpu_pci_info = {
 };
 module_obj(TYPE_VIRTIO_GPU_PCI);
 
-static void virtio_gpu_pci_register_types(void)
-{
-    virtio_pci_types_register(&virtio_gpu_pci_info);
-}
-
-type_init(virtio_gpu_pci_register_types)
-
 #include "qom/cpp/object.h"
+
+REGISTER_VIRTIO_PCI_TYPES(virtio_gpu_pci, virtio_gpu_pci_info)
 
 REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS(VirtIOGPUPCIBase,
                                     TYPE_VIRTIO_GPU_PCI_BASE,

@@ -93,9 +93,4 @@ static const VirtioPCIDeviceTypeInfo virtio_9p_pci_info = {
     .class_init    = v9fs_pci_class_init_trampoline,
 };
 
-static void virtio_9p_pci_register(void)
-{
-    virtio_pci_types_register(&virtio_9p_pci_info);
-}
-
-type_init(virtio_9p_pci_register)
+REGISTER_VIRTIO_PCI_TYPES(virtio_9p_pci, virtio_9p_pci_info)

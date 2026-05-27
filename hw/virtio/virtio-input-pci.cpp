@@ -141,18 +141,12 @@ static const VirtioPCIDeviceTypeInfo virtio_multitouch_pci_info = {
     .instance_init = virtio_multitouch_initfn,
 };
 
-static void virtio_pci_input_register(void)
-{
-    /* Implementations: */
-    virtio_pci_types_register(&virtio_keyboard_pci_info);
-    virtio_pci_types_register(&virtio_mouse_pci_info);
-    virtio_pci_types_register(&virtio_tablet_pci_info);
-    virtio_pci_types_register(&virtio_multitouch_pci_info);
-}
-
-type_init(virtio_pci_input_register)
-
 #include "qom/cpp/object.h"
+
+REGISTER_VIRTIO_PCI_TYPES(virtio_keyboard_pci, virtio_keyboard_pci_info)
+REGISTER_VIRTIO_PCI_TYPES(virtio_mouse_pci, virtio_mouse_pci_info)
+REGISTER_VIRTIO_PCI_TYPES(virtio_tablet_pci, virtio_tablet_pci_info)
+REGISTER_VIRTIO_PCI_TYPES(virtio_multitouch_pci, virtio_multitouch_pci_info)
 
 REGISTER_QEMU_DEVICE_ABSTRACT_CUSTOM_CI_NO_CS(VirtIOInputPCI,
                                                TYPE_VIRTIO_INPUT_PCI,

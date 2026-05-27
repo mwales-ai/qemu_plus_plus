@@ -47,9 +47,6 @@ static const VirtioPCIDeviceTypeInfo vhost_user_vga_info = {
 module_obj(TYPE_VHOST_USER_VGA);
 module_kconfig(VHOST_USER_VGA);
 
-static void vhost_user_vga_register_types(void)
-{
-    virtio_pci_types_register(&vhost_user_vga_info);
-}
+#include "qom/cpp/object.h"
 
-type_init(vhost_user_vga_register_types)
+REGISTER_VIRTIO_PCI_TYPES(vhost_user_vga, vhost_user_vga_info)
