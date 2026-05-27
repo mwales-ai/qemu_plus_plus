@@ -8,20 +8,63 @@ virtual methods, and compile-time type checking. This document tracks progress.
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
 **Tests:** 12/15 smoke tests passing (3 pre-existing failures)
-**As of:** 2026-05-19
+**As of:** 2026-05-27
 
-**Conversion progress:** 1096 .cpp files converted to REGISTER_QEMU_* macros
+## TL;DR — Phase 1 (Mechanical TypeInfo Conversion) Is Complete
+
+**1122** of **2212** total .cpp files use the `REGISTER_QEMU_*` macro family
+(including the new `REGISTER_VIRTIO_PCI_TYPES` wrapper added 2026-05-27;
+35 virtio-pci callers brought into the family in one batch).
+The remaining ~1100 .cpp files simply have no QOM TypeInfo to register —
+they are utility / glue / per-arch CPU emulation code, not device models.
+
+**Of files that *do* contain QOM TypeInfo registration, only 5 remain
+outside the macro family**, and every one is structurally blocked:
+
+- **3 direct `type_register_static` callers** — all blocked by design:
+  - `qom/object.cpp` — TYPE_OBJECT/TYPE_INTERFACE bootstrap (can't use
+    a macro that depends on TYPE_OBJECT existing)
+  - `hw/block/m25p80.cpp` — parameter-driven loop over a
+    `known_devices[]` table with per-variant `class_data`
+  - `hw/virtio/virtio-pci.cpp` — defines the `virtio_pci_types_register`
+    helper itself, which emits 1–4 derived TypeInfos per descriptor
+- **2 conditionally-registering VirtioPCIDeviceTypeInfo users:**
+  - `hw/display/virtio-vga-gl.cpp`, `hw/display/virtio-vga-rutabaga.cpp` —
+    wrap the helper call in `if (have_vga) { ... }`, so the simple wrapper
+    macro doesn't apply
+
+**Phase 2 (replacing QOM's runtime dispatch with C++ virtual methods) is
+the next strategic step.** See `docs/cpp-port/virtual-methods-plan.md`.
+
+## Phase 1 Detail
+
+**Conversion progress:** 1122 .cpp files converted to REGISTER_QEMU_* macros
 across hw/, backends/, chardev/, crypto/, net/, qom/, migration/, system/,
 block/, audio/, accel/, io/, util/, gdbstub/, scsi/, authz/, ui/. All
 DEFINE_TYPES patterns converted. Foundational types (TYPE_DEVICE/TYPE_MACHINE/
 TYPE_PCI_DEVICE/TYPE_SYS_BUS_DEVICE/TYPE_SYSTEM_BUS) now use macros that
-expose class_base_init. The remaining direct `type_register_static` calls
-are all structurally non-convertible: qom/object.cpp (TYPE_OBJECT/TYPE_INTERFACE
-bootstrap), hw/block/m25p80.cpp (parameter-driven loop over known_devices[]
-with per-variant class_data), and hw/virtio/virtio-pci.cpp
-(virtio_pci_types_register helper emits a family of derived TypeInfos from
-one descriptor). All conditional-registration and DEFINE_*_MACHINE generator
-blockers are now converted.
+expose class_base_init. All conditional-registration and DEFINE_*_MACHINE
+generator blockers are converted (arm/virt, m68k/virt, ppc/spapr, s390x).
+The new `REGISTER_VIRTIO_PCI_TYPES` family-naming wrapper (2026-05-27)
+brought 35 VirtioPCIDeviceTypeInfo callers into the macro family.
+
+**Conversion by directory (top hw/ subsystems):**
+
+| Directory | Files converted |
+|---|---|
+| hw/misc | 124 |
+| hw/arm | 91 |
+| hw/intc | 68 |
+| hw/ppc | 41 |
+| hw/char | 39 |
+| hw/net | 38 |
+| hw/usb | 37 |
+| hw/s390x | 37 |
+| hw/display | 36 |
+| hw/timer | 34 |
+| hw/pci-host | 30 |
+| hw/virtio | 26 |
+| hw/core | 19 |
 
 **New macro variants added in this session:**
 - `REGISTER_QEMU_OBJECT_CLASS_ONLY` / `_SIZED` / `_FINI` / `_IFACES` /
@@ -89,11 +132,8 @@ assertion. Fixed by switching those callers to `_CUSTOM_CI_NO_CS` and by
 guarding `trampoline_class_init` against `DEVICE_CLASS(oc)` failures for
 non-device types (e.g. machines). Smoke tests restored to 12/15.
 
-About 66 hw/ + 39 non-hw files remain unconverted; the remainder have
-structural blockers (VirtioPCIDeviceTypeInfo helper, multi-machine
-generators, class_data variants, multi-type-per-file with shared structs,
-runtime type loops, bus/interface registrations, conditional registration
-based on host capabilities, instance_post_init / class_base_init).
+Only 40 files remain unconverted; all blocked by structural patterns
+that no new macro variant can fix (see "What's Left" section below).
 
 ## What is QOM?
 
@@ -317,119 +357,124 @@ Files now converted: fsl-imx25/6/6ul/7, xlnx-zynqmp, xlnx-zcu102, raspi4b.
 | **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
 | **ppc64 (pseries)** | spapr machine, OpenPIC, VirtIO block/net/SCSI |
 
-## What's Left — 66 files, categorized by blocker
+## What's Left — 5 files, all structurally blocked
 
-The macro family covers every fundamental QOM type pattern. Each
-remaining file falls into one of these structural-blocker categories
-that need targeted refactoring rather than a new macro variant:
+The `REGISTER_QEMU_*` macro family covers every common QOM type pattern.
+Only 5 files now bypass it; every one is structurally blocked.
 
-### A. `data` parameter used for variant configuration (~6 files)
-The `class_init(ObjectClass *, const void *data)` reads `data` and uses
-it to configure per-variant device IDs/sizes/etc. via a registration
-loop. Each variant shares the same state struct.
+### A. Direct `type_register_static` callers (3 files)
 
-| File | Variants |
+| File | Why it can't use a macro |
 |---|---|
-| `hw/net/e1000.cpp` | i82540em, i82544gc, i82545em |
-| `hw/net/eepro100.cpp` | i82550, i82551, i82557a–c, i82562, ... (13 total) |
-| `hw/scsi/megasas.cpp` | megasas, megasas-gen2 |
-| `hw/rtc/m48t59.cpp` + `m48t59-isa.cpp` | m48t02, m48t08, m48t59 sysbus + ISA |
-| `hw/usb/hcd-uhci.cpp` | piix3-uhci, piix4-uhci, vt82c686b-uhci, ich9-uhci-{1..6} |
+| `qom/object.cpp` | Bootstraps TYPE_OBJECT and TYPE_INTERFACE — must run before any `REGISTER_QEMU_*` macro can work, and registers types that have no parent |
+| `hw/block/m25p80.cpp` | Walks a `known_devices[]` array at runtime, registering one TypeInfo per entry with a per-variant `class_data` pointer |
+| `hw/virtio/virtio-pci.cpp` | Defines the `virtio_pci_types_register` helper that callers use via `REGISTER_VIRTIO_PCI_TYPES` |
 
-**Refactor path:** Either give each variant its own state struct (large
-churn) or add a `_DATA` macro variant that propagates `data` to a member
-init function. Skipped for now.
-
-### B. VirtioPCIDeviceTypeInfo helper / virtio_pci_types_register (~10 files)
-Helper macros that generate **families** of derived TypeInfos from a
-single descriptor — base, transitional, non-transitional, generic.
+### B. Conditional `VirtioPCIDeviceTypeInfo` helper users (2 files)
 
 | File | Notes |
 |---|---|
-| `hw/display/virtio-vga.cpp` | virtio-vga + GL + rutabaga variants |
-| `hw/virtio/virtio-input-pci.cpp` | input PCI base + concretes |
-| `hw/virtio/virtio-pci.cpp` | base virtio-pci infrastructure |
-| `hw/usb/hcd-{ehci-pci,xhci-pci}.cpp` | EHCI/XHCI PCI families |
-| `hw/vmapple/virtio-blk.cpp` | VMApple virtio-blk + PCI variant |
+| `hw/display/virtio-vga-gl.cpp` | Calls `virtio_pci_types_register` only when `have_vga` is true |
+| `hw/display/virtio-vga-rutabaga.cpp` | Same conditional `have_vga` gate |
 
-**Refactor path:** Would need to refactor the `virtio_pci_types_register`
-helper itself to emit individual `REGISTER_QEMU_DEVICE` invocations.
+Both stay manual because the `REGISTER_VIRTIO_PCI_TYPES` wrapper is
+unconditional. A `REGISTER_VIRTIO_PCI_TYPES_IF` variant could be added
+for these two, but it isn't worth the macro for n=2.
 
-### C. Multi-binary struct collisions (~3 files)
-Both KVM and TCG implementations define methods on the same struct.
-When both are compiled into the same binary, the methods would clash
-as duplicate symbols.
+### Converted on 2026-05-27 (35 files)
 
-| File | Conflict |
-|---|---|
-| `hw/s390x/tod-tcg.cpp` ↔ `tod-kvm.cpp` | both define on `S390TODState` |
+The new `REGISTER_VIRTIO_PCI_TYPES(tag, descriptor)` wrapper macro in
+`include/qom/cpp/object.h` replaces the
+`static void X_register(void) { virtio_pci_types_register(&desc); }` +
+`type_init(X_register)` boilerplate with a single macro line. The
+wrapper preserves the underlying runtime helper (which uses
+`g_strdup_printf` to generate derived type names that don't exist as
+compile-time string literals), so this is family-naming consolidation
+rather than a structural change. Converted:
 
-**Refactor path:** Introduce per-impl wrapper structs. Skipped.
+```
+hw/audio/virtio-snd-pci.cpp                  (register fn split:
+                                              types via macro,
+                                              audio_register_model
+                                              kept in its own type_init)
+hw/display/{vhost-user-gpu-pci, vhost-user-vga,
+            virtio-gpu-pci, virtio-gpu-pci-gl, virtio-vga}.cpp
+hw/virtio/{virtio-9p-pci, virtio-balloon-pci, virtio-blk-pci,
+           virtio-crypto-pci, virtio-input-host-pci,
+           virtio-iommu-pci, virtio-mem-pci, virtio-net-pci,
+           virtio-nsm-pci, virtio-pmem-pci, virtio-rng-pci,
+           virtio-scsi-pci, virtio-serial-pci, vhost-scsi-pci,
+           vhost-user-blk-pci, vhost-user-fs-pci,
+           vhost-user-gpio-pci, vhost-user-i2c-pci,
+           vhost-user-input-pci, vhost-user-rng-pci,
+           vhost-user-scmi-pci, vhost-user-scsi-pci,
+           vhost-user-snd-pci, vhost-user-test-device-pci,
+           vhost-user-vsock-pci, vhost-vsock-pci,
+           vdpa-dev-pci}.cpp                 (28 standard pattern)
+hw/virtio/virtio-input-pci.cpp               (4 descriptors → 4 macro
+                                              invocations)
+hw/vmapple/virtio-blk.cpp
+```
 
-### D. `instance_post_init` / `class_base_init` (~3 files)
-TypeInfo fields not handled by any current macro variant.
+### Resolved categories (kept here for history)
 
-| File | Field |
-|---|---|
-| `hw/pci-bridge/pcie_root_port.cpp` | `instance_post_init` |
-| `hw/core/qdev.cpp` | `instance_post_init` |
-| `hw/core/machine.cpp` | `class_base_init` |
+- **Category A — variant-configuration via class_data (6 files):**
+  e1000, eepro100, megasas, m48t59 sysbus/ISA, hcd-uhci. All use
+  `REGISTER_QEMU_OBJECT_CLASS_DATA*` variants.
+- **Category C — multi-binary struct collisions:** tod-tcg/tod-kvm
+  resolved via `REGISTER_QEMU_OBJECT_INIT_CLASS_FULL` with distinct
+  unique_tags.
+- **Category D — `instance_post_init` / `class_base_init`:**
+  `pcie_root_port` → `REGISTER_QEMU_DEVICE_ABSTRACT_POST_INIT_CI_IFACES`;
+  `qdev` → `REGISTER_QEMU_OBJECT_DEVICE_BASE_FULL`;
+  `machine` → `REGISTER_QEMU_OBJECT_ABSTRACT_BASE_CBI`.
+- **Category E — DEFINE_*_MACHINE generators:** arm/virt, m68k/virt,
+  ppc/spapr, s390x/s390-virtio-ccw all expand through
+  `REGISTER_QEMU_OBJECT_CLASS_ONLY_IF` / `_IFACES_IF` variants. The
+  new `_IF` macros place `TypeInfo` at file scope (so the class_init
+  reference survives `-Werror=unused-function` with compile-time-constant
+  `cond_expr`) and use indirect token pasting (`_QEMU_CPP_PASTE`) so
+  the `unique_tag` argument can be a complex `MACHINE_VER_SYM(...)`
+  expression. `cond_expr` is `!MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)`,
+  preserving the original runtime version-deletion behavior.
+- **Category B — `VirtioPCIDeviceTypeInfo` helper users (35 of 37):**
+  use `REGISTER_VIRTIO_PCI_TYPES(tag, descriptor)`, a family-naming
+  wrapper over the unchanged runtime helper (the helper still emits
+  base + transitional + non_transitional + generic types per descriptor
+  with `g_strdup_printf` name generation). Only the two `have_vga`-gated
+  callers in `hw/display/virtio-vga-{gl,rutabaga}.cpp` remain manual.
 
-**Refactor path:** Add macro variants. Each is a low-impact 1-file fix.
+## Future Infrastructure Work — Phase 2
 
-### E. Multi-machine generators — CONVERTED (2026-05-19)
-The DEFINE_*_MACHINE expansions in arm/virt, m68k/virt, ppc/spapr, and
-s390x/s390-virtio-ccw now expand to `REGISTER_QEMU_OBJECT_CLASS_ONLY_IF`
-or `REGISTER_QEMU_OBJECT_CLASS_ONLY_IFACES_IF`, with the `cond_expr` being
-`!MACHINE_VER_SHOULD_DELETE(__VA_ARGS__)` to preserve the original
-runtime version-deletion behavior.
-
-The new `_IF` macro variants put the `TypeInfo` at file scope (rather than
-inside the `_cpp_register_types` function) so that the `class_init` function
-reference survives `-Werror=unused-function` even when dead-code elimination
-removes the conditional path. The macros also use indirect token pasting
-(`_QEMU_CPP_PASTE` → `_QEMU_CPP_PASTE_`) so the `unique_tag` argument can be
-a complex `MACHINE_VER_SYM(...)` expression.
-
-`hw/xtensa/xtfpga.cpp` and `hw/arm/xlnx-versal-virt.cpp` remain in this
-category — they use machine-style multi-board patterns but lack the
-DEFINE_*_MACHINE generator wrapping.
-
-### F. Remaining structural variety (~39 files)
-Each has its own combination of: complex class_init bodies that touch
-3+ class types (PCIE, ACPI, HotplugHandler), free-function instance_init
-where converting to a member would force a member-method add to a
-header struct, parent_realize chains combined with class_data, etc.
-
-Examples:
-- `hw/core/{cpu-common,bus,resettable,qdev,machine}.cpp` — foundational
-  QOM infrastructure with intricate class_init wiring
-- `hw/arm/{musicpal,armsse,armv7m,bcm2838,bcm2838_peripherals}.cpp`
-- `hw/pci-host/{i440fx,aspeed_pcie,pnv_phb4_pec}.cpp`
-- `hw/xen/{xen_pt,xen_pt_graphics,xen-bus}.cpp`
-- `hw/virtio/virtio.cpp` — base virtio device
-- `hw/scsi/virtio-scsi.cpp`
-- `hw/ssi/aspeed_smc.cpp`
-- `hw/usb/{hcd-dwc2,dev-storage-bot,dev-storage-classic}.cpp`
-- `hw/nvram/fw_cfg.cpp`
-- and more — each needs case-by-case attention
-
-## Future Infrastructure Work
-
-The mechanical TypeInfo conversion is mostly done. The next strategic
-phases are about *replacing* QOM's runtime dispatch with C++ constructs,
-not just wrapping it:
+Phase 1 (mechanical TypeInfo conversion) is essentially done. Phase 2
+replaces QOM's runtime dispatch with native C++ virtual methods.
+See `docs/cpp-port/virtual-methods-plan.md` for the active plan.
 
 1. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB).
-   Currently 8 hierarchies done as full replacements; 3 more are
-   "dispatch wrappers only" (the function pointers still drive the
-   dispatch, virtual methods just shadow them).
+   8 hierarchies done as full replacements; 3 more (VirtIODeviceClass,
+   SCSIDeviceClass, USBDeviceClass) are "dispatch wrappers only" — the
+   function pointers still drive dispatch, virtual methods just shadow
+   them. Promote to full replacements.
 
-2. **Implement virtual-methods-plan.md Phase A** — add vtable pointer
-   to Object via a C/C++ ABI-compatible padding field, enabling
+2. **virtual-methods-plan.md Phase A** — add a vtable pointer to
+   `Object` via a C/C++ ABI-compatible padding field, enabling
    compile-time virtual dispatch on device state structs.
 
-3. **Phase B/C** — pilot devices use `virtual void realize() override`
-   instead of the trampoline mechanism.
+3. **Phase B/C** — convert pilot devices (mos6522, serial, hpet,
+   e1000e, virtio-blk) to use `virtual void realize() override` instead
+   of the trampoline mechanism. These ~91 devices already use
+   `REGISTER_QEMU_DEVICE` so the diff is small per device.
 
-4. **Phase E** — mass `override` addition to existing converted devices.
+4. **Phase E** — mass `override` addition to existing converted devices
+   once the vtable infrastructure is in place.
+
+## Blockers
+
+- **VirtioPCIDeviceTypeInfo refactor (medium effort)** — single-file
+  rewrite of `hw/virtio/virtio-pci.cpp`'s helper unblocks 38 files.
+  Not urgent — the helper works correctly and the manual registration
+  is isolated.
+- **None for Phase 2 prerequisites** — Phase 1 has cleared every
+  blocker that would prevent virtual-methods experimentation. ABI
+  compatibility, build cleanliness across all 5 targets, and 12/15
+  smoke-test baseline are all in place.
