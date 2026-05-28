@@ -1168,6 +1168,6 @@ static void apic_class_init(ObjectClass *oc, const void *data)
     k->send_msi = apic_send_msi;
 }
 
-REGISTER_QEMU_DEVICE_CUSTOM_CI(APICCommonState, APICCommonClass,
-                               TYPE_APIC, TYPE_APIC_COMMON,
-                               apic_class_init)
+REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_INIT(apic, APICCommonState, APICCommonClass,
+                                       TYPE_APIC, TYPE_APIC_COMMON,
+                                       apic_class_init)

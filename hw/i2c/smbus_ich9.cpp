@@ -71,7 +71,13 @@ struct ICH9SMBState {
         pci_set_irq(&s->dev, enabled);
     }
 
-    void realize(Error **errp)
+    /*
+     * NB: not named realize() on purpose — this is the PCIDeviceClass
+     * realize (wired via k->realize in classInit). Naming it realize()
+     * would make REGISTER_QEMU_DEVICE's SFINAE wire it as the DeviceClass
+     * realize, clobbering pci_qdev_realize and skipping PCI config setup.
+     */
+    void realizeSmbus(Error **errp)
     {
         /* TODO? D31IP.SMIP in chipset configuration space */
         pci_config_set_interrupt_pin(dev.config, 0x01); /* interrupt pin 1 */
@@ -97,7 +103,7 @@ struct ICH9SMBState {
     static void pciRealize(PCIDevice *d, Error **errp)
     {
         ICH9SMBState *s = reinterpret_cast<ICH9SMBState *>(d);
-        s->realize(errp);
+        s->realizeSmbus(errp);
     }
 
     static void buildAml(AcpiDevAmlIf *adev, Aml *scope)

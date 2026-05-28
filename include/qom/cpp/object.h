@@ -433,6 +433,41 @@ static void ClassName##_cpp_register_types(void)                             \
 type_init(ClassName##_cpp_register_types)
 
 /*
+ * REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_INIT: concrete derived type with a
+ * caller-supplied class_init but NO instance_init / instance_finalize.
+ *
+ * Use this when the derived type REUSES its parent's state struct (same
+ * ClassName as the abstract base). The base type already wires that
+ * struct's init()/finalize() via its own REGISTER_QEMU_* macro, and QOM
+ * runs every instance_init down the type chain — so wiring init() again
+ * on the derived type would run it twice. For init()s that add object
+ * properties (e.g. APICCommonState::init adds "id"), the second run
+ * aborts with "attempt to add duplicate property".
+ *
+ * A unique_tag is required because ClassName matches the base's
+ * registration function name (both use the shared struct), so the
+ * generated register function needs a distinct symbol.
+ */
+#define REGISTER_QEMU_DEVICE_CUSTOM_CI_NO_INIT(unique_tag, ClassName,         \
+                                                ClassStruct, type_name_str,  \
+                                                parent_type_str,             \
+                                                class_init_fn)               \
+static void unique_tag##_cpp_register_types(void)                            \
+{                                                                            \
+    static TypeInfo info = {                                                 \
+        .name          = type_name_str,                                      \
+        .parent        = parent_type_str,                                    \
+        .instance_size = sizeof(ClassName),                                  \
+        .class_size    = sizeof(ClassStruct),                                \
+        .class_init    = class_init_fn,                                      \
+    };                                                                       \
+    info.cpp_vtable = qemu_device_detail::extract_vtable<ClassName>();       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(unique_tag##_cpp_register_types)
+
+/*
  * REGISTER_QEMU_DEVICE_ABSTRACT_NO_CS: abstract base class WITHOUT a custom
  * class struct. The QOM class layout uses the parent's class_size; only
  * the state struct is extended. Useful for abstract bases that customize
