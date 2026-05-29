@@ -4617,16 +4617,26 @@ static void spapr_cpu_exec_exit(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
 /* C++ method implementation */
 void SpaprMachineState::classInit(ObjectClass *oc, const void *data)
 {
+    /*
+     * mc/smc are real parent classes (MachineClass at offset 0), so a
+     * reinterpret_cast is correct. The rest are QOM *interfaces* — their
+     * class structs live in a separate interface-impl object, not at
+     * offset 0 of the machine class, so they must be resolved with the
+     * proper FOO_CLASS() dynamic cast. Using reinterpret_cast here would
+     * write interface method pointers into MachineClass fields (corrupting
+     * desc/alias/deprecation_reason) and leave the real interface methods
+     * unset (e.g. HotplugHandler::pre_plug, which spapr PHBs rely on).
+     */
     MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     SpaprMachineClass *smc = reinterpret_cast<SpaprMachineClass *>(oc);
-    FWPathProviderClass *fwc = reinterpret_cast<FWPathProviderClass *>(oc);
-    NMIClass *nc = reinterpret_cast<NMIClass *>(oc);
-    HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(oc);
+    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(oc);
-    XICSFabricClass *xic = reinterpret_cast<XICSFabricClass *>(oc);
-    InterruptStatsProviderClass *ispc = reinterpret_cast<InterruptStatsProviderClass *>(oc);
-    XiveFabricClass *xfc = reinterpret_cast<XiveFabricClass *>(oc);
-    VofMachineIfClass *vmc = reinterpret_cast<VofMachineIfClass *>(oc);
+    XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
+    InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
+    XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
+    VofMachineIfClass *vmc = VOF_MACHINE_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
     mc->ignore_boot_device_suffixes = true;
