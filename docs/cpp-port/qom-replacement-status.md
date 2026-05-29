@@ -7,8 +7,8 @@ virtual methods, and compile-time type checking. This document tracks progress.
 
 **Branch:** `cpp-native`
 **Build:** All 5 target ISAs building clean (x86_64, aarch64, arm, ppc64, riscv64)
-**Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures — see Known Failures)
-**As of:** 2026-05-28
+**Tests:** 15/15 smoke tests passing — all 5 target ISAs build and boot
+**As of:** 2026-05-29
 
 ## TL;DR — Phase 1 (Mechanical TypeInfo Conversion) Is Complete
 
@@ -31,32 +31,40 @@ outside the macro family**, and every one is structurally blocked by design:
 **Phase 2 (replacing QOM's runtime dispatch with C++ virtual methods) is
 the next strategic step.** See `docs/cpp-port/virtual-methods-plan.md`.
 
-## Known Failures (2 pre-existing, both ppc64)
+## Smoke Tests: 15/15 (all green as of 2026-05-29)
 
-Both remaining smoke-test failures share a single root cause:
-`qemu-system-ppc64` segfaults whenever the QOM type table is walked
-(`-machine help` → Phase 2 failure; pseries boot → Phase 3 failure).
+For the first time on the cpp-native branch, all 5 target ISAs build AND
+boot. The two long-standing ppc64 failures were fixed by unwinding a stack
+of four independent latent bugs (each masked the next), all introduced by
+the mechanical QOM conversion:
 
-**Root cause:** `qom_fixup_vtable<T>()` (the legacy Option-D class-struct
-vtable hack, see `include/qom/cpp/object.h`) writes a C++ vtable pointer
-to offset 0 of a QOM **class** struct, overwriting `ObjectClass::type`.
-`Object` (the state struct) is polymorphic on this branch with a matching
-C-side padding field, so state-struct vtables are fine — but `ObjectClass`
-keeps `type` at offset 0, so any class struct that adds C++ virtual
-methods collides. The only remaining users are the MOS6522 family
-(MOS6522DeviceClass + Cuda/PMU/Q800VIA2 subclasses), which are Mac VIA
-chips compiled only into ppc64 (and m68k). When ppc64 enumerates all
-types, MOS6522 `type_initialize` walks the corrupted parent chain and
-crashes in `object_class_property_find`.
+1. **MOS6522 class-struct vtable** — `qom_fixup_vtable<T>()` wrote a C++
+   vtable pointer over `ObjectClass::type` for the MOS6522 family (Mac VIA,
+   ppc64/m68k only), crashing `-machine help` type enumeration. Reverted to
+   C function pointers; `qom_fixup_vtable` deleted.
+2. **PnvOCC base classInit never ran** — `classInit` was defined on the
+   class struct (`PnvOCCClass`) but the macro's SFINAE looks on the state
+   struct, so `user_creatable=false` wasn't set and the power9/power10
+   subtypes aborted. Moved `classInit` to the state struct.
+3. **spapr interface casts** — `SpaprMachineState::classInit` used
+   `reinterpret_cast<FooClass*>(oc)` for QOM *interfaces* instead of
+   `FOO_CLASS(oc)`. This corrupted `MachineClass` fields and left
+   `HotplugHandler::pre_plug` unset, so the default PHB realized with
+   `dma_liobn=0` and crashed. Switched to the proper interface-cast macros.
+4. **spapr_caps table misorder** — `capability_table[]` lost its C array
+   designated initializers (`[SPAPR_CAP_x] = {...}`) in the C++ conversion;
+   entries were left in textual order that no longer matched the index
+   enum, so `spapr_caps_apply` fed each apply fn the wrong cap value.
+   Reordered the table to index order.
 
-x86_64/aarch64/arm/riscv64 don't compile MOS6522, so they're unaffected.
-
-**Fix path (not yet done):** revert the MOS6522 class hierarchy from C++
-virtual methods back to function pointers (the upstream QOM pattern),
-removing all `qom_fixup_vtable` calls. Touches `hw/misc/mos6522.cpp`,
-`hw/misc/mac_via.cpp`, `hw/misc/macio/{cuda,pmu}.cpp`, and
-`include/hw/misc/mos6522.h`. This is the last user of the broken legacy
-helper; once gone, `qom_fixup_vtable` can be deleted.
+**Watch out for these regression classes** (see also the macro-SFINAE
+footguns in commit history): C array designated initializers silently
+becoming comments, `classInit` on the class struct vs state struct, and
+`reinterpret_cast` used for QOM *interface* classes (only valid for real
+parent classes at offset 0). The pnv_sbe/pnv_homer/pnv_chiptod/pnv_psi/
+pnv_lpc base classes still have the classInit-on-class-struct pattern
+(bug #2) — harmless for the smoke test (powernv isn't a target machine,
+and their subtypes don't assert) but worth fixing for PowerNV correctness.
 
 ## Phase 1 Detail
 
