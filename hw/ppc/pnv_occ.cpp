@@ -313,7 +313,7 @@ static const Property pnv_occ_properties[] = {
     DEFINE_PROP_LINK("homer", PnvOCC, homer, TYPE_PNV_HOMER, PnvHomer *),
 };
 
-void PnvOCCClass::classInit(DeviceClass *dc)
+void PnvOCC::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     (void)klass;
