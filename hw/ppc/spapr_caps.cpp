@@ -795,6 +795,12 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .apply = cap_hpt_maxpagesize_apply,
         .cpu_apply = cap_hpt_maxpagesize_cpu_apply,
     },
+    /*
+     * NB: entries MUST stay in SPAPR_CAP_* index order. This array used C
+     * designated initializers ([SPAPR_CAP_x] = {...}) upstream; C++ doesn't
+     * support those, so the order is now positional and
+     * spapr_caps_apply()/spapr_caps_init() index it by position == cap index.
+     */
     /* [SPAPR_CAP_NESTED_KVM_HV] */
     {
         .name = "nested-hv",
@@ -804,16 +810,6 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_nested_kvm_hv_apply,
-    },
-    /* [SPAPR_CAP_NESTED_PAPR] */
-    {
-        .name = "nested-papr",
-        .description = "Allow Nested HV (PAPR API)",
-        .index = SPAPR_CAP_NESTED_PAPR,
-        .get = spapr_cap_get_bool,
-        .set = spapr_cap_set_bool,
-        .type = "bool",
-        .apply = cap_nested_papr_apply,
     },
     /* [SPAPR_CAP_LARGE_DECREMENTER] */
     {
@@ -865,6 +861,16 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_ail_mode_3_apply,
+    },
+    /* [SPAPR_CAP_NESTED_PAPR] */
+    {
+        .name = "nested-papr",
+        .description = "Allow Nested HV (PAPR API)",
+        .index = SPAPR_CAP_NESTED_PAPR,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_nested_papr_apply,
     },
     /* [SPAPR_CAP_DAWR1] */
     {
