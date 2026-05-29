@@ -1339,14 +1339,7 @@ void MOS6522Q800VIA1State::classInit(DeviceClass *dc)
 
 /* VIA 2 */
 
-/*
- * MOS6522Q800VIA2DeviceClass — VIA2-specific overrides for MOS6522.
- */
-struct MOS6522Q800VIA2DeviceClass : MOS6522DeviceClass {
-    void portB_write(MOS6522State *dev) override;
-};
-
-void MOS6522Q800VIA2DeviceClass::portB_write(MOS6522State *s)
+static void mos6522_q800_via2_portB_write(MOS6522State *s)
 {
     if (s->dirb & VIA2B_vPower && (s->b & VIA2B_vPower) == 0) {
         /* shutdown */
@@ -1421,7 +1414,7 @@ static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    qom_fixup_vtable<MOS6522Q800VIA2DeviceClass>(oc);
+    mdc->portB_write = mos6522_q800_via2_portB_write;
 
     resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via2_reset_hold,
                                        NULL, &mdc->parent_phases);
@@ -1430,7 +1423,7 @@ static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)
 
 REGISTER_QEMU_OBJECT_INIT_CLASS_SIZED_CS(mos6522_q800_via2,
                                           MOS6522Q800VIA2State,
-                                          MOS6522Q800VIA2DeviceClass,
+                                          MOS6522DeviceClass,
                                           TYPE_MOS6522_Q800_VIA2, TYPE_MOS6522,
                                           mos6522_q800_via2_init,
                                           mos6522_q800_via2_class_init)

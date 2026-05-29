@@ -26,18 +26,6 @@
 #include <utility>
 
 /*
- * LEGACY: qom_fixup_vtable<T> — writes a C++ vtable pointer into a QOM
- * CLASS struct at offset 0. This corrupts ObjectClass::type and will be
- * removed when MOS6522 class-struct virtual methods are migrated to
- * instance-struct virtual methods (Phase D). Do NOT use in new code.
- */
-template<typename T>
-inline void qom_fixup_vtable(void *obj) {
-    T tmp;
-    std::memcpy(obj, &tmp, sizeof(void *));
-}
-
-/*
  * Design Philosophy
  * =================
  *

@@ -784,14 +784,7 @@ void PMUState::classInit(DeviceClass *dc)
 }
 
 
-/*
- * MOS6522PMUDeviceClass — PMU-specific overrides for MOS6522.
- */
-struct MOS6522PMUDeviceClass : MOS6522DeviceClass {
-    void portB_write(MOS6522State *dev) override;
-};
-
-void MOS6522PMUDeviceClass::portB_write(MOS6522State *s)
+static void mos6522_pmu_portB_write(MOS6522State *s)
 {
     MOS6522PMUState *mps = container_of(s, MOS6522PMUState, parent_obj);
     PMUState *ps = container_of(mps, PMUState, mos6522_pmu);
@@ -821,14 +814,14 @@ static void mos6522_pmu_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    qom_fixup_vtable<MOS6522PMUDeviceClass>(oc);
+    mdc->portB_write = mos6522_pmu_portB_write;
 
     resettable_class_set_parent_phases(rc, NULL, mos6522_pmu_reset_hold,
                                        NULL, &mdc->parent_phases);
 }
 
 REGISTER_QEMU_OBJECT_SIZED_CS_CI(mos6522_pmu, MOS6522PMUState,
-                                  MOS6522PMUDeviceClass,
+                                  MOS6522DeviceClass,
                                   TYPE_MOS6522_PMU, TYPE_MOS6522,
                                   mos6522_pmu_class_init)
 

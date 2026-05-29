@@ -267,44 +267,44 @@ static void mos6522_timer2(void *opaque)
     mos6522_update_irq(s);
 }
 
-/* Base class virtual method implementations */
+/* Base class method implementations (default function-pointer targets) */
 
-uint64_t MOS6522DeviceClass::get_timer1_counter_value(MOS6522State *s,
-                                                      MOS6522Timer *ti)
+static uint64_t mos6522_get_timer1_counter_value(MOS6522State *s,
+                                                 MOS6522Timer *ti)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
                     ti->frequency, NANOSECONDS_PER_SECOND);
 }
 
-uint64_t MOS6522DeviceClass::get_timer2_counter_value(MOS6522State *s,
-                                                      MOS6522Timer *ti)
+static uint64_t mos6522_get_timer2_counter_value(MOS6522State *s,
+                                                 MOS6522Timer *ti)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
                     ti->frequency, NANOSECONDS_PER_SECOND);
 }
 
-uint64_t MOS6522DeviceClass::get_timer1_load_time(MOS6522State *s,
-                                                   MOS6522Timer *ti)
+static uint64_t mos6522_get_timer1_load_time(MOS6522State *s,
+                                             MOS6522Timer *ti)
 {
     uint64_t load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     return load_time;
 }
 
-uint64_t MOS6522DeviceClass::get_timer2_load_time(MOS6522State *s,
-                                                   MOS6522Timer *ti)
+static uint64_t mos6522_get_timer2_load_time(MOS6522State *s,
+                                             MOS6522Timer *ti)
 {
     uint64_t load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     return load_time;
 }
 
-void MOS6522DeviceClass::portA_write(MOS6522State *s)
+static void mos6522_portA_write(MOS6522State *s)
 {
     qemu_log_mask(LOG_UNIMP, "portA_write unimplemented\n");
 }
 
-void MOS6522DeviceClass::portB_write(MOS6522State *s)
+static void mos6522_portB_write(MOS6522State *s)
 {
     qemu_log_mask(LOG_UNIMP, "portB_write unimplemented\n");
 }
@@ -718,12 +718,18 @@ void MOS6522State::classInit(DeviceClass *dc)
 {
     ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
-
-    qom_fixup_vtable<MOS6522DeviceClass>(oc);
+    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     rc->phases.hold = mos6522_reset_hold;
     dc->vmsd = &vmstate_mos6522;
     device_class_set_props(dc, mos6522_properties);
+
+    mdc->portB_write = mos6522_portB_write;
+    mdc->portA_write = mos6522_portA_write;
+    mdc->get_timer1_counter_value = mos6522_get_timer1_counter_value;
+    mdc->get_timer2_counter_value = mos6522_get_timer2_counter_value;
+    mdc->get_timer1_load_time = mos6522_get_timer1_load_time;
+    mdc->get_timer2_load_time = mos6522_get_timer2_load_time;
 }
 
 REGISTER_QEMU_DEVICE_ABSTRACT(MOS6522State, MOS6522DeviceClass,
