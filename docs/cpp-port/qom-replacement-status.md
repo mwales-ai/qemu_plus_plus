@@ -62,9 +62,8 @@ footguns in commit history): C array designated initializers silently
 becoming comments, `classInit` on the class struct vs state struct, and
 `reinterpret_cast` used for QOM *interface* classes (only valid for real
 parent classes at offset 0). The pnv_sbe/pnv_homer/pnv_chiptod/pnv_psi/
-pnv_lpc base classes still have the classInit-on-class-struct pattern
-(bug #2) — harmless for the smoke test (powernv isn't a target machine,
-and their subtypes don't assert) but worth fixing for PowerNV correctness.
+pnv_lpc bases shared the classInit-on-class-struct pattern and were also
+fixed (commit `56c1678b1e`) — powernv9/10 now initialize cleanly.
 
 ## Phase 1 Detail
 
