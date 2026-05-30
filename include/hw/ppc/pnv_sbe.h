@@ -42,6 +42,10 @@ struct PnvSBE {
 
     MemoryRegion xscom_mbox_regs;
     MemoryRegion xscom_ctrl_regs;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct PnvSBEClass {
@@ -51,10 +55,6 @@ struct PnvSBEClass {
     int xscom_mbox_size;
     const MemoryRegionOps *xscom_ctrl_ops;
     const MemoryRegionOps *xscom_mbox_ops;
-
-#ifdef __cplusplus
-    static void classInit(DeviceClass *dc);
-#endif
 };
 
 #endif /* PPC_PNV_SBE_H */

@@ -828,7 +828,7 @@ static const Property pnv_lpc_properties[] = {
     DEFINE_PROP_BOOL("psi-serirq", PnvLpcController, psi_has_serirq, false),
 };
 
-void PnvLpcClass::classInit(DeviceClass *dc)
+void PnvLpcController::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     (void)klass;

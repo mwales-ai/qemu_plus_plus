@@ -898,7 +898,7 @@ static void pnv_psi_power10_class_init(ObjectClass *klass, const void *data)
 }
 
 
-void PnvPsiClass::classInit(DeviceClass *dc)
+void PnvPsi::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);

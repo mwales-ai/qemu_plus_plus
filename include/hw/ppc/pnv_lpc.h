@@ -101,16 +101,16 @@ struct PnvLpcController {
     /* P9 serirq lines and irq routing table */
     qemu_irq psi_irq_serirq[4];
     int irq_to_serirq_route[ISA_NUM_IRQS];
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct PnvLpcClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
-
-#ifdef __cplusplus
-    static void classInit(DeviceClass *dc);
-#endif
 };
 
 #ifdef __cplusplus

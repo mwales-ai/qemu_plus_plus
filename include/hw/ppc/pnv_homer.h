@@ -43,6 +43,10 @@ struct PnvHomer {
     MemoryRegion pba_regs;
     MemoryRegion mem;
     hwaddr base;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 
@@ -56,10 +60,6 @@ struct PnvHomerClass {
 
     int pba_size;
     const MemoryRegionOps *pba_ops;
-
-#ifdef __cplusplus
-    static void classInit(DeviceClass *dc);
-#endif
 };
 
 #endif /* PPC_PNV_HOMER_H */

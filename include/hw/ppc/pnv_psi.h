@@ -48,6 +48,10 @@ struct PnvPsi {
     uint64_t regs[PSIHB_XSCOM_MAX];
 
     MemoryRegion xscom_regs;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_PNV8_PSI TYPE_PNV_PSI "-POWER8"
@@ -79,10 +83,6 @@ struct PnvPsiClass {
     uint64_t bar_mask;
     const char *compat;
     int compat_size;
-
-#ifdef __cplusplus
-    static void classInit(DeviceClass *dc);
-#endif
 };
 
 /* The PSI and FSP interrupts are muxed on the same IRQ number */

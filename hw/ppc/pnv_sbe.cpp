@@ -372,7 +372,7 @@ static void pnv_sbe_realize(DeviceState *dev, Error **errp)
     sbe->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, sbe_timer, sbe);
 }
 
-void PnvSBEClass::classInit(DeviceClass *dc)
+void PnvSBE::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     (void)klass;

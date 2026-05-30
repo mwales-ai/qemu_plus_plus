@@ -243,7 +243,7 @@ static const Property pnv_homer_properties[] = {
     DEFINE_PROP_LINK("chip", PnvHomer, chip, TYPE_PNV_CHIP, PnvChip *),
 };
 
-void PnvHomerClass::classInit(DeviceClass *dc)
+void PnvHomer::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     (void)klass;

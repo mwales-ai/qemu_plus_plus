@@ -597,7 +597,7 @@ static void pnv_chiptod_unrealize(DeviceState *dev)
     qemu_unregister_reset(pnv_chiptod_reset, chiptod);
 }
 
-void PnvChipTODClass::classInit(DeviceClass *dc)
+void PnvChipTOD::classInit(DeviceClass *dc)
 {
     ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     (void)klass;

@@ -41,6 +41,10 @@ struct PnvChipTOD {
     uint64_t tod_error;
     uint64_t pss_mss_ctrl_reg;
     PnvCore *slave_pc_target;
+
+#ifdef __cplusplus
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 struct PnvChipTODClass {
@@ -50,10 +54,6 @@ struct PnvChipTODClass {
     PnvCore *(*tx_ttype_target)(PnvChipTOD *chiptod, uint64_t val);
 
     int xscom_size;
-
-#ifdef __cplusplus
-    static void classInit(DeviceClass *dc);
-#endif
 };
 
 #endif /* PPC_PNV_CHIPTOD_H */
